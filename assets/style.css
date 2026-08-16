@@ -366,6 +366,31 @@ a.index-item:hover{ background:var(--paper-card); }
 .sources-box h3{ font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; margin:0 0 12px; }
 .sources-box a{ color:var(--verified); }
 
+/* ---------- Doctor quote pull (direct words from the source video) ---------- */
+.doctor-quote{
+  margin:32px 0;
+  padding:4px 0 4px 22px;
+  border-left:3px solid var(--amber);
+  position:relative;
+}
+.doctor-quote p{
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:1.15rem;
+  line-height:1.5;
+  color:var(--ink);
+  margin:0 0 8px;
+}
+.doctor-quote cite{
+  display:block;
+  font-family:var(--font-mono);
+  font-style:normal;
+  font-size:11px;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--ink-faint);
+}
+
 @media (max-width:640px){
   .site-nav{ display:none; }
   .case{ padding:26px 20px 24px; }
