@@ -12,8 +12,15 @@
 <meta property="og:title" content="Arı Kaynak — Doğrulanmış bilgi dosyaları">
 <meta property="og:description" content="Viral sağlık iddiaları, gerçek araştırmayla karşılaştırılır.">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Arı Kaynak">
+<meta property="og:locale" content="tr_TR">
+<meta property="og:image" content="https://nitrate07.github.io/Blog/assets/og/home.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arı Kaynak — Doğrulanmış bilgi dosyaları">
+<meta name="twitter:image" content="https://nitrate07.github.io/Blog/assets/og/home.png">
 <meta property="og:url" content="https://nitrate07.github.io/Blog/tr/">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Arı Kaynak — Doğrulanmış bilgi dosyaları">
 <meta name="twitter:description" content="Viral sağlık iddiaları, gerçek araştırmayla karşılaştırılır.">
 <link rel="stylesheet" href="../assets/style.css">
@@ -96,52 +103,69 @@
         <input type="text" id="archiveSearch" class="search-input" placeholder="Bir konu, iddia veya karar yaz..." aria-label="Arşivde ara" autocomplete="off">
         <span class="search-count" id="searchCount"></span>
       </div>
+      <div class="category-pills" id="categoryPills" role="group" aria-label="Konuya göre filtrele">
+        <button type="button" class="cat-pill active" data-cat="">Tümü</button>
+        <button type="button" class="cat-pill" data-cat="Egzersiz">Egzersiz</button>
+        <button type="button" class="cat-pill" data-cat="Sağlık">Sağlık</button>
+        <button type="button" class="cat-pill" data-cat="Uzun Ömür">Uzun Ömür</button>
+        <button type="button" class="cat-pill" data-cat="Beslenme">Beslenme</button>
+        <button type="button" class="cat-pill" data-cat="Takviyeler">Takviyeler</button>
+        <button type="button" class="cat-pill" data-cat="Kadın Sağlığı">Kadın Sağlığı</button>
+      </div>
     </div>
     <div class="index-grid" id="indexGrid">
-      <a href="/Blog/tr/makaleler/asiri-egzersiz-kalp-riski.html" class="index-item">
+      <a href="/Blog/tr/makaleler/asiri-egzersiz-kalp-riski.html" class="index-item" data-category="Egzersiz">
         <span class="idx-num">DOSYA No. 0008</span>
+        <span class="idx-cat">Egzersiz</span>
         <h3>Aşırı Egzersiz Gerçekten Kalbe Zarar Verebilir mi?</h3>
         <p>Kronik aşırı antrenman ve kardiyak yük hakkındaki bir iddia, yepyeni bir 2026 veteran sporcu çalışmasıyla karşılaştırıldı.</p>
         <span class="idx-status" style="color:var(--verified)">Büyük Ölçüde Desteklendi</span>
       </a>
-      <a href="/Blog/tr/makaleler/kanitli-5-takviye.html" class="index-item">
+      <a href="/Blog/tr/makaleler/kanitli-5-takviye.html" class="index-item" data-category="Takviyeler">
         <span class="idx-num">DOSYA No. 0007</span>
+        <span class="idx-cat">Takviyeler</span>
         <h3>Arkasında Gerçek Kanıt Olan 5 Takviye</h3>
         <p>5 spesifik takviyeyi adlandıran bir devam iddiası, aynı NATA bildirisiyle kategori kategori karşılaştırıldı.</p>
         <span class="idx-status" style="color:var(--verified)">Büyük Ölçüde Desteklendi</span>
       </a>
-      <a href="/Blog/tr/makaleler/takviye-endustrisi-400-milyar-dolar.html" class="index-item">
+      <a href="/Blog/tr/makaleler/takviye-endustrisi-400-milyar-dolar.html" class="index-item" data-category="Takviyeler">
         <span class="idx-num">DOSYA No. 0006</span>
+        <span class="idx-cat">Takviyeler</span>
         <h3>400 Milyar Dolarlık Takviye Endüstrisi</h3>
         <p>Pazar büyüklüğü ve risk hakkındaki viral bir iddia, yepyeni bir NATA güvenlik pozisyon bildirisiyle karşılaştırıldı.</p>
         <span class="idx-status" style="color:var(--verified)">Büyük Ölçüde Desteklendi</span>
       </a>
-      <a href="/Blog/tr/makaleler/kaya-tuzu-84-mineral-miti.html" class="index-item">
+      <a href="/Blog/tr/makaleler/kaya-tuzu-84-mineral-miti.html" class="index-item" data-category="Beslenme">
         <span class="idx-num">DOSYA No. 0005</span>
+        <span class="idx-cat">Beslenme</span>
         <h3>Kaya Tuzundaki "84 Mineral" Onu Zararsız Yapar mı?</h3>
         <p>Uzun süredir dolaşan bir tuz efsanesi, gerçek kimya ve hipertansiyon fizyolojisiyle karşılaştırıldı.</p>
         <span class="idx-status" style="color:var(--ink)">Yanıltıcı</span>
       </a>
-      <a href="/Blog/tr/makaleler/menopoz-kas-kaybi-kalp-riski.html" class="index-item">
+      <a href="/Blog/tr/makaleler/menopoz-kas-kaybi-kalp-riski.html" class="index-item" data-category="Kadın Sağlığı">
         <span class="idx-num">DOSYA No. 0004</span>
+        <span class="idx-cat">Kadın Sağlığı</span>
         <h3>Menopoz, Kas Kaybı ve Kalp Riski</h3>
         <p>Kas ve damar koruması hakkındaki viral bir iddia, yepyeni bir 2026 randomize çalışmayla karşılaştırıldı.</p>
         <span class="idx-status" style="color:var(--verified)">Büyük Ölçüde Desteklendi</span>
       </a>
-      <a href="/Blog/tr/makaleler/sprint-mi-orta-siddet-mi.html" class="index-item">
+      <a href="/Blog/tr/makaleler/sprint-mi-orta-siddet-mi.html" class="index-item" data-category="Egzersiz">
         <span class="idx-num">DOSYA No. 0003</span>
+        <span class="idx-cat">Egzersiz</span>
         <h3>3 Dakika Sprint mi, 90 Dakika Orta Şiddet mi?</h3>
         <p>Egzersiz yoğunluğu hakkındaki viral bir iddia, aynı hafta yayınlanan bir Rockefeller çalışmasıyla karşılaştırıldı.</p>
         <span class="idx-status" style="color:var(--verified)">Büyük Ölçüde Desteklendi</span>
       </a>
-      <a href="/Blog/tr/makaleler/bel-kalca-orani-bmi.html" class="index-item">
+      <a href="/Blog/tr/makaleler/bel-kalca-orani-bmi.html" class="index-item" data-category="Sağlık">
         <span class="idx-num">DOSYA No. 0002</span>
+        <span class="idx-cat">Sağlık</span>
         <h3>BMI Kalp Riski İçin Gerçekten Yetersiz mi?</h3>
         <p>Göbek yağı ve kalp hastalığı hakkındaki viral bir iddia, aynı hafta yayınlanan bir çalışmayla karşılaştırıldı.</p>
         <span class="idx-status" style="color:var(--flag)">Desteklendi</span>
       </a>
-      <a href="/Blog/tr/makaleler/adiponektin-yumurtalik-yaslanmasi.html" class="index-item">
+      <a href="/Blog/tr/makaleler/adiponektin-yumurtalik-yaslanmasi.html" class="index-item" data-category="Uzun Ömür">
         <span class="idx-num">DOSYA No. 0001</span>
+        <span class="idx-cat">Uzun Ömür</span>
         <h3>Adiponektin "Gençlik İksiri" İddiası</h3>
         <p>Bir viral video, tek bir hormonun yumurtalık yaşlanmasını durdurduğunu iddia ediyor. Gerçek çalışma daha temkinli konuşuyor.</p>
         <span class="idx-status" style="color:var(--amber)">Kısmen Desteklendi</span>
@@ -168,7 +192,10 @@
   var items = Array.prototype.slice.call(document.querySelectorAll('#indexGrid .index-item'));
   var countEl = document.getElementById('searchCount');
   var noResults = document.getElementById('noResults');
+  var indexGrid = document.getElementById('indexGrid');
+  var pills = Array.prototype.slice.call(document.querySelectorAll('.cat-pill'));
   var total = items.length;
+  var activeCat = '';
 
   function normalize(s){ return (s || '').toLowerCase().trim(); }
 
@@ -177,16 +204,28 @@
     var visible = 0;
     items.forEach(function(item){
       var haystack = normalize(item.textContent);
-      var match = q === '' || haystack.indexOf(q) !== -1;
+      var textMatch = q === '' || haystack.indexOf(q) !== -1;
+      var catMatch = activeCat === '' || item.getAttribute('data-category') === activeCat;
+      var match = textMatch && catMatch;
       item.classList.toggle('hidden', !match);
       if (match) visible++;
     });
-    countEl.textContent = q === '' ? '' : (visible + ' / ' + total);
+    var showCount = q !== '' || activeCat !== '';
+    countEl.textContent = showCount ? (visible + ' / ' + total) : '';
     noResults.classList.toggle('show', visible === 0);
-    document.getElementById('indexGrid').classList.toggle('all-hidden', visible === 0);
+    indexGrid.classList.toggle('all-hidden', visible === 0);
   }
 
   input.addEventListener('input', runSearch);
+
+  pills.forEach(function(pill){
+    pill.addEventListener('click', function(){
+      pills.forEach(function(p){ p.classList.remove('active'); });
+      pill.classList.add('active');
+      activeCat = pill.getAttribute('data-cat');
+      runSearch();
+    });
+  });
 })();
 </script>
 </body>
