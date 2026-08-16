@@ -95,10 +95,13 @@
 
   <section id="arsiv">
     <div class="section-label">Arşiv</div>
-    <div class="search-box">
-      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><line x1="11.2" y1="11.2" x2="15" y2="15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
-      <input type="text" id="archiveSearch" class="search-input" placeholder="Arşivde ara — bir konu, karar veya anahtar kelime dene..." aria-label="Arşivde ara" autocomplete="off">
-      <span class="search-count" id="searchCount"></span>
+    <div class="search-wrap">
+      <div class="search-kicker">Bu arşivde ara</div>
+      <div class="search-box">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><line x1="11.2" y1="11.2" x2="15" y2="15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <input type="text" id="archiveSearch" class="search-input" placeholder="Bir konu, iddia veya karar yaz..." aria-label="Arşivde ara" autocomplete="off">
+        <span class="search-count" id="searchCount"></span>
+      </div>
     </div>
     <div class="index-grid" id="indexGrid">
       <a href="/Blog/tr/makaleler/asiri-egzersiz-kalp-riski.html" class="index-item">

@@ -453,25 +453,46 @@ a.index-item:hover{ background:var(--paper-card); }
   .evidence-panel{ grid-template-columns:1fr; }
 }
 
-/* ---------- Archive search ---------- */
+/* ---------- Archive search (styled as a catalog index-card lookup) ---------- */
+.search-wrap{ margin-bottom:1px; }
+.search-kicker{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.16em;
+  color:var(--ink-faint); text-transform:uppercase;
+  display:flex; align-items:center; gap:10px; margin-bottom:10px;
+}
+.search-kicker::after{ content:""; flex:1; height:1px; background:var(--line); }
 .search-box{
-  display:flex; align-items:center; gap:10px;
+  position:relative;
+  display:flex; align-items:center; gap:12px;
   border:1px solid var(--line-strong);
   background:var(--paper-card);
-  padding:12px 16px;
-  margin-bottom:1px;
+  padding:16px 20px 14px;
 }
-.search-box svg{ flex-shrink:0; opacity:.55; }
+.search-box::before{
+  content:"";
+  position:absolute; top:-1px; left:20px; right:20px; height:12px;
+  background-image:radial-gradient(circle, var(--paper) 3.5px, transparent 3.7px);
+  background-size:17px 12px;
+  background-repeat:repeat-x;
+  background-position:top center;
+}
+.search-box svg{ flex-shrink:0; color:var(--ink-faint); }
+.search-box:focus-within svg{ color:var(--flag); }
 .search-input{
-  flex:1; border:none; background:transparent; outline:none;
-  font-family:var(--font-mono); font-size:14px; color:var(--ink);
-  padding:2px 0;
+  flex:1; border:none; border-bottom:1px solid var(--line-strong);
+  background:transparent; outline:none;
+  font-family:var(--font-display); font-size:1.1rem; color:var(--ink);
+  padding:2px 0 6px;
 }
-.search-input::placeholder{ color:var(--ink-faint); }
+.search-input:focus{ border-bottom-color:var(--flag); }
+.search-input::placeholder{ color:var(--ink-faint); font-style:italic; }
 .search-count{
   font-family:var(--font-mono); font-size:11px; color:var(--ink-faint);
   white-space:nowrap; letter-spacing:.03em;
+  border:1px solid var(--line-strong); padding:3px 8px;
+  align-self:flex-start; margin-top:2px;
 }
+.search-count:empty{ border-color:transparent; padding:3px 0; }
 .no-results{
   display:none;
   padding:40px 24px; text-align:center;
