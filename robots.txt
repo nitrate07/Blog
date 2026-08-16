@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://nitrate07.github.io/Blog/sitemap.xml
