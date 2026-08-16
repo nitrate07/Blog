@@ -503,3 +503,24 @@ a.index-item:hover{ background:var(--paper-card); }
 .no-results.show{ display:block; }
 .index-item.hidden{ display:none !important; }
 .index-grid.all-hidden{ display:none; }
+
+/* ---------- Category filter pills ---------- */
+.category-pills{
+  display:flex; flex-wrap:wrap; gap:8px;
+  margin:14px 0 0;
+}
+.cat-pill{
+  font-family:var(--font-mono); font-size:11px; letter-spacing:.06em; text-transform:uppercase;
+  color:var(--ink-soft);
+  border:1px solid var(--line-strong);
+  background:var(--paper);
+  padding:5px 12px;
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.cat-pill:hover{ background:var(--paper-card); }
+.cat-pill.active{ background:var(--ink); color:var(--paper-card); border-color:var(--ink); }
+.index-item .idx-cat{
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--ink-faint);
+}

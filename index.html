@@ -12,8 +12,15 @@
 <meta property="og:title" content="Arı Kaynak — Case files in applied science">
 <meta property="og:description" content="Viral health claims, checked against the actual research.">
 <meta property="og:type" content="website">
+<meta property="og:site_name" content="Arı Kaynak">
+<meta property="og:locale" content="en_US">
+<meta property="og:image" content="https://nitrate07.github.io/Blog/assets/og/home.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Arı Kaynak — Case files in applied science">
+<meta name="twitter:image" content="https://nitrate07.github.io/Blog/assets/og/home.png">
 <meta property="og:url" content="https://nitrate07.github.io/Blog/">
-<meta name="twitter:card" content="summary">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Arı Kaynak — Case files in applied science">
 <meta name="twitter:description" content="Viral health claims, checked against the actual research.">
 <link rel="stylesheet" href="assets/style.css">
@@ -97,52 +104,69 @@
         <input type="text" id="archiveSearch" class="search-input" placeholder="Type a topic, claim, or verdict..." aria-label="Search the archive" autocomplete="off">
         <span class="search-count" id="searchCount"></span>
       </div>
+      <div class="category-pills" id="categoryPills" role="group" aria-label="Filter by topic">
+        <button type="button" class="cat-pill active" data-cat="">All</button>
+        <button type="button" class="cat-pill" data-cat="Exercise">Exercise</button>
+        <button type="button" class="cat-pill" data-cat="Health">Health</button>
+        <button type="button" class="cat-pill" data-cat="Longevity">Longevity</button>
+        <button type="button" class="cat-pill" data-cat="Nutrition">Nutrition</button>
+        <button type="button" class="cat-pill" data-cat="Supplements">Supplements</button>
+        <button type="button" class="cat-pill" data-cat="Women's Health">Women's Health</button>
+      </div>
     </div>
     <div class="index-grid" id="indexGrid">
-      <a href="/Blog/articles/extreme-exercise-heart-risk.html" class="index-item">
+      <a href="/Blog/articles/extreme-exercise-heart-risk.html" class="index-item" data-category="Exercise">
         <span class="idx-num">FILE No. 0008</span>
+        <span class="idx-cat">Exercise</span>
         <h3>Can Extreme Exercise Actually Damage Your Heart?</h3>
         <p>A claim about chronic overtraining and cardiac strain — checked against a fresh 2026 masters-athlete study.</p>
         <span class="idx-status" style="color:var(--verified)">Mostly Supported</span>
       </a>
-      <a href="/Blog/articles/five-evidence-backed-supplements.html" class="index-item">
+      <a href="/Blog/articles/five-evidence-backed-supplements.html" class="index-item" data-category="Supplements">
         <span class="idx-num">FILE No. 0007</span>
+        <span class="idx-cat">Supplements</span>
         <h3>The 5 Supplements With Real Evidence Behind Them</h3>
         <p>A follow-up claim naming 5 specific supplements — checked category by category against the same NATA statement.</p>
         <span class="idx-status" style="color:var(--verified)">Mostly Supported</span>
       </a>
-      <a href="/Blog/articles/supplement-industry-size-safety-risks.html" class="index-item">
+      <a href="/Blog/articles/supplement-industry-size-safety-risks.html" class="index-item" data-category="Supplements">
         <span class="idx-num">FILE No. 0006</span>
+        <span class="idx-cat">Supplements</span>
         <h3>The $400 Billion Supplement Industry</h3>
         <p>A viral claim about market size and risk — checked against a brand-new NATA safety position statement.</p>
         <span class="idx-status" style="color:var(--verified)">Mostly Supported</span>
       </a>
-      <a href="/Blog/articles/rock-salt-84-minerals-myth.html" class="index-item">
+      <a href="/Blog/articles/rock-salt-84-minerals-myth.html" class="index-item" data-category="Nutrition">
         <span class="idx-num">FILE No. 0005</span>
+        <span class="idx-cat">Nutrition</span>
         <h3>Does Rock Salt's "84 Minerals" Make It Harmless?</h3>
         <p>A long-running salt myth, checked against the actual chemistry and hypertension physiology.</p>
         <span class="idx-status" style="color:var(--ink)">Misleading</span>
       </a>
-      <a href="/Blog/articles/menopause-muscle-loss-cardiovascular-risk.html" class="index-item">
+      <a href="/Blog/articles/menopause-muscle-loss-cardiovascular-risk.html" class="index-item" data-category="Women's Health">
         <span class="idx-num">FILE No. 0004</span>
+        <span class="idx-cat">Women's Health</span>
         <h3>Menopause, Muscle Loss, and Heart Risk</h3>
         <p>A viral claim about muscle and vascular protection — checked against a fresh 2026 randomized trial.</p>
         <span class="idx-status" style="color:var(--verified)">Mostly Supported</span>
       </a>
-      <a href="/Blog/articles/sprint-vs-moderate-exercise.html" class="index-item">
+      <a href="/Blog/articles/sprint-vs-moderate-exercise.html" class="index-item" data-category="Exercise">
         <span class="idx-num">FILE No. 0003</span>
+        <span class="idx-cat">Exercise</span>
         <h3>3 Minutes of Sprinting vs. 90 Minutes Moderate</h3>
         <p>A viral claim about exercise intensity — checked against a Rockefeller study published this same week.</p>
         <span class="idx-status" style="color:var(--verified)">Mostly Supported</span>
       </a>
-      <a href="/Blog/articles/waist-hip-ratio-vs-bmi.html" class="index-item">
+      <a href="/Blog/articles/waist-hip-ratio-vs-bmi.html" class="index-item" data-category="Health">
         <span class="idx-num">FILE No. 0002</span>
+        <span class="idx-cat">Health</span>
         <h3>Is BMI Actually Useless for Heart Risk?</h3>
         <p>A viral claim about belly fat and heart disease — checked against a study published this same week.</p>
         <span class="idx-status" style="color:var(--flag)">Supported</span>
       </a>
-      <a href="/Blog/articles/exercise-adiponectin-ovarian-aging.html" class="index-item">
+      <a href="/Blog/articles/exercise-adiponectin-ovarian-aging.html" class="index-item" data-category="Longevity">
         <span class="idx-num">FILE No. 0001</span>
+        <span class="idx-cat">Longevity</span>
         <h3>The Adiponectin "Youth Elixir" Claim</h3>
         <p>A viral video says one hormone stops ovarian aging. The real study says something more careful.</p>
         <span class="idx-status" style="color:var(--amber)">Partly Supported</span>
@@ -169,7 +193,10 @@
   var items = Array.prototype.slice.call(document.querySelectorAll('#indexGrid .index-item'));
   var countEl = document.getElementById('searchCount');
   var noResults = document.getElementById('noResults');
+  var indexGrid = document.getElementById('indexGrid');
+  var pills = Array.prototype.slice.call(document.querySelectorAll('.cat-pill'));
   var total = items.length;
+  var activeCat = '';
 
   function normalize(s){ return (s || '').toLowerCase().trim(); }
 
@@ -178,16 +205,28 @@
     var visible = 0;
     items.forEach(function(item){
       var haystack = normalize(item.textContent);
-      var match = q === '' || haystack.indexOf(q) !== -1;
+      var textMatch = q === '' || haystack.indexOf(q) !== -1;
+      var catMatch = activeCat === '' || item.getAttribute('data-category') === activeCat;
+      var match = textMatch && catMatch;
       item.classList.toggle('hidden', !match);
       if (match) visible++;
     });
-    countEl.textContent = q === '' ? '' : (visible + ' / ' + total);
+    var showCount = q !== '' || activeCat !== '';
+    countEl.textContent = showCount ? (visible + ' / ' + total) : '';
     noResults.classList.toggle('show', visible === 0);
-    document.getElementById('indexGrid').classList.toggle('all-hidden', visible === 0);
+    indexGrid.classList.toggle('all-hidden', visible === 0);
   }
 
   input.addEventListener('input', runSearch);
+
+  pills.forEach(function(pill){
+    pill.addEventListener('click', function(){
+      pills.forEach(function(p){ p.classList.remove('active'); });
+      pill.classList.add('active');
+      activeCat = pill.getAttribute('data-cat');
+      runSearch();
+    });
+  });
 })();
 </script>
 </body>
