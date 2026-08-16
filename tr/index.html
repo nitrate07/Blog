@@ -201,7 +201,7 @@
   var total = items.length;
   var activeCat = '';
 
-  function normalize(s){ return (s || '').toLowerCase().trim(); }
+  function normalize(s){ return (s || '').toLocaleLowerCase('tr').trim(); }
 
   function runSearch(){
     var q = normalize(input.value);
