@@ -227,6 +227,13 @@ img{ max-width:100%; display:block; }
 .stamp.verified{ color:var(--flag); }
 .stamp.overstated{ color:var(--amber); }
 .stamp.false{ color:var(--ink); }
+/* Precise verdict scale (item 3 upgrade) */
+.stamp.supported{ color:var(--flag); }
+.stamp.mostly-supported{ color:var(--verified); }
+.stamp.partly-supported{ color:var(--amber); }
+.stamp.misleading{ color:var(--ink); }
+.stamp.unsupported{ color:var(--ink); }
+.stamp.false-verdict{ color:var(--ink); text-decoration:line-through; text-decoration-thickness:1px; }
 
 /* ---------- Citation card (official source preview) ---------- */
 .citation-card{
