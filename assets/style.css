@@ -1,5 +1,5 @@
 /* ===========================================================
-   FACTLENS — Design System
+   ARI KAYNAK — Design System
    Concept: library card-catalog / evidence case-file.
    Claims get pulled from the archive, redacted where they
    overreach, and stamped with a verdict.
@@ -200,6 +200,13 @@ img{ max-width:100%; display:block; }
   padding:26px 24px;
   display:flex; flex-direction:column; gap:12px;
   min-height:180px;
+  text-decoration:none;
+  transition:background .15s ease;
+}
+a.index-item:hover{ background:var(--paper-card); }
+.lang-switch{
+  border:1px solid var(--line-strong) !important;
+  padding:3px 9px; font-weight:600;
 }
 .index-item .idx-num{ font-family:var(--font-mono); font-size:11px; color:var(--ink-faint); letter-spacing:.06em; }
 .index-item h3{
