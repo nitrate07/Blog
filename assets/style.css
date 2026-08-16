@@ -224,9 +224,35 @@ img{ max-width:100%; display:block; }
   opacity:.55;
 }
 .stamp::after{ content:"★"; font-size:9px; }
-.stamp.verified{ color:var(--verified); }
+.stamp.verified{ color:var(--flag); }
 .stamp.overstated{ color:var(--amber); }
-.stamp.false{ color:var(--flag); }
+.stamp.false{ color:var(--ink); }
+
+/* ---------- Citation card (official source preview) ---------- */
+.citation-card{
+  border:1px solid var(--line-strong);
+  background:var(--paper);
+  margin-top:16px;
+  overflow:hidden;
+}
+.citation-card .journal-tag{
+  display:flex; align-items:center; justify-content:space-between;
+  background:var(--ink); color:var(--paper-card);
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase;
+  padding:7px 14px;
+}
+.citation-card .cc-body{ padding:16px 18px; }
+.citation-card h4{
+  font-family:var(--font-display); font-weight:600; font-size:1.05rem;
+  margin:0 0 8px; line-height:1.35;
+}
+.citation-card .cc-authors{ font-size:.85rem; color:var(--ink-faint); margin-bottom:12px; }
+.citation-card a.view-source{
+  font-family:var(--font-mono); font-size:12px; letter-spacing:.03em;
+  text-decoration:none; color:var(--verified); font-weight:500;
+  border-bottom:1px solid var(--verified); padding-bottom:2px;
+}
+.citation-card a.view-source::after{ content:" ↗"; }
 
 .case-finding{
   margin:26px 0 0;
@@ -256,7 +282,7 @@ img{ max-width:100%; display:block; }
 /* ---------- Archive index (grid) ---------- */
 .index-grid{
   display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr));
-  gap:1px; background:var(--line-strong);
+  gap:1px; background:transparent;
   border:1px solid var(--line-strong);
   margin-bottom:70px;
 }
@@ -267,6 +293,8 @@ img{ max-width:100%; display:block; }
   min-height:180px;
   text-decoration:none;
   transition:background .15s ease;
+  border:1px solid var(--line-strong);
+  margin:-1px 0 0 -1px;
 }
 a.index-item:hover{ background:var(--paper-card); }
 .lang-switch{
