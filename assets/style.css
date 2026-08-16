@@ -119,7 +119,6 @@ img{ max-width:100%; display:block; }
 }
 
 /* ---------- Tape accent (pins the case file to the page) ---------- */
-.case{ margin-top:26px; }
 .tape{
   position:absolute;
   top:-14px; left:38px;
@@ -167,6 +166,7 @@ img{ max-width:100%; display:block; }
   border:1px solid var(--line-strong);
   position:relative;
   padding:34px 34px 30px;
+  margin-top:26px;
   margin-bottom:56px;
 }
 .case::before{
@@ -323,16 +323,6 @@ a.index-item:hover{ background:var(--paper-card); }
 .idx-status.pending{ color:var(--ink-faint); }
 .idx-status::before{ content:"●"; font-size:7px; }
 
-/* ---------- Trust strip ---------- */
-.trust-strip{
-  border-top:1px solid var(--line-strong);
-  border-bottom:1px solid var(--line-strong);
-  padding:30px 0; margin-bottom:70px;
-  display:grid; grid-template-columns:repeat(3,1fr); gap:30px;
-}
-.trust-item{ font-size:.92rem; color:var(--ink-soft); }
-.trust-item strong{ display:block; font-family:var(--font-mono); font-size:11px; letter-spacing:.1em; text-transform:uppercase; color:var(--ink); margin-bottom:6px; }
-
 /* ---------- Footer ---------- */
 .site-footer{
   border-top:1px solid var(--line-strong);
@@ -378,7 +368,6 @@ a.index-item:hover{ background:var(--paper-card); }
 
 @media (max-width:640px){
   .site-nav{ display:none; }
-  .trust-strip{ grid-template-columns:1fr; }
   .case{ padding:26px 20px 24px; }
 }
 
