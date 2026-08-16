@@ -206,15 +206,24 @@ img{ max-width:100%; display:block; }
 /* ---------- Stamp ---------- */
 .stamp{
   display:inline-flex; align-items:center; gap:8px;
-  font-family:var(--font-mono); font-weight:500;
-  font-size:13px; letter-spacing:.14em; text-transform:uppercase;
-  border:2.5px solid currentColor;
-  padding:7px 16px;
-  transform:rotate(-3.5deg);
+  font-family:var(--font-mono); font-weight:600;
+  font-size:13px; letter-spacing:.16em; text-transform:uppercase;
+  border:3px solid currentColor;
+  border-radius:2px;
+  padding:8px 20px;
+  transform:rotate(-4deg);
   position:relative;
-  filter:url(#inkTexture);
+  background:transparent;
+  text-shadow:.4px 0 0 currentColor, -.4px 0 0 currentColor;
 }
-.stamp::before{ content:"●"; font-size:8px; }
+.stamp::before{
+  content:"";
+  position:absolute; inset:3px;
+  border:1px solid currentColor;
+  border-radius:1px;
+  opacity:.55;
+}
+.stamp::after{ content:"★"; font-size:9px; }
 .stamp.verified{ color:var(--verified); }
 .stamp.overstated{ color:var(--amber); }
 .stamp.false{ color:var(--flag); }
