@@ -8,17 +8,17 @@
 @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap');
 
 :root{
-  --paper:        #dfe0d3;
-  --paper-card:   #e8e9dd;
-  --paper-deep:   #cfd0c2;
-  --ink:          #1f2a24;
-  --ink-soft:     #4a564d;
+  --paper:        #d9dccb;
+  --paper-card:   #e3e6d4;
+  --paper-deep:   #c7cbb6;
+  --ink:          #1c261f;
+  --ink-soft:     #4a564a;
   --ink-faint:    #7c8579;
   --verified:     #3f6b4f;
   --flag:         #a23b2e;
   --amber:        #a8763a;
-  --line:         rgba(31,42,36,.16);
-  --line-strong:  rgba(31,42,36,.32);
+  --line:         rgba(28,38,31,.16);
+  --line-strong:  rgba(28,38,31,.34);
 
   --font-display: 'Fraunces', Georgia, serif;
   --font-body:    'Inter', -apple-system, sans-serif;
@@ -82,8 +82,19 @@ img{ max-width:100%; display:block; }
 .site-nav a{ text-decoration:none; color:var(--ink-soft); border-bottom:1px solid transparent; padding-bottom:2px; }
 .site-nav a:hover{ color:var(--ink); border-color:var(--ink); }
 
-/* ---------- Hero / open case file ---------- */
-.hero{ padding:64px 0 40px; }
+/* ---------- Masthead strip (editorial edition line) ---------- */
+.masthead-strip{
+  border-bottom:1px solid var(--line);
+  padding:9px 0;
+  font-family:var(--font-mono);
+  font-size:11px;
+  letter-spacing:.05em;
+  color:var(--ink-faint);
+}
+.masthead-strip .wrap{ display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; }
+
+/* ---------- Hero ---------- */
+.hero{ padding:52px 0 34px; }
 .hero-kicker{
   font-family:var(--font-mono); font-size:12px; letter-spacing:.16em;
   color:var(--ink-faint); text-transform:uppercase;
@@ -96,12 +107,57 @@ img{ max-width:100%; display:block; }
   font-size:clamp(2.1rem, 4.6vw, 3.4rem);
   line-height:1.08;
   letter-spacing:-.01em;
-  margin:0 0 20px;
-  max-width:14ch;
+  margin:0 0 6px;
+  max-width:15ch;
 }
-.hero-sub{
-  font-size:1.08rem; color:var(--ink-soft); max-width:56ch; margin:0 0 30px;
+.hero h1 em{
+  font-style:italic;
+  font-weight:400;
+  color:var(--ink-soft);
 }
+
+/* ---------- Tape accent (pins the case file to the page) ---------- */
+.case{ margin-top:26px; }
+.tape{
+  position:absolute;
+  top:-14px; left:38px;
+  width:88px; height:26px;
+  background:rgba(168,118,58,.24);
+  border-left:1px solid rgba(28,38,31,.1);
+  border-right:1px solid rgba(28,38,31,.1);
+  transform:rotate(-2.2deg);
+  z-index:2;
+}
+
+/* ---------- Hand-marked annotation (circles a key stat) ---------- */
+.hand-mark{
+  position:relative;
+  white-space:nowrap;
+}
+.hand-mark svg{
+  position:absolute;
+  left:-6%; top:-22%;
+  width:112%; height:150%;
+  overflow:visible;
+  pointer-events:none;
+}
+.hand-mark path{
+  fill:none;
+  stroke:var(--flag);
+  stroke-width:2.2;
+  stroke-linecap:round;
+  opacity:.85;
+}
+.margin-note{
+  font-family:var(--font-mono);
+  font-size:11px;
+  color:var(--flag);
+  transform:rotate(-1.5deg);
+  display:inline-block;
+  margin-top:6px;
+  letter-spacing:.02em;
+}
+.margin-note::before{ content:"→ "; }
 
 /* ---------- Case file card ---------- */
 .case{
