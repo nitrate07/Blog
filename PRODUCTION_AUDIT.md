@@ -65,10 +65,13 @@ Full repository: `index.html`, `tr/index.html`, `about.html`, `tr/hakkimizda.htm
 
 ## 10. Remaining recommendations (not done, for a future pass)
 
-- Full breakpoint testing at 375/430/768/1024/1440px (only 320px and desktop have been visually verified across sessions)
 - A formal color-contrast audit (e.g. axe or Lighthouse) rather than visual judgment
-- Font-loading strategy (currently a render-blocking Google Fonts `@import`; a `<link rel=preload>` or `font-display: swap` tweak would reduce layout shift risk)
 - If the archive grows past ~30–40 files, the client-side search/filter approach (no index, DOM-only) should be revisited for performance
+
+## 10b. Follow-up work completed (August 16, 2026, later same day)
+
+- **Font loading**: moved Google Fonts from a render-blocking CSS `@import` to `<link rel="preconnect">` + `<link rel="preload" as="style">` + `<link rel="stylesheet">` in every page's `<head>`, so the font request starts in parallel with `style.css` instead of after it. Applied to all 23 pages.
+- **Full breakpoint testing**: verified 375, 430, 768, 1024, and 1440px (320px and desktop were verified in an earlier pass) on both the homepage and an article page. Checked programmatically for horizontal overflow (`scrollWidth` vs `clientWidth`) at every breakpoint — zero overflow anywhere — plus visual review of the archive grid's column-count transitions, category pill wrapping, table rendering, and the evidence panel's single-column collapse below 640px. No layout fixes were needed; the existing responsive rules already handled every tested width correctly.
 
 ## 11. Validation performed this session
 
