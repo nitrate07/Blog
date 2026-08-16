@@ -452,3 +452,33 @@ a.index-item:hover{ background:var(--paper-card); }
 @media (max-width:640px){
   .evidence-panel{ grid-template-columns:1fr; }
 }
+
+/* ---------- Archive search ---------- */
+.search-box{
+  display:flex; align-items:center; gap:10px;
+  border:1px solid var(--line-strong);
+  background:var(--paper-card);
+  padding:12px 16px;
+  margin-bottom:1px;
+}
+.search-box svg{ flex-shrink:0; opacity:.55; }
+.search-input{
+  flex:1; border:none; background:transparent; outline:none;
+  font-family:var(--font-mono); font-size:14px; color:var(--ink);
+  padding:2px 0;
+}
+.search-input::placeholder{ color:var(--ink-faint); }
+.search-count{
+  font-family:var(--font-mono); font-size:11px; color:var(--ink-faint);
+  white-space:nowrap; letter-spacing:.03em;
+}
+.no-results{
+  display:none;
+  padding:40px 24px; text-align:center;
+  font-family:var(--font-mono); font-size:13px; color:var(--ink-faint);
+  border:1px solid var(--line-strong);
+  margin-bottom:70px;
+}
+.no-results.show{ display:block; }
+.index-item.hidden{ display:none !important; }
+.index-grid.all-hidden{ display:none; }

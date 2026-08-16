@@ -96,7 +96,12 @@
 
   <section id="archive">
     <div class="section-label">Archive</div>
-    <div class="index-grid">
+    <div class="search-box">
+      <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5.5" stroke="currentColor" stroke-width="1.4"/><line x1="11.2" y1="11.2" x2="15" y2="15" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      <input type="text" id="archiveSearch" class="search-input" placeholder="Search the archive — try a topic, verdict, or keyword..." aria-label="Search the archive" autocomplete="off">
+      <span class="search-count" id="searchCount"></span>
+    </div>
+    <div class="index-grid" id="indexGrid">
       <a href="/Blog/articles/extreme-exercise-heart-risk.html" class="index-item">
         <span class="idx-num">FILE No. 0008</span>
         <h3>Can Extreme Exercise Actually Damage Your Heart?</h3>
@@ -146,6 +151,7 @@
         <span class="idx-status" style="color:var(--amber)">Partly Supported</span>
       </a>
     </div>
+    <p class="no-results" id="noResults">No files match that search. Try a different keyword — or check back, the archive grows with every new claim.</p>
   </section>
 
 </main>
@@ -160,5 +166,32 @@
   </div>
 </footer>
 
+<script>
+(function(){
+  var input = document.getElementById('archiveSearch');
+  var items = Array.prototype.slice.call(document.querySelectorAll('#indexGrid .index-item'));
+  var countEl = document.getElementById('searchCount');
+  var noResults = document.getElementById('noResults');
+  var total = items.length;
+
+  function normalize(s){ return (s || '').toLowerCase().trim(); }
+
+  function runSearch(){
+    var q = normalize(input.value);
+    var visible = 0;
+    items.forEach(function(item){
+      var haystack = normalize(item.textContent);
+      var match = q === '' || haystack.indexOf(q) !== -1;
+      item.classList.toggle('hidden', !match);
+      if (match) visible++;
+    });
+    countEl.textContent = q === '' ? '' : (visible + ' / ' + total);
+    noResults.classList.toggle('show', visible === 0);
+    document.getElementById('indexGrid').classList.toggle('all-hidden', visible === 0);
+  }
+
+  input.addEventListener('input', runSearch);
+})();
+</script>
 </body>
 </html>
