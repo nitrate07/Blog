@@ -1,6 +1,20 @@
 # Arı Kaynak — Editorial Standard
 
+> "Experts make claims. Evidence tests them."
+
 This document describes how Arı Kaynak turns a viral claim into a published case file. It exists so the process is auditable, not just asserted on the Method page.
+
+Arı Kaynak investigates public claims made by qualified experts — professors, physicians, researchers. The authority of the person making a claim is never treated as proof of the claim itself; it only tells the reader who to check. The evidence determines the verdict, not the speaker's credentials or reputation. This cuts both ways: a well-credentialed expert whose claim doesn't hold up gets a low verdict, and a viral claim that turns out to be accurate gets a high one, regardless of how the claim was originally received.
+
+## 0. Source-first, video-efficient research
+
+When an investigation originates from a video, podcast, or other audiovisual source:
+
+1. Prefer a written representation of the claim first — an on-screen title card, an Instagram caption, an official statement, or a scientific publication shown on screen.
+2. If the written source clearly establishes the claim, use it as the initial claim source rather than transcribing the full video.
+3. Process the full video (frame-by-frame or via transcription) only when needed to verify exact wording, resolve ambiguity, or check for a specific on-screen citation.
+4. Never infer a claim from a title or thumbnail alone if a fuller written source is unavailable — mark the claim source as partially unavailable instead, exactly as the article itself must disclose it.
+5. Never fabricate a transcript, quotation, or timestamp that wasn't actually observed.
 
 ## 1. What qualifies as a claim worth checking
 
@@ -36,7 +50,19 @@ Files label the evidence type they're built on using this hierarchy, strongest t
 | 5 | Animal / mechanistic study | Biological plausibility; cannot be assumed to transfer to humans |
 | 6 | Preliminary / preprint | Not yet peer-reviewed; treated with extra caution |
 
-A file's "Evidence Strength" rating (Strong / Moderate / Limited) reflects this hierarchy combined with sample size, replication, and how directly the source measured what the claim asserts — not how convenient or interesting the finding is.
+A file's "Evidence Strength" rating reflects this hierarchy combined with sample size, replication, and how directly the source measured what the claim asserts — not how convenient or interesting the finding is.
+
+**Evidence Strength scale (1–5):**
+
+| Score | Label | Criteria |
+|---|---|---|
+| 5/5 | Very High | Regulatory-grade evidence — Phase 3 trials behind an official approval, or equivalent |
+| 4/5 | High | Large, well-controlled studies, systematic reviews, or expert-consensus position statements with graded evidence |
+| 3/5 | Moderate | A single well-run trial or cohort study, not yet replicated at scale |
+| 2/5 | Limited | Early-stage evidence, a narrative/opinion review proposing a conceptual shift, or animal studies extrapolated to humans |
+| 1/5 | Very Limited | Preliminary, indirect, or substantially constrained by study design |
+
+A prestigious journal does not automatically raise the score. A controversial topic does not automatically lower it.
 
 ## 4. How verdicts are assigned
 

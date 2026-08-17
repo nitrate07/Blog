@@ -412,9 +412,15 @@ a.index-item:hover{ background:var(--paper-card); }
   text-transform:uppercase; color:var(--ink-faint); margin-bottom:4px;
 }
 .evidence-panel .ep-value{ color:var(--ink); font-weight:500; }
-.evidence-panel .ep-value.strong{ color:var(--verified); }
+.evidence-panel .ep-value.very-high{ color:var(--verified); }
+.evidence-panel .ep-value.high{ color:var(--verified); }
 .evidence-panel .ep-value.moderate{ color:var(--amber); }
 .evidence-panel .ep-value.limited{ color:var(--flag); }
+.evidence-panel .ep-value.very-limited{ color:var(--flag); }
+.evidence-panel .ep-rating{
+  display:block; font-family:var(--font-mono); font-size:11px; font-weight:400;
+  color:var(--ink-faint); letter-spacing:.05em; margin-top:3px;
+}
 
 /* ---------- Related case files ---------- */
 .related-files{ margin-top:48px; padding-top:28px; border-top:1px solid var(--line-strong); }
