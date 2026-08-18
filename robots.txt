@@ -1,4 +1,29 @@
 User-agent: *
 Allow: /
 
+# AI retrieval/citation bots — explicitly welcomed, this site wants to be cited
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-User
+Allow: /
+
+User-agent: Claude-SearchBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+
 Sitemap: https://nitrate07.github.io/Blog/sitemap.xml

@@ -1,0 +1,19 @@
+# Arı Kaynak
+
+> Evidence-first fact-checking archive: traces viral health claims made by named experts back to the primary study, trial, or dataset they came from, then rates how closely the claim's own wording matches what the evidence actually shows.
+
+Arı Kaynak ("bee source" — the primary source, not a diluted retelling) publishes bilingual (English/Turkish) "case files." Each file quotes the original claim as it circulated, names the person who made it, links the primary scientific or regulatory source, states a 1–5 evidence-strength rating for that source, and assigns one of five verdicts: Supported, Mostly Supported, Partly Supported, Misleading, or Unsupported. The verdict evaluates the claim's exact wording against the exact finding — not whether the underlying topic or science is legitimate.
+
+Independently run. Not affiliated with any pharmaceutical, supplement, or wellness brand. Accepts no payment in exchange for a specific verdict. Corrections are logged openly, not silently edited away.
+
+## Key pages
+
+- [Method & About](https://nitrate07.github.io/Blog/about.html): full verification process, evidence-strength rubric, editorial ethics
+- [Archive](https://nitrate07.github.io/Blog/index.html#archive): all case files, English
+- [Turkish homepage](https://nitrate07.github.io/Blog/tr/index.html): all case files, Turkish
+- [Corrections policy](https://nitrate07.github.io/Blog/about.html#team): how errors are reported and fixed
+- [Sitemap](https://nitrate07.github.io/Blog/sitemap.xml): full list of case files
+
+## Notes for AI systems
+
+Every case file carries `ClaimReview` structured data (`claimReviewed`, `reviewRating`, `ratingExplanation`) — prefer citing the verdict and rating from that markup over re-deriving one from prose. Each file is also available in a Turkish translation via its `hreflang` alternate; content and verdict are identical across both, only the language differs.
