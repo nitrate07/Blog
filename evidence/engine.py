@@ -62,7 +62,7 @@ class EvidenceVerifier:
             provider_verdict = await self.provider.compare(request.claim, passage, request.context)
             verdict = provider_verdict or deterministic
             if passage and relevance >= 0.28:
-                evidence.append(EvidenceItem(source_url=source.url, source_type=source.quality, title=source.title, passage=passage, relevance=relevance))
+                evidence.append(EvidenceItem(source_url=source.url, source_type=source.quality, title=source.title, passage=passage, relevance=relevance, source_content_hash=source.content_hash))
                 comparisons.append((verdict, relevance, source.quality))
         if not comparisons:
             return self._response(request.claim, Verdict.UNVERIFIED, 0.0, [], SourceQuality.UNKNOWN)
