@@ -44,9 +44,26 @@ class EvidenceItem(BaseModel):
     title: str | None = None
     passage: str
     relevance: Annotated[float, Field(ge=0, le=1)]
+    source_content_hash: str | None = None
+
+
+class EvidenceSearchResult(BaseModel):
+    title: str
+    url: HttpUrl
+    provider: str
+    doi: str | None = None
+    pmid: str | None = None
+    published_year: int | None = Field(default=None, ge=1000, le=3000)
+    source_type: SourceQuality = SourceQuality.UNKNOWN
+
+
+class EvidenceSearchResponse(BaseModel):
+    query: str
+    results: list[EvidenceSearchResult]
 
 
 class VerificationResponse(BaseModel):
+    verification_id: str | None = None
     verdict: Verdict
     confidence: Annotated[float, Field(ge=0, le=1)]
     claim: str

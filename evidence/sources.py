@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from html import unescape
 from html.parser import HTMLParser
 import ipaddress
+import hashlib
 import re
 import socket
 from urllib.parse import urljoin, urlsplit
@@ -26,6 +27,7 @@ class RetrievedSource:
     title: str | None
     text: str
     quality: SourceQuality
+    content_hash: str | None = None
 
 
 def _is_public_ip(address: str) -> bool:
@@ -137,5 +139,5 @@ class SourceFetcher:
                 title, text = extract_html(body.decode(response.encoding or "utf-8", errors="replace"))
                 if not text:
                     raise ValueError("source did not contain readable text")
-                return RetrievedSource(current_url, title, text, classify_source(current_url, text))
+                return RetrievedSource(current_url, title, text, classify_source(current_url, text), hashlib.sha256(body).hexdigest())
         raise ValueError("too many redirects")
