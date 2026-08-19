@@ -7,6 +7,7 @@ from pydantic import BaseModel, Field
 
 from .config import Settings, settings
 from .connectors import EvidenceCatalog
+from .cross_verification import CrossVerifier
 from .engine import EvidenceVerifier
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
 from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, test_provider
@@ -35,6 +36,24 @@ class RAGIndexResponse(BaseModel):
     articles: int
 
 
+class CrossVerifyRequest(BaseModel):
+    claim: str = Field(min_length=3, max_length=4000)
+    academic_limit: int = Field(default=5, ge=1, le=20)
+    article_limit: int = Field(default=5, ge=1, le=20)
+
+
+class CrossVerifyResponse(BaseModel):
+    claim: str
+    existing_articles: list[dict]
+    academic_sources: list[dict]
+    source_count: int
+    pubmed_count: int
+    crossref_count: int
+    existing_count: int
+    coverage_score: float
+    summary: str
+
+
 def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = settings, store: VerificationStore | None = None, catalog: EvidenceCatalog | None = None) -> FastAPI:
     app = FastAPI(title="Arı Kaynak Evidence API", version="0.3.0")
 
@@ -52,6 +71,11 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
         persist_directory=config.rag_persist_directory,
     )
     app.state.rag_retriever = ArticleRetriever(rag_store)
+    app.state.cross_verifier = CrossVerifier(
+        catalog=app.state.catalog,
+        retriever=app.state.rag_retriever,
+        config=config,
+    )
 
     async def principal_for_request(request: Request, x_api_key: str | None = Header(default=None)) -> APIPrincipal | None:
         if not request.app.state.config.require_api_key:
@@ -154,6 +178,16 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
     async def rag_stats(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
         """Return RAG index statistics."""
         return app.state.rag_retriever.get_stats()
+
+    @app.post("/v1/cross-verify", response_model=CrossVerifyResponse, tags=["verification"])
+    async def cross_verify(request: CrossVerifyRequest, principal: APIPrincipal | None = Depends(principal_for_request)) -> CrossVerifyResponse:
+        """Multi-source cross-verification: searches PubMed, Crossref, and existing articles simultaneously."""
+        result = await app.state.cross_verifier.verify(
+            claim=request.claim,
+            academic_limit=request.academic_limit,
+            article_limit=request.article_limit,
+        )
+        return CrossVerifyResponse(**result.to_dict())
 
     return app
 

@@ -261,3 +261,88 @@ Call `POST /v1/rag/index` to (re)index all articles. The index is built from the
 - `numpy` — matrix operations
 
 No GPU or external embedding service required. The TF-IDF model runs entirely in-process.
+
+## Cross-Verification — Multi-Source Evidence Discovery
+
+The cross-verification system searches multiple evidence sources simultaneously and consolidates results into a single report.
+
+### How It Works
+
+1. **Parallel search**: Queries PubMed, Crossref, and existing Arı Kaynak articles concurrently
+2. **Source consolidation**: Deduplicates and merges results from all sources
+3. **Coverage scoring**: Computes a confidence score based on source diversity and count
+4. **Summary generation**: Produces a human-readable summary of findings
+
+### API Endpoint
+
+```bash
+# Cross-verify a claim
+curl -X POST http://localhost:8000/v1/cross-verify \
+  -H "X-API-Key: your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"claim": "statin drugs cause muscle pain in 90% of patients"}'
+```
+
+### Request Body
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `claim` | string | required | The claim to verify (min 3 chars) |
+| `academic_limit` | int | 5 | Max results per academic source (1-20) |
+| `article_limit` | int | 5 | Max results from existing articles (1-20) |
+
+### Response Shape
+
+```json
+{
+  "claim": "statin drugs cause muscle pain in 90% of patients",
+  "existing_articles": [
+    {
+      "provider": "ari_kaynak",
+      "title": "Is 90% of Statin Muscle Pain Really 'All in Your Head'?",
+      "url": "https://nitrate07.github.io/Blog/articles/samson-trial-statin-nocebo.html",
+      "source_type": "primary",
+      "relevance": 0.72
+    }
+  ],
+  "academic_sources": [
+    {
+      "provider": "pubmed",
+      "title": "Nocebo effect and statin intolerance",
+      "url": "https://pubmed.ncbi.nlm.nih.gov/12345/",
+      "pmid": "12345",
+      "published_year": 2024,
+      "source_type": "unknown"
+    }
+  ],
+  "source_count": 3,
+  "pubmed_count": 1,
+  "crossref_count": 1,
+  "existing_count": 1,
+  "coverage_score": 0.8,
+  "summary": "Found 3 source(s) for: 'statin drugs...' — 1 existing Arı Kaynak article(s) + 1 PubMed record(s) + 1 Crossref record(s). Coverage confidence: high (80%)."
+}
+```
+
+### Coverage Score
+
+The coverage score (0.0–1.0) indicates how well a claim is supported by available evidence:
+
+| Score | Confidence | Meaning |
+|-------|------------|---------|
+| ≥ 0.7 | High | Multiple sources across categories |
+| ≥ 0.4 | Moderate | Some evidence available |
+| < 0.4 | Low | Limited or no evidence found |
+
+Score components:
+- PubMed record(s): +0.4
+- Crossref record(s): +0.3
+- Existing articles: +0.3
+- Bonus for 2+ PubMed records: +0.1
+- Bonus for 2+ existing articles: +0.1
+
+### Use Cases
+
+- **Pre-publication check**: Verify a claim before writing a new article
+- **Fact-check research**: Quickly find academic sources for a viral claim
+- **Gap analysis**: Identify claims with low coverage that need new articles
