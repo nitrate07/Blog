@@ -9,6 +9,8 @@ from .config import Settings, settings
 from .connectors import EvidenceCatalog
 from .cross_verification import CrossVerifier
 from .engine import EvidenceVerifier
+from .graph import EvidenceGraph, GraphBuilder
+from .graph.pipeline import run_pipeline
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
 from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, test_provider
 from .rag import ArticleRetriever, ArticleVectorStore
@@ -54,6 +56,23 @@ class CrossVerifyResponse(BaseModel):
     summary: str
 
 
+class PipelineRequest(BaseModel):
+    query: str = Field(min_length=3, max_length=4000)
+
+
+class PipelineResponse(BaseModel):
+    query: str
+    extracted_claim: str
+    archive_results: list[dict]
+    external_results: list[dict]
+    verdict: str
+    verdict_confidence: float
+    rating_value: int
+    cited_response: str
+    steps: list[dict]
+    graph_claim_id: str | None = None
+
+
 def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = settings, store: VerificationStore | None = None, catalog: EvidenceCatalog | None = None) -> FastAPI:
     app = FastAPI(title="Arı Kaynak Evidence API", version="0.3.0")
 
@@ -76,6 +95,9 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
         retriever=app.state.rag_retriever,
         config=config,
     )
+
+    evidence_graph = EvidenceGraph(persist_path=str(Path(config.rag_persist_directory).parent / "evidence_graph.json"))
+    app.state.graph_builder = GraphBuilder(evidence_graph, catalog=app.state.catalog)
 
     async def principal_for_request(request: Request, x_api_key: str | None = Header(default=None)) -> APIPrincipal | None:
         if not request.app.state.config.require_api_key:
@@ -188,6 +210,88 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
             article_limit=request.article_limit,
         )
         return CrossVerifyResponse(**result.to_dict())
+
+    @app.post("/v1/graph/build", tags=["graph"])
+    async def graph_build(
+        source: str = Query(default="claims_json", pattern="^(claims_json|articles)$"),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Build the evidence graph from claims.json or articles."""
+        builder = app.state.graph_builder
+        if source == "claims_json":
+            result = builder.build_from_claims_json("claims.json")
+        else:
+            articles_dir = Path(config.rag_articles_dir)
+            tr_dir = Path(config.rag_tr_dir) if config.rag_tr_dir else None
+            result = builder.build_from_articles(articles_dir, tr_dir)
+        return {"source": source, **result}
+
+    @app.get("/v1/graph/stats", tags=["graph"])
+    async def graph_stats(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Return evidence graph statistics."""
+        return app.state.graph_builder.graph.get_stats()
+
+    @app.get("/v1/graph/chain/{claim_id}", tags=["graph"])
+    async def graph_chain(claim_id: str, _: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Get the full verification chain for a claim: claim → evidence → source → passage → verdict."""
+        chain = app.state.graph_builder.get_full_chain(claim_id)
+        if not chain:
+            raise HTTPException(status_code=404, detail=f"Claim '{claim_id}' not found")
+        return chain.to_dict()
+
+    @app.get("/v1/graph/related/{claim_id}", tags=["graph"])
+    async def graph_related(claim_id: str, _: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Find claims related to a given claim via shared sources or category."""
+        related = app.state.graph_builder.graph.get_related_claims(claim_id)
+        return {
+            "claim_id": claim_id,
+            "related": [c.to_dict() for c in related],
+            "count": len(related),
+        }
+
+    @app.get("/v1/graph/contradictions", tags=["graph"])
+    async def graph_contradictions(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Find claims that contradict each other."""
+        contradictions = app.state.graph_builder.graph.get_contradictions()
+        return {
+            "contradictions": [
+                {"claim_a": a.to_dict(), "claim_b": b.to_dict(), "reason": reason}
+                for a, b, reason in contradictions
+            ],
+            "count": len(contradictions),
+        }
+
+    @app.get("/v1/graph/search", tags=["graph"])
+    async def graph_search(
+        q: str = Query(min_length=2, max_length=500),
+        category: str | None = None,
+        verdict: str | None = None,
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search claims in the evidence graph."""
+        results = app.state.graph_builder.graph.search_claims(q, category=category, verdict=verdict)
+        return {
+            "query": q,
+            "results": [c.to_dict() for c in results],
+            "count": len(results),
+        }
+
+    @app.post("/v1/pipeline", response_model=PipelineResponse, tags=["pipeline"])
+    async def run_full_pipeline(request: PipelineRequest, principal: APIPrincipal | None = Depends(principal_for_request)) -> PipelineResponse:
+        """Full verification pipeline: Claim Extraction → RAG + External → Evidence Engine → LLM Interpreter → Cited Response.
+        
+        LLM is used ONLY as an interpreter (yorumcu) to explain the verdict.
+        Evidence comes ONLY from verified sources (PubMed, Crossref, Archive).
+        """
+        result = await run_pipeline(
+            user_query=request.query,
+            retriever=app.state.rag_retriever,
+            catalog=app.state.catalog,
+            graph_builder=app.state.graph_builder,
+            llm_provider=app.state.verifier.provider if hasattr(app.state.verifier, "provider") else None,
+            config=config,
+        )
+        return PipelineResponse(**result.to_dict())
 
     return app
 

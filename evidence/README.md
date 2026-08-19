@@ -346,3 +346,92 @@ Score components:
 - **Pre-publication check**: Verify a claim before writing a new article
 - **Fact-check research**: Quickly find academic sources for a viral claim
 - **Gap analysis**: Identify claims with low coverage that need new articles
+
+## Evidence Graph
+
+The Evidence Graph unifies all verification data into a single graph structure: **claim → evidence → source → passage → verdict**.
+
+### Core Principle
+
+> **LLM is an interpreter (yorumcu), NEVER an evidence source.**
+> Evidence comes ONLY from: PubMed, Crossref, Arı Kaynak Archive.
+> Evidence Engine is the hakem (referee) — it processes, scores, and judges.
+> LLM only explains the verdict in natural language.
+
+### Architecture
+
+```
+User Query
+  → Claim Extraction (rule-based)
+  → Source Discovery: Archive (RAG) + External (PubMed/Crossref)
+  → Evidence Engine (hakem — deterministic, no LLM)
+    - Source Quality Scoring
+    - Claim-Evidence Matching
+    - Verdict Computation
+  → LLM Interpreter (yorumcu — explains verdict, never generates evidence)
+  → Cited Response
+  → Graph Update (records the chain)
+```
+
+### Graph Model
+
+| Type | Description |
+|------|-------------|
+| `Claim` | A fact-checkable statement with metadata |
+| `Source` | An evidence source (PubMed, Crossref, article) with quality rating |
+| `Passage` | A text excerpt from a source with relevance score |
+| `Evidence` | Links claim → passages with verdict and confidence |
+| `Verdict` | supported, mostly_supported, partly_supported, misleading, unsupported, unverified |
+| `VerificationChain` | Full path: claim → evidence → sources |
+
+### API Endpoints
+
+```bash
+# Run the full verification pipeline
+curl -X POST http://localhost:8000/v1/pipeline \
+  -H "X-API-Key: your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Is exercise good for heart health?"}'
+
+# Build graph from claims.json
+curl -X POST "http://localhost:8000/v1/graph/build?source=claims_json" \
+  -H "X-API-Key: your-key"
+
+# Get verification chain for a claim
+curl http://localhost:8000/v1/graph/chain/{claim_id} -H "X-API-Key: your-key"
+
+# Find related claims
+curl http://localhost:8000/v1/graph/related/{claim_id} -H "X-API-Key: your-key"
+
+# Find contradictions
+curl http://localhost:8000/v1/graph/contradictions -H "X-API-Key: your-key"
+
+# Search claims
+curl "http://localhost:8000/v1/graph/search?q=vitamin+d" -H "X-API-Key: your-key"
+
+# Graph statistics
+curl http://localhost:8000/v1/graph/stats -H "X-API-Key: your-key"
+```
+
+### Pipeline Response
+
+```json
+{
+  "query": "Is exercise good for heart health?",
+  "extracted_claim": "exercise good for heart health?",
+  "archive_results": [{"title": "...", "verdict": "Mostly Supported", "distance": 0.3}],
+  "external_results": [{"title": "...", "source_type": "primary", "doi": "10.1234/..."}],
+  "verdict": "Mostly Supported",
+  "verdict_confidence": 0.7,
+  "rating_value": 4,
+  "cited_response": "**Claim:** exercise good for heart health?\n**Verdict:** Mostly Supported...",
+  "steps": [
+    {"name": "claim_extraction", "status": "done"},
+    {"name": "source_discovery", "status": "done"},
+    {"name": "evidence_engine", "status": "done"},
+    {"name": "llm_interpreter", "status": "done"},
+    {"name": "graph_update", "status": "done"}
+  ],
+  "graph_claim_id": "claim::pipeline::12345"
+}
+```
