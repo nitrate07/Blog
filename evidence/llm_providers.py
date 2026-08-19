@@ -38,10 +38,13 @@ Respond with ONLY a JSON object like {{"verdict": "supported"}}"""
 class LLMProvider(VerificationProvider, ABC):
     """Base class for LLM-based verification providers."""
 
-    def __init__(self, api_key: str, model: str, temperature: float = 0.0) -> None:
+    DEFAULT_MODEL: str = ""
+
+    def __init__(self, api_key: str, model: str | None = None, temperature: float = 0.0, max_tokens: int = 256) -> None:
         self.api_key = api_key
-        self.model = model
+        self.model = model or self.DEFAULT_MODEL
         self.temperature = temperature
+        self.max_tokens = max_tokens
 
     async def compare(self, claim: str, passage: str, context: str | None = None) -> Verdict | None:
         if not passage or not passage.strip():
@@ -54,6 +57,21 @@ class LLMProvider(VerificationProvider, ABC):
         except Exception as e:
             logger.warning(f"LLM provider {self.__class__.__name__} failed: {e}")
             return None
+
+    async def health_check(self) -> dict[str, object]:
+        """Send a minimal request to verify the provider is reachable.
+
+        Returns {"status": "ok", "provider": ..., "model": ...} on success,
+        or {"status": "error", "error": ...} on failure.
+        """
+        try:
+            result = await self.compare(
+                "exercise improves cardiovascular health",
+                "Studies show regular exercise is beneficial for heart health.",
+            )
+            return {"status": "ok", "provider": self.__class__.__name__, "model": self.model, "test_verdict": result.value if result else None}
+        except Exception as e:
+            return {"status": "error", "error": f"{self.__class__.__name__}: {e}"}
 
     def _build_prompt(self, claim: str, passage: str, context: str | None) -> str:
         context_section = f"Additional context: {context}" if context else "No additional context provided."
@@ -103,8 +121,7 @@ class ClaudeProvider(LLMProvider):
         temperature: float = 0.0,
         max_tokens: int = 256,
     ) -> None:
-        super().__init__(api_key, model or self.DEFAULT_MODEL, temperature)
-        self.max_tokens = max_tokens
+        super().__init__(api_key, model, temperature, max_tokens)
 
     async def _call_llm(self, prompt: str) -> str:
         headers = {
@@ -144,8 +161,7 @@ class OpenAIProvider(LLMProvider):
         temperature: float = 0.0,
         max_tokens: int = 256,
     ) -> None:
-        super().__init__(api_key, model or self.DEFAULT_MODEL, temperature)
-        self.max_tokens = max_tokens
+        super().__init__(api_key, model, temperature, max_tokens)
 
     async def _call_llm(self, prompt: str) -> str:
         headers = {
@@ -185,8 +201,7 @@ class GeminiProvider(LLMProvider):
         temperature: float = 0.0,
         max_tokens: int = 256,
     ) -> None:
-        super().__init__(api_key, model or self.DEFAULT_MODEL, temperature)
-        self.max_tokens = max_tokens
+        super().__init__(api_key, model, temperature, max_tokens)
 
     async def _call_llm(self, prompt: str) -> str:
         url = self.API_URL_TEMPLATE.format(model=self.model)

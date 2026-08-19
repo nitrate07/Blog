@@ -6,23 +6,16 @@ from .config import Settings, settings
 from .connectors import EvidenceCatalog
 from .engine import EvidenceVerifier
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
-from .provider_registry import create_provider
+from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, test_provider
 from .security import APIKeyAuthenticator, APIPrincipal, SlidingWindowRateLimiter
 from .storage import VerificationStore
 
 
 def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = settings, store: VerificationStore | None = None, catalog: EvidenceCatalog | None = None) -> FastAPI:
-    app = FastAPI(title="Arı Kaynak Evidence API", version="0.1.0")
+    app = FastAPI(title="Arı Kaynak Evidence API", version="0.2.0")
 
     if verifier is None:
-        provider = create_provider(
-            provider_name=config.llm_provider,
-            api_key=config.llm_api_key,
-            model=config.llm_model,
-            temperature=config.llm_temperature,
-            max_tokens=config.llm_max_tokens,
-        )
-        verifier = EvidenceVerifier(provider=provider)
+        verifier = EvidenceVerifier(provider=create_provider_from_config(config))
 
     app.state.verifier = verifier
     app.state.store = store or VerificationStore(config.database_path)
@@ -41,6 +34,26 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
     @app.get("/health", tags=["operations"])
     async def health() -> dict[str, str]:
         return {"status": "ok", "service": "ari-kaynak-evidence"}
+
+    @app.get("/v1/provider/status", tags=["provider"])
+    async def provider_status() -> dict[str, object]:
+        """Return configuration status of all known LLM providers."""
+        statuses = get_provider_statuses(app.state.config)
+        return {
+            "providers": [
+                {"name": s.name, "configured": s.configured, "model": s.model, "is_active": s.is_active}
+                for s in statuses
+            ],
+            "available": list_providers(),
+        }
+
+    @app.post("/v1/provider/test/{provider_name}", tags=["provider"])
+    async def provider_test(provider_name: str) -> dict[str, object]:
+        """Send a minimal request to verify a provider is reachable."""
+        result = await test_provider(provider_name, app.state.config)
+        if result.get("status") == "error":
+            raise HTTPException(status_code=502, detail=result)
+        return result
 
     @app.post("/v1/verify", response_model=VerificationResponse, tags=["verification"])
     async def verify_claim(request: VerificationRequest, principal: APIPrincipal | None = Depends(principal_for_request)) -> VerificationResponse:

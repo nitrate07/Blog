@@ -5,9 +5,17 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
+from evidence.config import Settings
 from evidence.llm_providers import ClaudeProvider, GeminiProvider, LLMProvider, OpenAIProvider
 from evidence.models import Verdict
-from evidence.provider_registry import create_provider, list_providers
+from evidence.provider_registry import (
+    ProviderStatus,
+    create_provider,
+    create_provider_from_config,
+    get_provider_statuses,
+    list_providers,
+    test_provider,
+)
 from evidence.providers import NullProvider
 
 
@@ -86,6 +94,29 @@ class TestLLMProviderCompare:
             context="Additional context",
         )
         assert result == Verdict.SUPPORTED
+
+
+class TestHealthCheck:
+    """Test the health_check method."""
+
+    @pytest.mark.asyncio
+    async def test_health_check_ok(self):
+        provider = ClaudeProvider(api_key="test-key")
+        provider._call_llm = AsyncMock(return_value='{"verdict": "supported"}')
+
+        result = await provider.health_check()
+        assert result["status"] == "ok"
+        assert result["provider"] == "ClaudeProvider"
+        assert result["model"] == "claude-sonnet-4-20250514"
+
+    @pytest.mark.asyncio
+    async def test_health_check_error(self):
+        provider = ClaudeProvider(api_key="test-key")
+        provider._call_llm = AsyncMock(side_effect=Exception("Connection refused"))
+
+        result = await provider.health_check()
+        assert result["status"] == "error"
+        assert "Connection refused" in result["error"]
 
 
 class TestClaudeProvider:
@@ -211,3 +242,104 @@ class TestProviderRegistry:
     def test_create_provider_case_insensitive(self):
         provider = create_provider(provider_name="CLAUDE", api_key="test-key")
         assert isinstance(provider, ClaudeProvider)
+
+
+class TestProviderConfig:
+    """Test Settings.get_provider_config and get_active_provider."""
+
+    def test_provider_specific_overrides_generic(self):
+        config = Settings(
+            llm_api_key="generic-key",
+            llm_model="generic-model",
+            claude_api_key="claude-specific-key",
+            claude_model="claude-specific-model",
+        )
+        result = config.get_provider_config("claude")
+        assert result["api_key"] == "claude-specific-key"
+        assert result["model"] == "claude-specific-model"
+
+    def test_falls_back_to_generic(self):
+        config = Settings(
+            llm_api_key="generic-key",
+            llm_model="generic-model",
+        )
+        result = config.get_provider_config("claude")
+        assert result["api_key"] == "generic-key"
+        assert result["model"] == "generic-model"
+
+    def test_get_active_provider_from_llm_provider(self):
+        config = Settings(llm_provider="claude", claude_api_key="key")
+        assert config.get_active_provider() == "claude"
+
+    def test_get_active_provider_auto_detects(self):
+        config = Settings(openai_api_key="key")
+        assert config.get_active_provider() == "openai"
+
+    def test_get_active_provider_returns_none_when_empty(self):
+        config = Settings()
+        assert config.get_active_provider() is None
+
+
+class TestGetProviderStatuses:
+    """Test get_provider_statuses."""
+
+    def test_statuses_include_all_providers(self):
+        config = Settings()
+        statuses = get_provider_statuses(config)
+        names = [s.name for s in statuses]
+        assert "claude" in names
+        assert "openai" in names
+        assert "gemini" in names
+
+    def test_configured_provider_marked(self):
+        config = Settings(claude_api_key="key")
+        statuses = get_provider_statuses(config)
+        claude = next(s for s in statuses if s.name == "claude")
+        assert claude.configured is True
+
+    def test_active_provider_marked(self):
+        config = Settings(claude_api_key="key")
+        statuses = get_provider_statuses(config)
+        claude = next(s for s in statuses if s.name == "claude")
+        assert claude.is_active is True
+
+
+class TestCreateProviderFromConfig:
+    """Test create_provider_from_config."""
+
+    def test_returns_null_when_nothing_configured(self):
+        config = Settings()
+        provider = create_provider_from_config(config)
+        assert isinstance(provider, NullProvider)
+
+    def test_creates_provider_from_specific_key(self):
+        config = Settings(claude_api_key="key")
+        provider = create_provider_from_config(config)
+        assert isinstance(provider, ClaudeProvider)
+
+    def test_creates_provider_from_generic_key(self):
+        config = Settings(llm_provider="openai", llm_api_key="key")
+        provider = create_provider_from_config(config)
+        assert isinstance(provider, OpenAIProvider)
+
+
+class TestTestProvider:
+    """Test the test_provider async function."""
+
+    @pytest.mark.asyncio
+    async def test_not_configured(self):
+        config = Settings()
+        result = await test_provider("claude", config)
+        assert result["status"] == "not_configured"
+
+    @pytest.mark.asyncio
+    async def test_provider_ok(self):
+        config = Settings(claude_api_key="key")
+        with patch("evidence.provider_registry.create_provider") as mock_create:
+            mock_provider = MagicMock()
+            mock_provider.health_check = AsyncMock(return_value={"status": "ok", "model": "test"})
+            mock_provider.__class__ = ClaudeProvider
+            mock_create.return_value = mock_provider
+
+            result = await test_provider("claude", config)
+            assert result["status"] == "ok"
