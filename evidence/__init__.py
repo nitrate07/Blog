@@ -10,6 +10,7 @@ from .provider_registry import (
     list_providers,
     test_provider,
 )
+from .rag import ArticleRetriever, ArticleVectorStore, RetrievalResult
 
 __all__ = [
     "EvidenceVerifier",
@@ -23,4 +24,7 @@ __all__ = [
     "get_provider_statuses",
     "list_providers",
     "test_provider",
+    "ArticleRetriever",
+    "ArticleVectorStore",
+    "RetrievalResult",
 ]
