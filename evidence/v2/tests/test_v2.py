@@ -501,3 +501,128 @@ class TestDatabaseIntegration:
             assert resp.status_code == 200
             data = resp.json()
             assert data["total"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Authentication Tests
+# ---------------------------------------------------------------------------
+
+class TestAuthentication:
+    @pytest.mark.asyncio
+    async def test_register_user(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/v1/auth/register", json={
+                "username": "testuser",
+                "email": "test@example.com",
+            })
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "api_key" in data
+            assert data["username"] == "testuser"
+            assert data["rate_limit"] == 100
+    
+    @pytest.mark.asyncio
+    async def test_get_me_with_api_key(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Register
+            resp = await client.post("/v1/auth/register", json={
+                "username": "testuser2",
+                "email": "test2@example.com",
+            })
+            api_key = resp.json()["api_key"]
+            
+            # Get me
+            resp = await client.get("/v1/auth/me", headers={"X-API-Key": api_key})
+            assert resp.status_code == 200
+            assert resp.json()["username"] == "testuser2"
+    
+    @pytest.mark.asyncio
+    async def test_unauthorized_without_api_key(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/v1/auth/me")
+            assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Chat Tests
+# ---------------------------------------------------------------------------
+
+class TestChat:
+    @pytest.mark.asyncio
+    async def test_chat_verify(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/v1/chat", json={"query": "Is exercise good?"})
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "session_id" in data
+            assert "message" in data
+            assert data["message"]["role"] == "assistant"
+    
+    @pytest.mark.asyncio
+    async def test_chat_history(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Create session
+            resp = await client.post("/v1/chat", json={"query": "test1"})
+            session_id = resp.json()["session_id"]
+            
+            # Get history
+            resp = await client.get(f"/v1/chat/history/{session_id}")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["session_id"] == session_id
+            assert len(data["messages"]) == 2  # user + assistant
+    
+    @pytest.mark.asyncio
+    async def test_list_sessions(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Create sessions
+            await client.post("/v1/chat", json={"query": "test1"})
+            await client.post("/v1/chat", json={"query": "test2"})
+            
+            # List sessions
+            resp = await client.get("/v1/chat/sessions")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert len(data["sessions"]) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Web UI Tests
+# ---------------------------------------------------------------------------
+
+class TestWebUI:
+    @pytest.mark.asyncio
+    async def test_web_ui_returns_html(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/")
+            assert resp.status_code == 200
+            assert "text/html" in resp.headers["content-type"]
+            assert "Arı Kaynak" in resp.text
