@@ -11,6 +11,7 @@ from .cross_verification import CrossVerifier
 from .engine import EvidenceVerifier
 from .graph import EvidenceGraph, GraphBuilder
 from .graph.agents import EvidenceSearchAgent
+from .graph.health_agents import HealthOrgSearchAgent
 from .graph.pipeline import run_pipeline
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
 from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, test_provider
@@ -100,6 +101,7 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
     evidence_graph = EvidenceGraph(persist_path=str(Path(config.rag_persist_directory).parent / "evidence_graph.json"))
     app.state.graph_builder = GraphBuilder(evidence_graph, catalog=app.state.catalog)
     app.state.evidence_agent = EvidenceSearchAgent(retriever=app.state.rag_retriever, config=config)
+    app.state.health_agent = HealthOrgSearchAgent(config=config)
 
     async def principal_for_request(request: Request, x_api_key: str | None = Header(default=None)) -> APIPrincipal | None:
         if not request.app.state.config.require_api_key:
@@ -366,6 +368,125 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
                 for a in agent.agents
             ],
             "total_agents": len(agent.agents),
+        }
+
+    @app.get("/v1/health/search", tags=["health_orgs"])
+    async def health_search(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        sources: str | None = Query(default=None, description="Comma-separated agent names: who,cdc,ecdc,cochrane,clinicaltrials,fda,ema,google_scholar"),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search global health organizations for evidence.
+        
+        Available sources: WHO, CDC, ECDC, Cochrane, ClinicalTrials.gov, FDA, EMA, Google Scholar.
+        """
+        source_list = [s.strip() for s in sources.split(",")] if sources else None
+        result = await app.state.health_agent.search(q, limit_per_agent=limit, sources=source_list)
+        return result
+
+    @app.get("/v1/health/who", tags=["health_orgs"])
+    async def health_who(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search WHO (World Health Organization)."""
+        from .graph.health_agents import WHOAgent
+        agent = WHOAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "who", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/cdc", tags=["health_orgs"])
+    async def health_cdc(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search CDC (US Centers for Disease Control)."""
+        from .graph.health_agents import CDCAgent
+        agent = CDCAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "cdc", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/ecdc", tags=["health_orgs"])
+    async def health_ecdc(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search ECDC (European Centre for Disease Prevention and Control)."""
+        from .graph.health_agents import ECDCAgent
+        agent = ECDCAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "ecdc", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/cochrane", tags=["health_orgs"])
+    async def health_cochrane(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search Cochrane Library (systematic reviews)."""
+        from .graph.health_agents import CochraneAgent
+        agent = CochraneAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "cochrane", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/clinicaltrials", tags=["health_orgs"])
+    async def health_clinicaltrials(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search ClinicalTrials.gov."""
+        from .graph.health_agents import ClinicalTrialsAgent
+        agent = ClinicalTrialsAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "clinicaltrials", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/fda", tags=["health_orgs"])
+    async def health_fda(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search FDA (US Food and Drug Administration)."""
+        from .graph.health_agents import FDAAgent
+        agent = FDAAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "fda", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/ema", tags=["health_orgs"])
+    async def health_ema(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search EMA (European Medicines Agency)."""
+        from .graph.health_agents import EMAAgent
+        agent = EMAAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "ema", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/google_scholar", tags=["health_orgs"])
+    async def health_google_scholar(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search Google Scholar."""
+        from .graph.health_agents import GoogleScholarAgent
+        agent = GoogleScholarAgent(app.state.config)
+        results = await agent.search(q, limit)
+        return {"query": q, "agent": "google_scholar", "results": results, "total": len(results)}
+
+    @app.get("/v1/health/stats", tags=["health_orgs"])
+    async def health_stats(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Return available health organization agents."""
+        return {
+            "agents": app.state.health_agent.list_agents(),
+            "total_agents": len(app.state.health_agent.agents),
         }
 
     return app
