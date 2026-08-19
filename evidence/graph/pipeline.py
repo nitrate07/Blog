@@ -1,16 +1,17 @@
 """Evidence Pipeline — the complete verification chain.
 
 PRINCIPLE: LLM is an interpreter (yorumcu), NEVER an evidence source.
-Evidence comes ONLY from: PubMed, Crossref, Arı Kaynak Archive.
+Evidence comes ONLY from: verified sources (11 kaynak).
 Evidence Engine is the hakem (referee) — it processes, scores, and judges.
 LLM only explains the verdict in natural language.
 """
 
 from __future__ import annotations
 
+import hashlib
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Protocol
+from dataclasses import dataclass
+from typing import Any
 
 from ..connectors import EvidenceCatalog
 from ..config import Settings, settings
@@ -19,6 +20,7 @@ from ..models import EvidenceSearchResult, SourceQuality
 from ..providers import NullProvider
 from ..rag.retriever import ArticleRetriever, RetrievalResult
 from .builder import GraphBuilder
+from .health_agents import HealthOrgSearchAgent
 from .model import Claim, Evidence, Passage, Source, SourceType, Verdict
 from .store import EvidenceGraph
 
@@ -27,7 +29,9 @@ logger = logging.getLogger(__name__)
 _VERDICT_MAP = {
     "supported": Verdict.SUPPORTED,
     "mostly supported": Verdict.MOSTLY_SUPPORTED,
+    "mostly_supported": Verdict.MOSTLY_SUPPORTED,
     "partly supported": Verdict.PARTLY_SUPPORTED,
+    "partly_supported": Verdict.PARTLY_SUPPORTED,
     "misleading": Verdict.MISLEADING,
     "unsupported": Verdict.UNSUPPORTED,
     "unverified": Verdict.UNVERIFIED,
@@ -39,6 +43,29 @@ _SOURCE_QUALITY_SCORES = {
     SourceType.TERTIARY: 0.35,
     SourceType.UNKNOWN: 0.5,
 }
+
+_HEALTH_SOURCE_TYPE_MAP = {
+    "international_organization": SourceType.TERTIARY,
+    "government": SourceType.TERTIARY,
+    "academic": SourceType.SECONDARY,
+    "primary": SourceType.PRIMARY,
+    "secondary": SourceType.SECONDARY,
+    "tertiary": SourceType.TERTIARY,
+    "systematic_review": SourceType.SECONDARY,
+    "clinical_trial": SourceType.SECONDARY,
+    "regulatory": SourceType.TERTIARY,
+    "unknown": SourceType.UNKNOWN,
+}
+
+
+def _safe_source_type(source_type_str: str) -> SourceType:
+    """Convert any source_type string to SourceType enum safely."""
+    return _HEALTH_SOURCE_TYPE_MAP.get(source_type_str, SourceType.UNKNOWN)
+
+
+def _content_hash(text: str) -> str:
+    """Compute SHA-256 hash of passage content for deduplication."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------------------
@@ -63,17 +90,31 @@ def extract_claim(user_query: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Step 2: Source Discovery (Archive + External)
+# Step 2: Source Discovery (All 11 Sources in Parallel)
 # ---------------------------------------------------------------------------
 
 async def discover_sources(
     claim: str,
     retriever: ArticleRetriever,
     catalog: EvidenceCatalog,
+    health_agent: HealthOrgSearchAgent | None = None,
     archive_limit: int = 5,
     external_limit: int = 5,
-) -> tuple[list[dict[str, Any]], list[Source]]:
-    """Search Arı Kaynak archive (RAG) and external sources (PubMed/Crossref) in parallel."""
+) -> tuple[list[dict[str, Any]], list[Source], list[dict[str, Any]]]:
+    """Search ALL evidence sources in parallel:
+    
+    1. Archive (Arı Kaynak via RAG)
+    2. PubMed
+    3. Crossref
+    4. WHO (Dünya Sağlık Örgütü)
+    5. CDC (ABD Hastalık Kontrol)
+    6. ECDC (Avrupa Hastalık Kontrol)
+    7. Cochrane (Sistematik Derlemeler)
+    8. ClinicalTrials.gov (Klinik Araştırmalar)
+    9. FDA (ABD İlaç Dairesi)
+    10. EMA (Avrupa İlaç Ajansı)
+    11. Google Scholar (Akademik Makaleler)
+    """
     import asyncio
 
     async def _search_archive() -> list[RetrievalResult]:
@@ -103,12 +144,24 @@ async def discover_sources(
             sources.append(source)
         return sources
 
-    archive_task, external_task = await asyncio.gather(
-        _search_archive(), _search_external(), return_exceptions=True
+    async def _search_health_orgs() -> list[dict[str, Any]]:
+        if not health_agent:
+            return []
+        try:
+            result = await health_agent.search(claim, limit_per_agent=3)
+            return result.get("results", [])
+        except Exception as e:
+            logger.warning(f"Health org search failed: {e}")
+            return []
+
+    archive_task, external_task, health_task = await asyncio.gather(
+        _search_archive(), _search_external(), _search_health_orgs(),
+        return_exceptions=True,
     )
     archive = archive_task if isinstance(archive_task, list) else []
     external = external_task if isinstance(external_task, list) else []
-    return archive, external
+    health_orgs = health_task if isinstance(health_task, list) else []
+    return archive, external, health_orgs
 
 
 # ---------------------------------------------------------------------------
@@ -119,16 +172,19 @@ def evidence_engine(
     claim: str,
     archive: list[RetrievalResult],
     external: list[Source],
+    health_orgs: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """The hakem: combines evidence, scores sources, matches claim, computes verdict.
+    """The hakem: combines evidence from ALL 11 sources, scores, matches, verdict.
     
     This is deterministic. No LLM involvement. The engine judges based on:
     - Source quality (primary > secondary > tertiary)
     - Recency (newer sources score higher)
     - Text overlap (claim words vs evidence words)
     - Archive verdict (if available, strong signal)
+    
+    Sources: Archive, PubMed, Crossref, WHO, CDC, ECDC, Cochrane, ClinicalTrials, FDA, EMA, Google Scholar
     """
-    evidence_items = _combine_evidence(archive, external)
+    evidence_items = _combine_evidence(archive, external, health_orgs or [])
     scored = _score_sources(evidence_items)
     matches = _match_claim_evidence(claim, scored)
     verdict, confidence, rating = _compute_verdict(matches)
@@ -144,6 +200,7 @@ def evidence_engine(
 def _combine_evidence(
     archive: list[RetrievalResult],
     external: list[Source],
+    health_orgs: list[dict[str, Any]],
 ) -> list[dict[str, Any]]:
     combined: list[dict[str, Any]] = []
     for r in archive:
@@ -171,16 +228,25 @@ def _combine_evidence(
             "pmid": s.pmid,
             "published_year": s.published_year,
         })
+    for h in health_orgs:
+        combined.append({
+            "source": "health_org",
+            "title": h.get("title", ""),
+            "url": h.get("url", ""),
+            "text": h.get("passage", ""),
+            "verdict": None,
+            "rating_value": None,
+            "distance": None,
+            "source_type": h.get("source_type", "international_organization"),
+            "organization": h.get("organization", ""),
+        })
     return combined
 
 
 def _score_sources(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for item in evidence:
         st = item.get("source_type", "unknown")
-        try:
-            source_type = SourceType(st)
-        except ValueError:
-            source_type = SourceType.UNKNOWN
+        source_type = _safe_source_type(st)
         quality_score = _SOURCE_QUALITY_SCORES.get(source_type, 0.5)
         recency_bonus = 0.0
         year = item.get("published_year")
@@ -343,7 +409,7 @@ def update_graph(
     )
     graph.add_claim(claim)
     passages: list[Passage] = []
-    for m in matches[:3]:
+    for m in matches[:5]:
         source_url = m.get("url", "")
         if source_url:
             source_id = f"source::{source_url.rstrip('/').lower()}"
@@ -351,14 +417,16 @@ def update_graph(
                 id=source_id,
                 url=source_url,
                 title=m.get("title", ""),
-                source_type=SourceType(m.get("source_type", "unknown")),
+                source_type=_safe_source_type(m.get("source_type", "unknown")),
             )
             graph.add_source(source)
+            passage_text = m.get("text", "")[:1000]
             passage = Passage(
                 id=f"passage::{claim_id}::{len(passages)}",
-                text=m.get("text", "")[:1000],
+                text=passage_text,
                 source_id=source_id,
                 relevance=m.get("relevance", 0.5),
+                content_hash=_content_hash(passage_text) if passage_text else None,
             )
             graph.add_passage(passage)
             passages.append(passage)
@@ -384,6 +452,7 @@ class PipelineResult:
     extracted_claim: str
     archive_results: list[dict]
     external_results: list[dict]
+    health_org_results: list[dict]
     verdict: str
     verdict_confidence: float
     rating_value: int
@@ -397,6 +466,7 @@ class PipelineResult:
             "extracted_claim": self.extracted_claim,
             "archive_results": self.archive_results,
             "external_results": self.external_results,
+            "health_org_results": self.health_org_results,
             "verdict": self.verdict,
             "verdict_confidence": round(self.verdict_confidence, 3),
             "rating_value": self.rating_value,
@@ -412,13 +482,17 @@ async def run_pipeline(
     catalog: EvidenceCatalog,
     graph_builder: GraphBuilder,
     llm_provider: LLMProvider | None = None,
+    health_agent: HealthOrgSearchAgent | None = None,
     config: Settings | None = None,
 ) -> PipelineResult:
     """Execute the complete verification pipeline.
     
     Flow:
     1. Claim Extraction (rule-based, no LLM)
-    2. Source Discovery — Archive (RAG) + External (PubMed/Crossref)
+    2. Source Discovery — 11 sources in parallel:
+       - Archive (RAG)
+       - PubMed + Crossref
+       - WHO, CDC, ECDC, Cochrane, ClinicalTrials, FDA, EMA, Google Scholar
     3. Evidence Engine (hakem — deterministic, no LLM)
     4. LLM Interpreter (yorumcu — explains verdict, never generates evidence)
     5. Graph Update (records the chain)
@@ -430,20 +504,27 @@ async def run_pipeline(
     extracted_claim = extract_claim(user_query)
     steps.append({"name": "claim_extraction", "status": "done", "data": {"claim": extracted_claim}})
 
-    # Step 2: Source Discovery
-    archive, external = await discover_sources(
+    # Step 2: Source Discovery (11 sources in parallel)
+    archive, external, health_orgs = await discover_sources(
         extracted_claim, retriever, catalog,
+        health_agent=health_agent,
         archive_limit=config.rag_max_results,
         external_limit=5,
     )
-    steps.append({"name": "source_discovery", "status": "done", "data": {"archive": len(archive), "external": len(external)}})
+    steps.append({"name": "source_discovery", "status": "done", "data": {
+        "archive": len(archive),
+        "external": len(external),
+        "health_orgs": len(health_orgs),
+        "total_sources": len(archive) + len(external) + len(health_orgs),
+    }})
 
-    # Step 3: Evidence Engine (hakem)
-    engine_result = evidence_engine(extracted_claim, archive, external)
+    # Step 3: Evidence Engine (hakem) — ALL 11 sources
+    engine_result = evidence_engine(extracted_claim, archive, external, health_orgs)
     steps.append({"name": "evidence_engine", "status": "done", "data": {
         "verdict": engine_result["verdict"],
         "confidence": engine_result["confidence"],
         "rating": engine_result["rating_value"],
+        "total_evidence": len(engine_result["evidence_items"]),
     }})
 
     # Step 4: LLM Interpreter (yorumcu)
@@ -472,6 +553,7 @@ async def run_pipeline(
         extracted_claim=extracted_claim,
         archive_results=[r.to_dict() for r in archive],
         external_results=[s.to_dict() for s in external],
+        health_org_results=health_orgs,
         verdict=engine_result["verdict"],
         verdict_confidence=engine_result["confidence"],
         rating_value=engine_result["rating_value"],
@@ -481,7 +563,10 @@ async def run_pipeline(
     )
 
 
-def _map_source_type(source_type: SourceQuality) -> SourceType:
+def _map_source_type(source_type: SourceQuality | str) -> SourceType:
+    """Map SourceQuality enum or string to SourceType."""
+    if isinstance(source_type, str):
+        return _safe_source_type(source_type)
     mapping = {
         SourceQuality.PRIMARY: SourceType.PRIMARY,
         SourceQuality.SECONDARY: SourceType.SECONDARY,

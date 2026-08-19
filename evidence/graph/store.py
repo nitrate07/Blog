@@ -48,7 +48,8 @@ class EvidenceGraph:
                 self._passages[passage.id] = passage
             for e in data.get("evidence", []):
                 e["verdict"] = Verdict(e["verdict"])
-                e["passages"] = [self._passages[pid] for pid in e.get("passage_ids", []) if pid in self._passages]
+                passage_ids = e.pop("passage_ids", [])
+                e["passages"] = [self._passages[pid] for pid in passage_ids if pid in self._passages]
                 ev = Evidence(**e)
                 self._evidence[ev.id] = ev
             self._rebuild_indexes()

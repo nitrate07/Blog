@@ -11,7 +11,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from dataclasses import dataclass, field
+import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from typing import Any, Protocol
 
 import httpx
@@ -41,11 +42,16 @@ class SearchAgent(Protocol):
 # ---------------------------------------------------------------------------
 
 class PubMedAgent:
-    """Searches PubMed for medical and scientific evidence."""
+    """Searches PubMed for medical and scientific evidence.
+    
+    Returns: metadata + passage (abstract).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "pubmed"
     source_type = "academic"
     endpoint = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi"
     summary_endpoint = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi"
+    abstract_endpoint = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi"
 
     def __init__(self, config: Settings | None = None) -> None:
         self.config = config or settings
@@ -73,6 +79,35 @@ class PubMedAgent:
             })
             summary_resp.raise_for_status()
             summaries = summary_resp.json().get("result", {})
+
+            # Step 3: Fetch abstracts (passages) in XML
+            passages: dict[str, str] = {}
+            try:
+                abstract_resp = await client.get(self.abstract_endpoint, params={
+                    "db": "pubmed",
+                    "id": ",".join(ids),
+                    "rettype": "abstract",
+                    "retmode": "xml",
+                })
+                abstract_resp.raise_for_status()
+                root = ET.fromstring(abstract_resp.text)
+                for article in root.findall(".//PubmedArticle"):
+                    pmid_el = article.find(".//PMID")
+                    if pmid_el is None:
+                        continue
+                    pmid = pmid_el.text or ""
+                    abstract_texts = []
+                    for abs_el in article.findall(".//AbstractText"):
+                        label = abs_el.get("Label", "")
+                        text = "".join(abs_el.itertext()).strip()
+                        if label:
+                            abstract_texts.append(f"{label}: {text}")
+                        else:
+                            abstract_texts.append(text)
+                    if abstract_texts:
+                        passages[pmid] = "\n".join(abstract_texts)
+            except Exception as e:
+                logger.warning(f"PubMed abstract fetch failed: {e}")
 
         results: list[dict[str, Any]] = []
         for pmid in ids:
@@ -102,6 +137,7 @@ class PubMedAgent:
                 "journal": source,
                 "year": year,
                 "doi": doi,
+                "passage": passages.get(pmid, ""),
                 "source_type": "academic",
             })
         return results

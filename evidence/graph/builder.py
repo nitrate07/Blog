@@ -8,7 +8,6 @@ from pathlib import Path
 from typing import Any
 
 from ..connectors import EvidenceCatalog
-from ..models import EvidenceSearchResult, SourceQuality
 from ..rag.parser import ArticleChunk, parse_all_articles
 from .model import (
     Claim, Evidence, Passage, Source, SourceType, VerificationChain, Verdict,
@@ -20,7 +19,9 @@ logger = logging.getLogger(__name__)
 _VERDICT_MAP = {
     "supported": Verdict.SUPPORTED,
     "mostly supported": Verdict.MOSTLY_SUPPORTED,
+    "mostly_supported": Verdict.MOSTLY_SUPPORTED,
     "partly supported": Verdict.PARTLY_SUPPORTED,
+    "partly_supported": Verdict.PARTLY_SUPPORTED,
     "misleading": Verdict.MISLEADING,
     "unsupported": Verdict.UNSUPPORTED,
     "unverified": Verdict.UNVERIFIED,
@@ -30,6 +31,12 @@ _SOURCE_TYPE_MAP = {
     "primary": SourceType.PRIMARY,
     "secondary": SourceType.SECONDARY,
     "tertiary": SourceType.TERTIARY,
+    "international_organization": SourceType.TERTIARY,
+    "government": SourceType.TERTIARY,
+    "academic": SourceType.SECONDARY,
+    "systematic_review": SourceType.SECONDARY,
+    "clinical_trial": SourceType.SECONDARY,
+    "regulatory": SourceType.TERTIARY,
     "unknown": SourceType.UNKNOWN,
 }
 
