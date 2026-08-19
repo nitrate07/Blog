@@ -7,7 +7,11 @@ from pydantic import BaseModel, Field
 
 from .config import Settings, settings
 from .connectors import EvidenceCatalog
+from .cross_verification import CrossVerifier
 from .engine import EvidenceVerifier
+from .graph import EvidenceGraph, GraphBuilder
+from .graph.agents import EvidenceSearchAgent
+from .graph.pipeline import run_pipeline
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
 from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, test_provider
 from .rag import ArticleRetriever, ArticleVectorStore
@@ -35,6 +39,41 @@ class RAGIndexResponse(BaseModel):
     articles: int
 
 
+class CrossVerifyRequest(BaseModel):
+    claim: str = Field(min_length=3, max_length=4000)
+    academic_limit: int = Field(default=5, ge=1, le=20)
+    article_limit: int = Field(default=5, ge=1, le=20)
+
+
+class CrossVerifyResponse(BaseModel):
+    claim: str
+    existing_articles: list[dict]
+    academic_sources: list[dict]
+    source_count: int
+    pubmed_count: int
+    crossref_count: int
+    existing_count: int
+    coverage_score: float
+    summary: str
+
+
+class PipelineRequest(BaseModel):
+    query: str = Field(min_length=3, max_length=4000)
+
+
+class PipelineResponse(BaseModel):
+    query: str
+    extracted_claim: str
+    archive_results: list[dict]
+    external_results: list[dict]
+    verdict: str
+    verdict_confidence: float
+    rating_value: int
+    cited_response: str
+    steps: list[dict]
+    graph_claim_id: str | None = None
+
+
 def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = settings, store: VerificationStore | None = None, catalog: EvidenceCatalog | None = None) -> FastAPI:
     app = FastAPI(title="Arı Kaynak Evidence API", version="0.3.0")
 
@@ -52,6 +91,15 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
         persist_directory=config.rag_persist_directory,
     )
     app.state.rag_retriever = ArticleRetriever(rag_store)
+    app.state.cross_verifier = CrossVerifier(
+        catalog=app.state.catalog,
+        retriever=app.state.rag_retriever,
+        config=config,
+    )
+
+    evidence_graph = EvidenceGraph(persist_path=str(Path(config.rag_persist_directory).parent / "evidence_graph.json"))
+    app.state.graph_builder = GraphBuilder(evidence_graph, catalog=app.state.catalog)
+    app.state.evidence_agent = EvidenceSearchAgent(retriever=app.state.rag_retriever, config=config)
 
     async def principal_for_request(request: Request, x_api_key: str | None = Header(default=None)) -> APIPrincipal | None:
         if not request.app.state.config.require_api_key:
@@ -154,6 +202,171 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
     async def rag_stats(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
         """Return RAG index statistics."""
         return app.state.rag_retriever.get_stats()
+
+    @app.post("/v1/cross-verify", response_model=CrossVerifyResponse, tags=["verification"])
+    async def cross_verify(request: CrossVerifyRequest, principal: APIPrincipal | None = Depends(principal_for_request)) -> CrossVerifyResponse:
+        """Multi-source cross-verification: searches PubMed, Crossref, and existing articles simultaneously."""
+        result = await app.state.cross_verifier.verify(
+            claim=request.claim,
+            academic_limit=request.academic_limit,
+            article_limit=request.article_limit,
+        )
+        return CrossVerifyResponse(**result.to_dict())
+
+    @app.post("/v1/graph/build", tags=["graph"])
+    async def graph_build(
+        source: str = Query(default="claims_json", pattern="^(claims_json|articles)$"),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Build the evidence graph from claims.json or articles."""
+        builder = app.state.graph_builder
+        if source == "claims_json":
+            result = builder.build_from_claims_json("claims.json")
+        else:
+            articles_dir = Path(config.rag_articles_dir)
+            tr_dir = Path(config.rag_tr_dir) if config.rag_tr_dir else None
+            result = builder.build_from_articles(articles_dir, tr_dir)
+        return {"source": source, **result}
+
+    @app.get("/v1/graph/stats", tags=["graph"])
+    async def graph_stats(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Return evidence graph statistics."""
+        return app.state.graph_builder.graph.get_stats()
+
+    @app.get("/v1/graph/chain/{claim_id}", tags=["graph"])
+    async def graph_chain(claim_id: str, _: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Get the full verification chain for a claim: claim → evidence → source → passage → verdict."""
+        chain = app.state.graph_builder.get_full_chain(claim_id)
+        if not chain:
+            raise HTTPException(status_code=404, detail=f"Claim '{claim_id}' not found")
+        return chain.to_dict()
+
+    @app.get("/v1/graph/related/{claim_id}", tags=["graph"])
+    async def graph_related(claim_id: str, _: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Find claims related to a given claim via shared sources or category."""
+        related = app.state.graph_builder.graph.get_related_claims(claim_id)
+        return {
+            "claim_id": claim_id,
+            "related": [c.to_dict() for c in related],
+            "count": len(related),
+        }
+
+    @app.get("/v1/graph/contradictions", tags=["graph"])
+    async def graph_contradictions(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Find claims that contradict each other."""
+        contradictions = app.state.graph_builder.graph.get_contradictions()
+        return {
+            "contradictions": [
+                {"claim_a": a.to_dict(), "claim_b": b.to_dict(), "reason": reason}
+                for a, b, reason in contradictions
+            ],
+            "count": len(contradictions),
+        }
+
+    @app.get("/v1/graph/search", tags=["graph"])
+    async def graph_search(
+        q: str = Query(min_length=2, max_length=500),
+        category: str | None = None,
+        verdict: str | None = None,
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search claims in the evidence graph."""
+        results = app.state.graph_builder.graph.search_claims(q, category=category, verdict=verdict)
+        return {
+            "query": q,
+            "results": [c.to_dict() for c in results],
+            "count": len(results),
+        }
+
+    @app.post("/v1/pipeline", response_model=PipelineResponse, tags=["pipeline"])
+    async def run_full_pipeline(request: PipelineRequest, principal: APIPrincipal | None = Depends(principal_for_request)) -> PipelineResponse:
+        """Full verification pipeline: Claim Extraction → RAG + External → Evidence Engine → LLM Interpreter → Cited Response.
+        
+        LLM is used ONLY as an interpreter (yorumcu) to explain the verdict.
+        Evidence comes ONLY from verified sources (PubMed, Crossref, Archive).
+        """
+        result = await run_pipeline(
+            user_query=request.query,
+            retriever=app.state.rag_retriever,
+            catalog=app.state.catalog,
+            graph_builder=app.state.graph_builder,
+            llm_provider=app.state.verifier.provider if hasattr(app.state.verifier, "provider") else None,
+            config=config,
+        )
+        return PipelineResponse(**result.to_dict())
+
+    @app.get("/v1/agents/search", tags=["agents"])
+    async def agent_search(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        source: str | None = Query(default=None, pattern="^(pubmed|crossref|archive)$"),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search for evidence using specialized agents (PubMed, Crossref, Archive)."""
+        agent = app.state.evidence_agent
+        if source:
+            # Run single agent
+            for a in agent.agents:
+                if a.name == source:
+                    results = await a.search(q, limit)
+                    return {
+                        "query": q,
+                        "agent": source,
+                        "results": results,
+                        "total": len(results),
+                    }
+            raise HTTPException(status_code=400, detail=f"Unknown agent: {source}")
+        # Run all agents
+        result = await agent.search(q, limit_per_agent=limit)
+        return result.to_dict()
+
+    @app.get("/v1/agents/pubmed", tags=["agents"])
+    async def agent_pubmed(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search PubMed for medical/scientific evidence."""
+        from .graph.agents import PubMedAgent
+        pubmed = PubMedAgent(app.state.config)
+        results = await pubmed.search(q, limit)
+        return {"query": q, "agent": "pubmed", "results": results, "total": len(results)}
+
+    @app.get("/v1/agents/crossref", tags=["agents"])
+    async def agent_crossref(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search Crossref for academic papers."""
+        from .graph.agents import CrossrefAgent
+        crossref = CrossrefAgent(app.state.config)
+        results = await crossref.search(q, limit)
+        return {"query": q, "agent": "crossref", "results": results, "total": len(results)}
+
+    @app.get("/v1/agents/archive", tags=["agents"])
+    async def agent_archive(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search Arı Kaynak archive via RAG."""
+        from .graph.agents import ArchiveAgent
+        archive = ArchiveAgent(app.state.rag_retriever)
+        results = await archive.search(q, limit)
+        return {"query": q, "agent": "archive", "results": results, "total": len(results)}
+
+    @app.get("/v1/agents/stats", tags=["agents"])
+    async def agent_stats(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Return available agents and their status."""
+        agent = app.state.evidence_agent
+        return {
+            "agents": [
+                {"name": a.name, "source_type": a.source_type}
+                for a in agent.agents
+            ],
+            "total_agents": len(agent.agents),
+        }
 
     return app
 
