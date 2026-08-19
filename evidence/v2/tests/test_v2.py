@@ -401,3 +401,103 @@ class TestAPI:
             resp = await client.get("/v1/history")
             assert resp.status_code == 200
             assert "records" in resp.json()
+
+
+# ---------------------------------------------------------------------------
+# Database Integration
+# ---------------------------------------------------------------------------
+
+class TestDatabaseIntegration:
+    def test_database_save_and_retrieve(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        claim = Claim(id="c1", text="test claim", author="pipeline", category="Health", date_filed="", file_number=0)
+        db.save_claim(claim)
+        retrieved = db.get_claim("c1")
+        assert retrieved is not None
+        assert retrieved.text == "test claim"
+    
+    def test_database_stats(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        stats = db.get_stats()
+        assert "claims" in stats
+        assert "sources" in stats
+        assert "passages" in stats
+        assert "evidence" in stats
+        assert "contradictions" in stats
+        assert "verifications" in stats
+    
+    def test_database_verification_history(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        record = VerificationRecord(
+            id="v1", query="test", claim_text="test claim", verdict="supported",
+            confidence=0.8, rating_value=4, sources_count=5, passages_count=3,
+            contradictions_count=0, created_at="2024-01-01", steps=[], cited_response="response",
+        )
+        db.save_verification_record(record)
+        
+        history = db.get_verification_history()
+        assert len(history) == 1
+        assert history[0].query == "test"
+    
+    @pytest.mark.asyncio
+    async def test_pipeline_persists_to_database(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        mock_agent = MagicMock(spec=SourceAgent)
+        mock_agent.name = "test"
+        mock_agent.source_type = "test"
+        mock_agent.search = AsyncMock(return_value=[])
+        
+        orchestrator = SourceOrchestrator([mock_agent])
+        engine = DeterministicEngine()
+        pipeline = EvidencePipeline(orchestrator, engine, db=db)
+        
+        await pipeline.run("Is exercise good for heart health?")
+        
+        # Verify database was populated
+        stats = db.get_stats()
+        assert stats["claims"] >= 1
+        assert stats["evidence"] >= 1
+        assert stats["verifications"] >= 1
+    
+    @pytest.mark.asyncio
+    async def test_api_with_database(self, tmp_path):
+        from httpx import AsyncClient, ASGITransport
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        app = create_app(db_path=db_path)
+        transport = ASGITransport(app=app)
+        
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Run a verification
+            resp = await client.post("/v1/verify", json={"query": "Is exercise good?"})
+            assert resp.status_code == 200
+            
+            # Check database stats
+            resp = await client.get("/v1/db/stats")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["claims"] >= 1
+            assert data["verifications"] >= 1
+            
+            # Check database history
+            resp = await client.get("/v1/db/history")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["total"] >= 1

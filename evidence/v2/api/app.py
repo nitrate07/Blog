@@ -8,6 +8,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from ..core.database import EvidenceDatabase
 from ..engine import DeterministicEngine, ContradictionDetector, PassageVerifier
 from ..pipeline import EvidencePipeline, PipelineResult
 from ..sources import (
@@ -102,12 +103,14 @@ class HistoryResponse(BaseModel):
 def create_app(
     retriever: Any | None = None,
     llm_provider: Any | None = None,
+    db_path: str | None = None,
 ) -> FastAPI:
     """Create the FastAPI application.
     
     Args:
         retriever: ArticleRetriever instance for Archive agent
         llm_provider: Optional LLM provider for interpreter
+        db_path: Optional SQLite database path for persistent storage
     """
     app = FastAPI(title="Arı Kaynak Evidence API v2", version="2.0.0")
     
@@ -135,14 +138,18 @@ def create_app(
     if retriever:
         agents.insert(2, ArchiveAgent(retriever))
     
+    # Initialize database (if path provided)
+    db = EvidenceDatabase(db_path) if db_path else None
+    
     # Initialize components
     orchestrator = SourceOrchestrator(agents)
     engine = DeterministicEngine()
-    pipeline = EvidencePipeline(orchestrator, engine, llm_provider)
+    pipeline = EvidencePipeline(orchestrator, engine, llm_provider, db)
     
     app.state.orchestrator = orchestrator
     app.state.engine = engine
     app.state.pipeline = pipeline
+    app.state.db = db
     
     # -----------------------------------------------------------------------
     # Endpoints
@@ -228,5 +235,20 @@ def create_app(
             if record.id == verification_id:
                 return record.to_dict()
         raise HTTPException(status_code=404, detail="Verification not found")
+    
+    @app.get("/v1/db/stats")
+    async def db_stats():
+        """Get database statistics (requires database to be configured)."""
+        if not db:
+            raise HTTPException(status_code=404, detail="Database not configured")
+        return db.get_stats()
+    
+    @app.get("/v1/db/history")
+    async def db_history(limit: int = 100):
+        """Get verification history from database (requires database)."""
+        if not db:
+            raise HTTPException(status_code=404, detail="Database not configured")
+        records = db.get_verification_history(limit)
+        return {"records": [r.to_dict() for r in records], "total": len(records)}
     
     return app

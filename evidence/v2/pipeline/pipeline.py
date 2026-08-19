@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from ..core.database import EvidenceDatabase
 from ..core.interfaces import EvidenceEngine, SourceAgent
 from ..core.types import (
     Claim,
@@ -433,10 +434,12 @@ class EvidencePipeline:
         orchestrator: SourceOrchestrator,
         engine: EvidenceEngine,
         llm_provider: Any | None = None,
+        db: EvidenceDatabase | None = None,
     ) -> None:
         self.orchestrator = orchestrator
         self.engine = engine
         self.llm_provider = llm_provider
+        self.db = db
         
         # In-memory graph storage
         self.claims: dict[str, Claim] = {}
@@ -547,6 +550,17 @@ class EvidencePipeline:
         )
         self.history.append(record)
         
+        # Step 9: Persist to database (if configured)
+        if self.db is not None:
+            self._save_to_database(
+                graph_result["claim"],
+                graph_result["sources"],
+                graph_result["passages"],
+                graph_result["evidence"],
+                contradictions,
+                record,
+            )
+        
         return PipelineResult(
             verification_id=verification_id,
             query=user_query,
@@ -566,3 +580,26 @@ class EvidencePipeline:
             graph_claim_id=graph_result["claim"].id,
             created_at=created_at,
         )
+    
+    def _save_to_database(
+        self,
+        claim: Claim,
+        sources: list[Source],
+        passages: list[Passage],
+        evidence: Evidence,
+        contradictions: list[Contradiction],
+        record: VerificationRecord,
+    ) -> None:
+        """Persist all artifacts to the SQLite database."""
+        try:
+            self.db.save_claim(claim)
+            for source in sources:
+                self.db.save_source(source)
+            for passage in passages:
+                self.db.save_passage(passage)
+            self.db.save_evidence(evidence)
+            for contradiction in contradictions:
+                self.db.save_contradiction(contradiction)
+            self.db.save_verification_record(record)
+        except Exception as e:
+            logger.warning(f"Failed to save to database: {e}")
