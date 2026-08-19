@@ -4,15 +4,22 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock
 
 from evidence.v2.core.types import (
-    Claim, Source, Passage, Evidence, Verdict, SourceType,
-    content_hash, make_source_id, make_passage_id, make_evidence_id, make_claim_id,
+    Claim, Source, Passage, Evidence, Verdict, SourceType, StudyDesign,
+    Contradiction, ContradictionType, VerificationRecord,
+    content_hash, make_source_id, make_passage_id, make_evidence_id,
+    make_claim_id, make_verification_id, make_contradiction_id,
+    get_journal_impact_factor, get_study_design_level, calculate_source_quality_score,
 )
 from evidence.v2.core.interfaces import SourceAgent, EvidenceEngine
+from evidence.v2.core.infrastructure import RateLimiter, Cache
 from evidence.v2.engine.engine import DeterministicEngine
+from evidence.v2.engine.contradiction import ContradictionDetector
+from evidence.v2.engine.verifier import PassageVerifier
 from evidence.v2.pipeline.pipeline import (
     extract_claim,
     discover_sources,
     run_engine,
+    detect_contradictions,
     interpret_with_llm,
     update_graph,
     EvidencePipeline,
@@ -40,24 +47,49 @@ class TestCoreTypes:
         assert SourceType.TERTIARY == "tertiary"
         assert SourceType.UNKNOWN == "unknown"
     
+    def test_study_design_enum(self):
+        assert StudyDesign.SYSTEMATIC_REVIEW_META == "systematic_review_meta_analysis"
+        assert StudyDesign.RCT == "randomized_controlled_trial"
+        assert StudyDesign.COHORT == "cohort_study"
+    
     def test_content_hash(self):
         h = content_hash("hello world")
         assert len(h) == 16
         assert h == content_hash("hello world")  # deterministic
     
-    def test_make_source_id(self):
-        assert make_source_id("https://example.com/") == "source::https://example.com"
+    def test_make_verification_id(self):
+        vid = make_verification_id()
+        assert vid.startswith("verif::")
+        assert len(vid) == 19  # verif:: + 12 hex chars
     
-    def test_make_passage_id(self):
-        assert make_passage_id("claim::1", 0) == "passage::claim::1::0"
+    def test_make_contradiction_id(self):
+        cid = make_contradiction_id("s1", "s2")
+        assert cid == "contradiction::s1::s2"
     
-    def test_make_evidence_id(self):
-        assert make_evidence_id("claim::1") == "evidence::claim::1"
+    def test_journal_impact_factor(self):
+        assert get_journal_impact_factor("New England Journal of Medicine") == 158.5
+        assert get_journal_impact_factor("The Lancet") == 168.9
+        assert get_journal_impact_factor("JAMA") == 120.7
+        assert get_journal_impact_factor("BMJ") == 105.0
+        assert get_journal_impact_factor("Unknown Journal") == 0.0
     
-    def test_make_claim_id(self):
-        id1 = make_claim_id("test claim")
-        id2 = make_claim_id("test claim")
-        assert id1 == id2  # deterministic
+    def test_study_design_level(self):
+        assert get_study_design_level(StudyDesign.SYSTEMATIC_REVIEW_META) == 1
+        assert get_study_design_level(StudyDesign.RCT) == 2
+        assert get_study_design_level(StudyDesign.CASE_REPORT) == 5
+    
+    def test_calculate_source_quality_score(self):
+        # High quality: primary + RCT + high IF + recent
+        score = calculate_source_quality_score(
+            SourceType.PRIMARY, StudyDesign.RCT, 158.5, 2024
+        )
+        assert score >= 0.8
+        
+        # Low quality: unknown + expert opinion + no IF + old
+        score = calculate_source_quality_score(
+            SourceType.UNKNOWN, StudyDesign.EXPERT_OPINION, 0.0, 2010
+        )
+        assert score <= 0.6
     
     def test_claim_to_dict(self):
         claim = Claim(id="c1", text="test", author="a", category="cat", date_filed="", file_number=0)
@@ -83,6 +115,24 @@ class TestCoreTypes:
         d = evidence.to_dict()
         assert d["verdict"] == "supported"
         assert d["confidence"] == 0.8
+    
+    def test_contradiction_to_dict(self):
+        c = Contradiction(
+            id="c1", source1_id="s1", source2_id="s2", claim_id="cl1",
+            contradiction_type=ContradictionType.DIRECT,
+            description="test", source1_verdict="supported", source2_verdict="unsupported",
+        )
+        d = c.to_dict()
+        assert d["contradiction_type"] == "direct"
+    
+    def test_verification_record_to_dict(self):
+        r = VerificationRecord(
+            id="v1", query="test", claim_text="test claim", verdict="supported",
+            confidence=0.8, rating_value=4, sources_count=5, passages_count=3,
+            contradictions_count=0, created_at="2024-01-01", steps=[], cited_response="response",
+        )
+        d = r.to_dict()
+        assert d["id"] == "v1"
 
 
 # ---------------------------------------------------------------------------
@@ -143,6 +193,68 @@ class TestDeterministicEngine:
         result = engine.judge("vitamin D health?", [], [], health_orgs)
         assert len(result["matches"]) >= 1
         assert result["matches"][0]["quality_score"] > 0
+    
+    def test_supporting_and_contradicting_sources(self):
+        engine = DeterministicEngine()
+        external = [
+            {"title": "Study 1", "url": "https://example.com/1", "passage": "supports claim", "source_type": "academic"},
+            {"title": "Study 2", "url": "https://example.com/2", "passage": "opposes claim", "source_type": "academic"},
+        ]
+        result = engine.judge("test claim?", [], external, [])
+        assert "supporting_sources" in result
+        assert "contradicting_sources" in result
+
+
+# ---------------------------------------------------------------------------
+# Contradiction Detection
+# ---------------------------------------------------------------------------
+
+class TestContradictionDetector:
+    def test_no_contradictions(self):
+        detector = ContradictionDetector()
+        sources = [
+            Source(id="s1", url="https://example.com/1", title="Study 1", source_type=SourceType.PRIMARY),
+            Source(id="s2", url="https://example.com/2", title="Study 2", source_type=SourceType.PRIMARY),
+        ]
+        matches = [
+            {"source_id": "s1", "url": "https://example.com/1", "verdict": "supported"},
+            {"source_id": "s2", "url": "https://example.com/2", "verdict": "supported"},
+        ]
+        contradictions = detector.detect("c1", sources, matches)
+        assert len(contradictions) == 0
+    
+    def test_direct_contradiction(self):
+        detector = ContradictionDetector()
+        sources = [
+            Source(id="s1", url="https://example.com/1", title="Study 1", source_type=SourceType.PRIMARY),
+            Source(id="s2", url="https://example.com/2", title="Study 2", source_type=SourceType.PRIMARY),
+        ]
+        matches = [
+            {"source_id": "s1", "url": "https://example.com/1", "verdict": "supported"},
+            {"source_id": "s2", "url": "https://example.com/2", "verdict": "unsupported"},
+        ]
+        contradictions = detector.detect("c1", sources, matches)
+        assert len(contradictions) == 1
+        assert contradictions[0].contradiction_type == ContradictionType.DIRECT
+
+
+# ---------------------------------------------------------------------------
+# Infrastructure
+# ---------------------------------------------------------------------------
+
+class TestInfrastructure:
+    @pytest.mark.asyncio
+    async def test_rate_limiter(self):
+        limiter = RateLimiter(max_requests=2, window_seconds=1.0)
+        assert await limiter.acquire("test")
+        assert await limiter.acquire("test")
+        assert not await limiter.acquire("test")
+    
+    def test_cache(self):
+        cache = Cache(max_size=2, ttl_seconds=1.0)
+        cache.set("key1", "value1")
+        assert cache.get("key1") == "value1"
+        assert cache.get("key2") is None
 
 
 # ---------------------------------------------------------------------------
@@ -152,7 +264,6 @@ class TestDeterministicEngine:
 class TestPipeline:
     @pytest.mark.asyncio
     async def test_full_pipeline(self):
-        # Create mock agents
         mock_agent = MagicMock(spec=SourceAgent)
         mock_agent.name = "test"
         mock_agent.source_type = "test"
@@ -164,15 +275,16 @@ class TestPipeline:
         
         result = await pipeline.run("Is exercise good for heart health?")
         
+        assert result.verification_id
         assert result.extracted_claim
         assert result.verdict in ["unverified", "partly_supported", "mostly_supported", "supported"]
         assert result.cited_response
         assert result.graph_claim_id
-        assert len(result.steps) >= 5
+        assert result.created_at
+        assert len(result.steps) >= 7
     
     @pytest.mark.asyncio
     async def test_pipeline_principle(self):
-        """Verify: LLM is never an evidence source."""
         mock_agent = MagicMock(spec=SourceAgent)
         mock_agent.name = "test"
         mock_agent.source_type = "test"
@@ -184,14 +296,35 @@ class TestPipeline:
         
         result = await pipeline.run("test query")
         
-        # All results are lists
         assert isinstance(result.archive_results, list)
         assert isinstance(result.external_results, list)
         assert isinstance(result.health_org_results, list)
+        assert isinstance(result.passage_verifications, list)
+        assert isinstance(result.contradictions, list)
+        assert isinstance(result.supporting_sources, list)
+        assert isinstance(result.contradicting_sources, list)
         
-        # Graph was updated
         assert len(pipeline.claims) >= 1
         assert len(pipeline.evidence) >= 1
+        assert len(pipeline.history) >= 1
+    
+    @pytest.mark.asyncio
+    async def test_verification_history(self):
+        mock_agent = MagicMock(spec=SourceAgent)
+        mock_agent.name = "test"
+        mock_agent.source_type = "test"
+        mock_agent.search = AsyncMock(return_value=[])
+        
+        orchestrator = SourceOrchestrator([mock_agent])
+        engine = DeterministicEngine()
+        pipeline = EvidencePipeline(orchestrator, engine)
+        
+        await pipeline.run("first query")
+        await pipeline.run("second query")
+        
+        assert len(pipeline.history) == 2
+        assert pipeline.history[0].query == "first query"
+        assert pipeline.history[1].query == "second query"
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +346,9 @@ class TestAPI:
         async with AsyncClient(transport=transport, base_url="http://test") as client:
             resp = await client.get("/health")
             assert resp.status_code == 200
-            assert resp.json()["status"] == "ok"
+            data = resp.json()
+            assert data["status"] == "ok"
+            assert data["agents"] == 18  # Without ArchiveAgent
     
     @pytest.mark.asyncio
     async def test_verify_endpoint(self):
@@ -225,8 +360,11 @@ class TestAPI:
             resp = await client.post("/v1/verify", json={"query": "Is exercise good?"})
             assert resp.status_code == 200
             data = resp.json()
+            assert "verification_id" in data
             assert "verdict" in data
             assert "cited_response" in data
+            assert "passage_verifications" in data
+            assert "contradictions" in data
     
     @pytest.mark.asyncio
     async def test_search_endpoint(self):
@@ -250,4 +388,16 @@ class TestAPI:
             assert resp.status_code == 200
             data = resp.json()
             assert "claims" in data
-            assert "total_agents" in data
+            assert "contradictions" in data
+            assert "verifications" in data
+    
+    @pytest.mark.asyncio
+    async def test_history_endpoint(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/v1/history")
+            assert resp.status_code == 200
+            assert "records" in resp.json()

@@ -1,4 +1,4 @@
-"""FastAPI application — all endpoints for Evidence Verification Infrastructure."""
+"""FastAPI application — all endpoints for Evidence Verification Infrastructure v2."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from ..engine import DeterministicEngine
+from ..engine import DeterministicEngine, ContradictionDetector, PassageVerifier
 from ..pipeline import EvidencePipeline, PipelineResult
 from ..sources import (
     PubMedAgent,
@@ -22,6 +22,14 @@ from ..sources import (
     FDAAgent,
     EMAAgent,
     GoogleScholarAgent,
+    NEJMAgent,
+    JAMAAgent,
+    LancetAgent,
+    BMJAgent,
+    NICEAgent,
+    AHAAgent,
+    ESCAgent,
+    TUSEBAgent,
     SourceOrchestrator,
 )
 
@@ -37,17 +45,23 @@ class VerifyRequest(BaseModel):
 
 
 class VerifyResponse(BaseModel):
+    verification_id: str
     query: str
     extracted_claim: str
     archive_results: list[dict]
     external_results: list[dict]
     health_org_results: list[dict]
+    passage_verifications: list[dict]
+    contradictions: list[dict]
     verdict: str
     verdict_confidence: float
     rating_value: int
+    supporting_sources: list[str]
+    contradicting_sources: list[str]
     cited_response: str
     steps: list[dict]
     graph_claim_id: str | None = None
+    created_at: str | None = None
 
 
 class SearchRequest(BaseModel):
@@ -70,8 +84,15 @@ class StatsResponse(BaseModel):
     sources: int
     passages: int
     evidence: int
+    contradictions: int
+    verifications: int
     agents: list[dict]
     total_agents: int
+
+
+class HistoryResponse(BaseModel):
+    records: list[dict]
+    total: int
 
 
 # ---------------------------------------------------------------------------
@@ -90,7 +111,7 @@ def create_app(
     """
     app = FastAPI(title="Arı Kaynak Evidence API v2", version="2.0.0")
     
-    # Initialize agents
+    # Initialize all agents (19 sources)
     agents = [
         PubMedAgent(),
         CrossrefAgent(),
@@ -102,6 +123,14 @@ def create_app(
         FDAAgent(),
         EMAAgent(),
         GoogleScholarAgent(),
+        NEJMAgent(),
+        JAMAAgent(),
+        LancetAgent(),
+        BMJAgent(),
+        NICEAgent(),
+        AHAAgent(),
+        ESCAgent(),
+        TUSEBAgent(),
     ]
     if retriever:
         agents.insert(2, ArchiveAgent(retriever))
@@ -121,11 +150,11 @@ def create_app(
     
     @app.get("/health")
     async def health():
-        return {"status": "ok", "version": "2.0.0"}
+        return {"status": "ok", "version": "2.0.0", "agents": len(agents)}
     
     @app.post("/v1/verify", response_model=VerifyResponse)
     async def verify(request: VerifyRequest):
-        """Full verification pipeline: 11 sources → Engine → Verdict."""
+        """Full verification pipeline: 19 sources → Engine → Contradictions → Verdict."""
         result = await pipeline.run(request.query)
         return VerifyResponse(**result.to_dict())
     
@@ -147,9 +176,17 @@ def create_app(
             sources=len(pipeline.sources),
             passages=len(pipeline.passages),
             evidence=len(pipeline.evidence),
+            contradictions=len(pipeline.contradictions),
+            verifications=len(pipeline.history),
             agents=orchestrator.list_agents(),
             total_agents=len(agents),
         )
+    
+    @app.get("/v1/history", response_model=HistoryResponse)
+    async def history(limit: int = 100):
+        """Get verification history."""
+        records = [r.to_dict() for r in pipeline.history[-limit:]]
+        return HistoryResponse(records=records, total=len(pipeline.history))
     
     @app.get("/v1/agents")
     async def list_agents():
@@ -175,5 +212,21 @@ def create_app(
             if ev.claim_id == claim_id
         ]
         return {"claim_id": claim_id, "evidence": evidence_list}
+    
+    @app.get("/v1/contradictions")
+    async def get_contradictions():
+        """Get all detected contradictions."""
+        return {
+            "contradictions": [c.to_dict() for c in pipeline.contradictions.values()],
+            "total": len(pipeline.contradictions),
+        }
+    
+    @app.get("/v1/verification/{verification_id}")
+    async def get_verification(verification_id: str):
+        """Get a specific verification record."""
+        for record in pipeline.history:
+            if record.id == verification_id:
+                return record.to_dict()
+        raise HTTPException(status_code=404, detail="Verification not found")
     
     return app
