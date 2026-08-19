@@ -41,6 +41,21 @@ _SOURCE_QUALITY_SCORES = {
     SourceType.UNKNOWN: 0.5,
 }
 
+_HEALTH_SOURCE_TYPE_MAP = {
+    "international_organization": SourceType.TERTIARY,
+    "government": SourceType.TERTIARY,
+    "academic": SourceType.SECONDARY,
+    "primary": SourceType.PRIMARY,
+    "secondary": SourceType.SECONDARY,
+    "tertiary": SourceType.TERTIARY,
+    "unknown": SourceType.UNKNOWN,
+}
+
+
+def _safe_source_type(source_type_str: str) -> SourceType:
+    """Convert any source_type string to SourceType enum safely."""
+    return _HEALTH_SOURCE_TYPE_MAP.get(source_type_str, SourceType.UNKNOWN)
+
 
 # ---------------------------------------------------------------------------
 # Step 1: Claim Extraction
@@ -220,10 +235,7 @@ def _combine_evidence(
 def _score_sources(evidence: list[dict[str, Any]]) -> list[dict[str, Any]]:
     for item in evidence:
         st = item.get("source_type", "unknown")
-        try:
-            source_type = SourceType(st)
-        except ValueError:
-            source_type = SourceType.UNKNOWN
+        source_type = _safe_source_type(st)
         quality_score = _SOURCE_QUALITY_SCORES.get(source_type, 0.5)
         recency_bonus = 0.0
         year = item.get("published_year")
@@ -386,7 +398,7 @@ def update_graph(
     )
     graph.add_claim(claim)
     passages: list[Passage] = []
-    for m in matches[:3]:
+    for m in matches[:5]:
         source_url = m.get("url", "")
         if source_url:
             source_id = f"source::{source_url.rstrip('/').lower()}"
@@ -394,7 +406,7 @@ def update_graph(
                 id=source_id,
                 url=source_url,
                 title=m.get("title", ""),
-                source_type=SourceType(m.get("source_type", "unknown")),
+                source_type=_safe_source_type(m.get("source_type", "unknown")),
             )
             graph.add_source(source)
             passage = Passage(
