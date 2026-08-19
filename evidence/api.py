@@ -10,6 +10,7 @@ from .connectors import EvidenceCatalog
 from .cross_verification import CrossVerifier
 from .engine import EvidenceVerifier
 from .graph import EvidenceGraph, GraphBuilder
+from .graph.agents import EvidenceSearchAgent
 from .graph.pipeline import run_pipeline
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
 from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, test_provider
@@ -98,6 +99,7 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
 
     evidence_graph = EvidenceGraph(persist_path=str(Path(config.rag_persist_directory).parent / "evidence_graph.json"))
     app.state.graph_builder = GraphBuilder(evidence_graph, catalog=app.state.catalog)
+    app.state.evidence_agent = EvidenceSearchAgent(retriever=app.state.rag_retriever, config=config)
 
     async def principal_for_request(request: Request, x_api_key: str | None = Header(default=None)) -> APIPrincipal | None:
         if not request.app.state.config.require_api_key:
@@ -292,6 +294,79 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
             config=config,
         )
         return PipelineResponse(**result.to_dict())
+
+    @app.get("/v1/agents/search", tags=["agents"])
+    async def agent_search(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        source: str | None = Query(default=None, pattern="^(pubmed|crossref|archive)$"),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search for evidence using specialized agents (PubMed, Crossref, Archive)."""
+        agent = app.state.evidence_agent
+        if source:
+            # Run single agent
+            for a in agent.agents:
+                if a.name == source:
+                    results = await a.search(q, limit)
+                    return {
+                        "query": q,
+                        "agent": source,
+                        "results": results,
+                        "total": len(results),
+                    }
+            raise HTTPException(status_code=400, detail=f"Unknown agent: {source}")
+        # Run all agents
+        result = await agent.search(q, limit_per_agent=limit)
+        return result.to_dict()
+
+    @app.get("/v1/agents/pubmed", tags=["agents"])
+    async def agent_pubmed(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search PubMed for medical/scientific evidence."""
+        from .graph.agents import PubMedAgent
+        pubmed = PubMedAgent(app.state.config)
+        results = await pubmed.search(q, limit)
+        return {"query": q, "agent": "pubmed", "results": results, "total": len(results)}
+
+    @app.get("/v1/agents/crossref", tags=["agents"])
+    async def agent_crossref(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search Crossref for academic papers."""
+        from .graph.agents import CrossrefAgent
+        crossref = CrossrefAgent(app.state.config)
+        results = await crossref.search(q, limit)
+        return {"query": q, "agent": "crossref", "results": results, "total": len(results)}
+
+    @app.get("/v1/agents/archive", tags=["agents"])
+    async def agent_archive(
+        q: str = Query(min_length=3, max_length=500),
+        limit: int = Query(default=5, ge=1, le=20),
+        _: APIPrincipal | None = Depends(principal_for_request),
+    ) -> dict:
+        """Search Arı Kaynak archive via RAG."""
+        from .graph.agents import ArchiveAgent
+        archive = ArchiveAgent(app.state.rag_retriever)
+        results = await archive.search(q, limit)
+        return {"query": q, "agent": "archive", "results": results, "total": len(results)}
+
+    @app.get("/v1/agents/stats", tags=["agents"])
+    async def agent_stats(_: APIPrincipal | None = Depends(principal_for_request)) -> dict:
+        """Return available agents and their status."""
+        agent = app.state.evidence_agent
+        return {
+            "agents": [
+                {"name": a.name, "source_type": a.source_type}
+                for a in agent.agents
+            ],
+            "total_agents": len(agent.agents),
+        }
 
     return app
 
