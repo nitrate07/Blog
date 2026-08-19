@@ -87,23 +87,42 @@ The system supports optional LLM providers for enhanced evidence verification. W
 
 ### Supported Providers
 
-| Provider | Model | API Key Env Var |
-|----------|-------|-----------------|
-| Claude | claude-sonnet-4-20250514 | `EVIDENCE_LLM_API_KEY` |
-| OpenAI | gpt-4o-mini | `EVIDENCE_LLM_API_KEY` |
-| Gemini | gemini-1.5-flash | `EVIDENCE_LLM_API_KEY` |
+| Provider | Default Model | API Key Env Var | Model Env Var |
+|----------|---------------|-----------------|---------------|
+| Claude | claude-sonnet-4-20250514 | `EVIDENCE_CLAUDE_API_KEY` | `EVIDENCE_CLAUDE_MODEL` |
+| OpenAI | gpt-4o-mini | `EVIDENCE_OPENAI_API_KEY` | `EVIDENCE_OPENAI_MODEL` |
+| Gemini | gemini-1.5-flash | `EVIDENCE_GEMINI_API_KEY` | `EVIDENCE_GEMINI_MODEL` |
 
 ### Configuration
 
-```bash
-# Enable LLM provider
-export EVIDENCE_LLM_PROVIDER=claude  # or openai, gemini
-export EVIDENCE_LLM_API_KEY=your-api-key-here
+Two approaches — provider-specific (recommended) or generic:
 
-# Optional settings
-export EVIDENCE_LLM_MODEL=claude-sonnet-4-20250514
-export EVIDENCE_LLM_TEMPERATURE=0.0
-export EVIDENCE_LLM_MAX_TOKENS=256
+```bash
+# Provider-specific (allows multiple providers configured at once)
+export EVIDENCE_CLAUDE_API_KEY=your-anthropic-key
+export EVIDENCE_CLAUDE_MODEL=claude-sonnet-4-20250514  # optional
+
+export EVIDENCE_OPENAI_API_KEY=your-openai-key
+export EVIDENCE_GEMINI_API_KEY=your-google-key
+
+# Generic fallback (used when provider-specific not set)
+# export EVIDENCE_LLM_PROVIDER=claude
+# export EVIDENCE_LLM_API_KEY=your-key
+# export EVIDENCE_LLM_MODEL=claude-sonnet-4-20250514
+# export EVIDENCE_LLM_TEMPERATURE=0.0
+# export EVIDENCE_LLM_MAX_TOKENS=256
+```
+
+The system auto-detects the active provider: provider-specific env vars take precedence, then `EVIDENCE_LLM_PROVIDER`, then the first provider with a configured API key.
+
+### Provider Status API
+
+```bash
+# Check which providers are configured
+curl http://localhost:8000/v1/provider/status
+
+# Test provider connectivity
+curl -X POST http://localhost:8000/v1/provider/test/claude
 ```
 
 ### How It Works
@@ -116,14 +135,21 @@ export EVIDENCE_LLM_MAX_TOKENS=256
 ### Provider Architecture
 
 ```python
-from evidence.provider_registry import create_provider
+from evidence.provider_registry import create_provider_from_config, create_provider
 
-# Automatic provider creation from config
+# Auto-create from environment (recommended)
+provider = create_provider_from_config()
+
+# Or create explicitly
 provider = create_provider(
     provider_name="claude",
     api_key="your-key",
     model="claude-sonnet-4-20250514",
 )
+
+# Health check
+status = await provider.health_check()
+# {"status": "ok", "provider": "ClaudeProvider", "model": "claude-sonnet-4-20250514", ...}
 
 # Or use directly
 from evidence.llm_providers import ClaudeProvider
@@ -142,6 +168,9 @@ class MyCustomProvider:
     async def compare(self, claim: str, passage: str, context: str | None = None) -> Verdict | None:
         # Your logic here
         return Verdict.SUPPORTED
+
+    async def health_check(self) -> dict:
+        return {"status": "ok", "provider": "MyCustomProvider", "model": "custom"}
 ```
 
 ### Security
