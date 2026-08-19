@@ -27,11 +27,15 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 class WHOAgent:
-    """Searches WHO IRIS (Institutional Repository) and WHO news."""
+    """Searches WHO IRIS (Institutional Repository) and WHO news.
+    
+    Returns: metadata + passage (abstract).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "who"
     source_type = "international_organization"
     iris_endpoint = "https://iris.who.int/rest/api/search"
-    news_endpoint = "https://www.who.int/api/hubs/topstories"
+    handle_endpoint = "https://iris.who.int/rest/api/handle"
 
     def __init__(self, config: Settings | None = None) -> None:
         self.config = config or settings
@@ -55,18 +59,34 @@ class WHOAgent:
                     title = item.get("metadata", [])
                     title_text = ""
                     doi = None
+                    handle = item.get("handle", "")
                     for m in title:
                         if m.get("key") == "dc.title":
                             title_text = m.get("value", "")
                         if m.get("key") == "dc.identifier.doi":
                             doi = m.get("value", "")
                     if title_text:
+                        passage = ""
+                        if handle:
+                            try:
+                                detail_resp = await client.get(f"{self.handle_endpoint}/{handle}", params={"expand": "bitstreams"})
+                                detail_resp.raise_for_status()
+                                detail = detail_resp.json()
+                                for bitstream in detail.get("bitstreams", []):
+                                    if bitstream.get("format", "").startswith("text"):
+                                        content_resp = await client.get(bitstream.get("retrieveLink", ""))
+                                        if content_resp.status_code == 200:
+                                            passage = content_resp.text[:2000]
+                                            break
+                            except Exception:
+                                pass
                         results.append({
                             "source": "who",
                             "organization": "World Health Organization",
                             "title": title_text,
-                            "url": f"https://iris.who.int/handle/{item.get('handle', '')}",
+                            "url": f"https://iris.who.int/handle/{handle}",
                             "doi": doi,
+                            "passage": passage,
                             "source_type": "international_organization",
                         })
             except Exception as e:
@@ -79,7 +99,11 @@ class WHOAgent:
 # ---------------------------------------------------------------------------
 
 class CDCAgent:
-    """Searches CDC MMWR (Morbidity and Mortality Weekly Report) and guidelines."""
+    """Searches CDC MMWR (Morbidity and Mortality Weekly Report) and guidelines.
+    
+    Returns: metadata + passage (content snippet).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "cdc"
     source_type = "government"
     search_endpoint = "https://search.cdc.gov/search/"
@@ -103,12 +127,13 @@ class CDCAgent:
                 data = resp.json()
                 results: list[dict[str, Any]] = []
                 for item in data.get("results", [])[:limit]:
+                    passage = item.get("content", "")[:2000]
                     results.append({
                         "source": "cdc",
                         "organization": "US Centers for Disease Control and Prevention",
                         "title": item.get("title", ""),
                         "url": item.get("url", ""),
-                        "description": item.get("content", "")[:300],
+                        "passage": passage,
                         "source_type": "government",
                     })
                 return results
@@ -122,10 +147,13 @@ class CDCAgent:
 # ---------------------------------------------------------------------------
 
 class ECDCAgent:
-    """Searches ECDC publications and surveillance data."""
+    """Searches ECDC publications and surveillance data.
+    
+    Returns: metadata + passage (abstract from publication page).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "ecdc"
     source_type = "international_organization"
-    api_endpoint = "https://www.ecdc.europa.eu/sites/default/files/media/en/publications-and-data/Search/"
 
     def __init__(self, config: Settings | None = None) -> None:
         self.config = config or settings
@@ -141,15 +169,25 @@ class ECDCAgent:
                 resp.raise_for_status()
                 text = resp.text
                 results: list[dict[str, Any]] = []
-                # Extract publication links from HTML
                 pattern = r'href="(/en/publications-data/[^"]+)"[^>]*>([^<]+)<'
                 matches = re.findall(pattern, text)
                 for href, title in matches[:limit]:
+                    passage = ""
+                    try:
+                        detail_resp = await client.get(f"https://www.ecdc.europa.eu{href}")
+                        if detail_resp.status_code == 200:
+                            detail_text = detail_resp.text
+                            abstract_match = re.search(r'<div[^>]*class="[^"]*abstract[^"]*"[^>]*>(.*?)</div>', detail_text, re.DOTALL)
+                            if abstract_match:
+                                passage = re.sub(r'<[^>]+>', '', abstract_match.group(1)).strip()[:2000]
+                    except Exception:
+                        pass
                     results.append({
                         "source": "ecdc",
                         "organization": "European Centre for Disease Prevention and Control",
                         "title": title.strip(),
                         "url": f"https://www.ecdc.europa.eu{href}",
+                        "passage": passage,
                         "source_type": "international_organization",
                     })
                 return results
@@ -163,7 +201,11 @@ class ECDCAgent:
 # ---------------------------------------------------------------------------
 
 class CochraneAgent:
-    """Searches Cochrane Library for systematic reviews."""
+    """Searches Cochrane Library for systematic reviews.
+    
+    Returns: metadata + passage (abstract).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "cochrane"
     source_type = "systematic_review"
     api_endpoint = "https://api.cochrane.com/search"
@@ -184,12 +226,14 @@ class CochraneAgent:
                 data = resp.json()
                 results: list[dict[str, Any]] = []
                 for item in data.get("results", []):
+                    passage = item.get("abstract", "")[:2000]
                     results.append({
                         "source": "cochrane",
                         "organization": "Cochrane Collaboration",
                         "title": item.get("title", ""),
                         "url": item.get("url", ""),
                         "doi": item.get("doi"),
+                        "passage": passage,
                         "source_type": "systematic_review",
                     })
                 return results
@@ -203,7 +247,11 @@ class CochraneAgent:
 # ---------------------------------------------------------------------------
 
 class ClinicalTrialsAgent:
-    """Searches ClinicalTrials.gov for clinical trial registrations."""
+    """Searches ClinicalTrials.gov for clinical trial registrations.
+    
+    Returns: metadata + passage (brief summary).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "clinicaltrials"
     source_type = "clinical_trial"
     api_endpoint = "https://clinicaltrials.gov/api/v2/studies"
@@ -226,8 +274,10 @@ class ClinicalTrialsAgent:
                     protocol = study.get("protocolSection", {})
                     ident = protocol.get("identificationModule", {})
                     status = protocol.get("statusModule", {})
+                    desc = protocol.get("descriptionModule", {})
                     title = ident.get("officialTitle", "") or ident.get("briefTitle", "")
                     nct = ident.get("nctId", "")
+                    passage = desc.get("briefSummary", "")[:2000]
                     results.append({
                         "source": "clinicaltrials",
                         "organization": "US National Library of Medicine",
@@ -235,6 +285,7 @@ class ClinicalTrialsAgent:
                         "url": f"https://clinicaltrials.gov/study/{nct}",
                         "nct_id": nct,
                         "status": status.get("overallStatus", ""),
+                        "passage": passage,
                         "source_type": "clinical_trial",
                     })
                 return results
@@ -248,7 +299,11 @@ class ClinicalTrialsAgent:
 # ---------------------------------------------------------------------------
 
 class FDAAgent:
-    """Searches FDA drug approvals, safety alerts, and guidance documents."""
+    """Searches FDA drug approvals, safety alerts, and guidance documents.
+    
+    Returns: metadata + passage (drug label description).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "fda"
     source_type = "regulatory"
     drug_endpoint = "https://api.fda.gov/drug/label.json"
@@ -261,7 +316,6 @@ class FDAAgent:
         timeout = httpx.Timeout(self.config.request_timeout_seconds)
         async with httpx.AsyncClient(timeout=timeout) as client:
             results: list[dict[str, Any]] = []
-            # Search drug labels
             try:
                 resp = await client.get(self.drug_endpoint, params={
                     "search": f"openfda.brand_name:{query}+OR+openfda.generic_name:{query}",
@@ -273,6 +327,8 @@ class FDAAgent:
                     openfda = item.get("openfda", {})
                     brand = openfda.get("brand_name", [""])[0] if openfda.get("brand_name") else ""
                     generic = openfda.get("generic_name", [""])[0] if openfda.get("generic_name") else ""
+                    description = item.get("description", [""])[0] if item.get("description") else ""
+                    passage = description[:2000]
                     results.append({
                         "source": "fda",
                         "organization": "US Food and Drug Administration",
@@ -280,6 +336,7 @@ class FDAAgent:
                         "url": f"https://api.fda.gov/drug/label.json?search=openfda.brand_name:{brand}",
                         "brand_name": brand,
                         "generic_name": generic,
+                        "passage": passage,
                         "source_type": "regulatory",
                     })
             except Exception as e:
@@ -292,10 +349,13 @@ class FDAAgent:
 # ---------------------------------------------------------------------------
 
 class EMAAgent:
-    """Searches EMA for European drug assessments and safety reports."""
+    """Searches EMA for European drug assessments and safety reports.
+    
+    Returns: metadata + passage (summary from product page).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "ema"
     source_type = "regulatory"
-    search_endpoint = "https://www.ema.europa.eu/en/search"
 
     def __init__(self, config: Settings | None = None) -> None:
         self.config = config or settings
@@ -304,7 +364,7 @@ class EMAAgent:
         timeout = httpx.Timeout(self.config.request_timeout_seconds)
         async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
             try:
-                resp = await client.get(self.search_endpoint, params={
+                resp = await client.get("https://www.ema.europa.eu/en/search", params={
                     "search_api_fulltext": query,
                     "f%5B0%5D": "sm_type:ema_search_result",
                 })
@@ -314,11 +374,22 @@ class EMAAgent:
                 pattern = r'href="(/en/medicines/[^"]+)"[^>]*>([^<]+)<'
                 matches = re.findall(pattern, text)
                 for href, title in matches[:limit]:
+                    passage = ""
+                    try:
+                        detail_resp = await client.get(f"https://www.ema.europa.eu{href}")
+                        if detail_resp.status_code == 200:
+                            detail_text = detail_resp.text
+                            summary_match = re.search(r'<div[^>]*class="[^"]*field--name-body[^"]*"[^>]*>(.*?)</div>', detail_text, re.DOTALL)
+                            if summary_match:
+                                passage = re.sub(r'<[^>]+>', '', summary_match.group(1)).strip()[:2000]
+                    except Exception:
+                        pass
                     results.append({
                         "source": "ema",
                         "organization": "European Medicines Agency",
                         "title": title.strip(),
                         "url": f"https://www.ema.europa.eu{href}",
+                        "passage": passage,
                         "source_type": "regulatory",
                     })
                 return results
@@ -332,7 +403,11 @@ class EMAAgent:
 # ---------------------------------------------------------------------------
 
 class GoogleScholarAgent:
-    """Searches Google Scholar for academic papers."""
+    """Searches Google Scholar for academic papers.
+    
+    Returns: metadata + passage (snippet).
+    Does NOT judge — Evidence Engine decides the verdict.
+    """
     name = "google_scholar"
     source_type = "academic"
     api_endpoint = "https://scholar.google.com/scholar"
@@ -358,13 +433,18 @@ class GoogleScholarAgent:
                 # Extract results from HTML
                 pattern = r'<h3[^>]*class="gs_rt"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
                 matches = re.findall(pattern, text, re.DOTALL)
-                for url, title in matches[:limit]:
+                # Extract snippets
+                snippet_pattern = r'<div[^>]*class="gs_rs"[^>]*>(.*?)</div>'
+                snippets = re.findall(snippet_pattern, text, re.DOTALL)
+                for i, (url, title) in enumerate(matches[:limit]):
                     clean_title = re.sub(r'<[^>]+>', '', title).strip()
+                    passage = re.sub(r'<[^>]+>', '', snippets[i]).strip()[:2000] if i < len(snippets) else ""
                     results.append({
                         "source": "google_scholar",
                         "organization": "Google Scholar",
                         "title": clean_title,
                         "url": url,
+                        "passage": passage,
                         "source_type": "academic",
                     })
                 return results

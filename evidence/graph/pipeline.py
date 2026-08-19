@@ -8,6 +8,7 @@ LLM only explains the verdict in natural language.
 
 from __future__ import annotations
 
+import hashlib
 import logging
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -55,6 +56,11 @@ _HEALTH_SOURCE_TYPE_MAP = {
 def _safe_source_type(source_type_str: str) -> SourceType:
     """Convert any source_type string to SourceType enum safely."""
     return _HEALTH_SOURCE_TYPE_MAP.get(source_type_str, SourceType.UNKNOWN)
+
+
+def _content_hash(text: str) -> str:
+    """Compute SHA-256 hash of passage content for deduplication."""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------------------
@@ -409,11 +415,13 @@ def update_graph(
                 source_type=_safe_source_type(m.get("source_type", "unknown")),
             )
             graph.add_source(source)
+            passage_text = m.get("text", "")[:1000]
             passage = Passage(
                 id=f"passage::{claim_id}::{len(passages)}",
-                text=m.get("text", "")[:1000],
+                text=passage_text,
                 source_id=source_id,
                 relevance=m.get("relevance", 0.5),
+                content_hash=_content_hash(passage_text) if passage_text else None,
             )
             graph.add_passage(passage)
             passages.append(passage)
