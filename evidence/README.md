@@ -178,3 +178,86 @@ class MyCustomProvider:
 - API keys are loaded from environment variables, never committed to the repository
 - LLM providers fail gracefully — verification continues with deterministic comparison
 - Provider credentials belong in deployment secrets, never in this repository
+
+## RAG — Semantic Article Search
+
+The RAG system provides semantic search over all Arı Kaynak articles using TF-IDF vector embeddings.
+
+### How It Works
+
+1. **Parser** (`rag/parser.py`): Extracts structured chunks from article HTML — metadata, body sections, verdicts, and sources — with ClaimReview structured data
+2. **Vector Store** (`rag/store.py`): TF-IDF embeddings with scikit-learn, cosine similarity search, disk persistence
+3. **Retriever** (`rag/retriever.py`): Query → embed → search → filter → context assembly for LLM consumption
+
+### API Endpoints
+
+```bash
+# Index all articles (EN + TR)
+curl -X POST http://localhost:8000/v1/rag/index -H "X-API-Key: your-key"
+
+# Semantic search
+curl -X POST http://localhost:8000/v1/rag/query \
+  -H "X-API-Key: your-key" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "statin muscle pain nocebo", "n_results": 5, "language": "en"}'
+
+# Quick search (GET)
+curl "http://localhost:8000/v1/rag/search?q=exercise+heart+health&language=en" \
+  -H "X-API-Key: your-key"
+
+# Index stats
+curl http://localhost:8000/v1/rag/stats -H "X-API-Key: your-key"
+```
+
+### Query Options
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `query` | string | Search text (min 3 chars) |
+| `n_results` | int | Number of results (1-20, default 5) |
+| `language` | string | Filter by `en` or `tr` |
+| `category` | string | Filter by category (Health, Exercise, Nutrition, etc.) |
+
+### Response Shape
+
+```json
+{
+  "query": "statin muscle pain",
+  "context": "FILE No. en:samson-trial... | Verdict: Supported (5/5)\n...",
+  "results": [
+    {
+      "article_id": "en:samson-trial-statin-nocebo",
+      "title": "Is 90% of Statin Muscle Pain Really 'All in Your Head'?",
+      "verdict": "Supported",
+      "rating_value": 5,
+      "distance": 0.42,
+      "source_url": "https://nitrate07.github.io/Blog/articles/samson-trial-statin-nocebo.html"
+    }
+  ],
+  "total_results": 5
+}
+```
+
+The `context` field is pre-formatted for direct use as LLM context in RAG pipelines.
+
+### Configuration
+
+```bash
+# RAG settings (optional, defaults shown)
+export EVIDENCE_RAG_PERSIST_DIRECTORY=evidence/data/chroma
+export EVIDENCE_RAG_ARTICLES_DIR=articles
+export EVIDENCE_RAG_TR_DIR=tr/makaleler
+export EVIDENCE_RAG_MAX_RESULTS=10
+export EVIDENCE_RAG_MAX_CONTEXT_LENGTH=4000
+```
+
+### Indexing
+
+Call `POST /v1/rag/index` to (re)index all articles. The index is built from the `articles/` and `tr/makaleler/` directories. Each article is parsed into chunks: metadata, body sections (by heading), verdict, and sources. Turkish articles with the same English article ID are stored separately.
+
+### Dependencies
+
+- `scikit-learn` — TF-IDF vectorizer + cosine similarity
+- `numpy` — matrix operations
+
+No GPU or external embedding service required. The TF-IDF model runs entirely in-process.
