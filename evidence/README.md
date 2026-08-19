@@ -2,16 +2,17 @@
 
 Arı Kaynak is an evidence-first verification layer, not a general-purpose chatbot. It takes a specific claim, retrieves supplied independent sources, extracts the relevant passage, assesses source quality, and returns a constrained verdict. Its operating principle is: **no evidence, no confident verdict**.
 
-The deterministic comparison is inspectable and conservative; optional future providers implement the `VerificationProvider` protocol and cannot change the public API contract. The public API requires an API key by default. No LLM key is needed.
+The deterministic comparison is inspectable and conservative; optional LLM providers implement the `VerificationProvider` protocol and cannot change the public API contract. The public API requires an API key by default. No LLM key is needed — the system works with deterministic comparison when no provider is configured.
 
 ## Architecture
 
 ```
 AI / agent -> Evidence API -> safe source retrieval -> source quality
-          -> evidence extraction -> claim/evidence comparison -> verdict + citation
+          -> evidence extraction -> deterministic comparison -> verdict + citation
+          -> [optional] LLM verification -> enhanced verdict
 ```
 
-`EvidenceVerifier` owns orchestration. `SourceFetcher` handles SSRF-safe retrieval and extraction. `providers.py` is the extension seam for a future Claude, OpenAI, Gemini, or custom provider; none is hard-coded or required.
+`EvidenceVerifier` owns orchestration. `SourceFetcher` handles SSRF-safe retrieval and extraction. `llm_providers.py` contains Claude, OpenAI, and Gemini implementations. `provider_registry.py` creates providers from configuration. The system is evidence-first: LLM providers enhance but never replace the deterministic comparison.
 
 ## API
 
@@ -80,6 +81,71 @@ pytest evidence/tests -q
 
 The tests cover supported, partial, contradicted, and insufficient evidence; source-quality ordering; private URL rejection; and FastAPI validation/response shape.
 
-## Future provider integration
+## LLM Provider Integration
 
-An LLM provider may propose a verdict only after a source passage has been retrieved. It should implement `VerificationProvider.compare`, return one of the constrained verdicts (or `None`), and preserve evidence-first behavior. Provider credentials belong in deployment secrets, never in this repository.
+The system supports optional LLM providers for enhanced evidence verification. When configured, the LLM provider analyzes claim-evidence pairs and returns a verdict. If the LLM fails or is not configured, the system falls back to the deterministic comparison engine.
+
+### Supported Providers
+
+| Provider | Model | API Key Env Var |
+|----------|-------|-----------------|
+| Claude | claude-sonnet-4-20250514 | `EVIDENCE_LLM_API_KEY` |
+| OpenAI | gpt-4o-mini | `EVIDENCE_LLM_API_KEY` |
+| Gemini | gemini-1.5-flash | `EVIDENCE_LLM_API_KEY` |
+
+### Configuration
+
+```bash
+# Enable LLM provider
+export EVIDENCE_LLM_PROVIDER=claude  # or openai, gemini
+export EVIDENCE_LLM_API_KEY=your-api-key-here
+
+# Optional settings
+export EVIDENCE_LLM_MODEL=claude-sonnet-4-20250514
+export EVIDENCE_LLM_TEMPERATURE=0.0
+export EVIDENCE_LLM_MAX_TOKENS=256
+```
+
+### How It Works
+
+1. **Source retrieval**: The system fetches and extracts text from provided source URLs
+2. **Deterministic comparison**: Token overlap and keyword matching produces an initial verdict
+3. **LLM verification** (if configured): The LLM analyzes the claim against the extracted passage
+4. **Final verdict**: LLM verdict takes precedence; deterministic verdict is used as fallback
+
+### Provider Architecture
+
+```python
+from evidence.provider_registry import create_provider
+
+# Automatic provider creation from config
+provider = create_provider(
+    provider_name="claude",
+    api_key="your-key",
+    model="claude-sonnet-4-20250514",
+)
+
+# Or use directly
+from evidence.llm_providers import ClaudeProvider
+provider = ClaudeProvider(api_key="your-key")
+```
+
+### Custom Providers
+
+Implement the `VerificationProvider` protocol:
+
+```python
+from evidence.providers import VerificationProvider
+from evidence.models import Verdict
+
+class MyCustomProvider:
+    async def compare(self, claim: str, passage: str, context: str | None = None) -> Verdict | None:
+        # Your logic here
+        return Verdict.SUPPORTED
+```
+
+### Security
+
+- API keys are loaded from environment variables, never committed to the repository
+- LLM providers fail gracefully — verification continues with deterministic comparison
+- Provider credentials belong in deployment secrets, never in this repository

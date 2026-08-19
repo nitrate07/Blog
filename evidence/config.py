@@ -19,5 +19,12 @@ class Settings:
     bootstrap_api_key: str | None = os.getenv("EVIDENCE_BOOTSTRAP_API_KEY") or None
     api_rate_limit_per_minute: int = int(os.getenv("EVIDENCE_API_RATE_LIMIT_PER_MINUTE", "30"))
 
+    # LLM Provider settings
+    llm_provider: str | None = os.getenv("EVIDENCE_LLM_PROVIDER") or None
+    llm_api_key: str | None = os.getenv("EVIDENCE_LLM_API_KEY") or None
+    llm_model: str | None = os.getenv("EVIDENCE_LLM_MODEL") or None
+    llm_temperature: float = float(os.getenv("EVIDENCE_LLM_TEMPERATURE", "0.0"))
+    llm_max_tokens: int = int(os.getenv("EVIDENCE_LLM_MAX_TOKENS", "256"))
+
 
 settings = Settings()
