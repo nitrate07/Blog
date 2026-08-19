@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import hashlib
 import logging
-from dataclasses import dataclass, field
-from typing import Any, Protocol
+from dataclasses import dataclass
+from typing import Any
 
 from ..connectors import EvidenceCatalog
 from ..config import Settings, settings
@@ -29,7 +29,9 @@ logger = logging.getLogger(__name__)
 _VERDICT_MAP = {
     "supported": Verdict.SUPPORTED,
     "mostly supported": Verdict.MOSTLY_SUPPORTED,
+    "mostly_supported": Verdict.MOSTLY_SUPPORTED,
     "partly supported": Verdict.PARTLY_SUPPORTED,
+    "partly_supported": Verdict.PARTLY_SUPPORTED,
     "misleading": Verdict.MISLEADING,
     "unsupported": Verdict.UNSUPPORTED,
     "unverified": Verdict.UNVERIFIED,
@@ -49,6 +51,9 @@ _HEALTH_SOURCE_TYPE_MAP = {
     "primary": SourceType.PRIMARY,
     "secondary": SourceType.SECONDARY,
     "tertiary": SourceType.TERTIARY,
+    "systematic_review": SourceType.SECONDARY,
+    "clinical_trial": SourceType.SECONDARY,
+    "regulatory": SourceType.TERTIARY,
     "unknown": SourceType.UNKNOWN,
 }
 
@@ -558,7 +563,10 @@ async def run_pipeline(
     )
 
 
-def _map_source_type(source_type: SourceQuality) -> SourceType:
+def _map_source_type(source_type: SourceQuality | str) -> SourceType:
+    """Map SourceQuality enum or string to SourceType."""
+    if isinstance(source_type, str):
+        return _safe_source_type(source_type)
     mapping = {
         SourceQuality.PRIMARY: SourceType.PRIMARY,
         SourceQuality.SECONDARY: SourceType.SECONDARY,
