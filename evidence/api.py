@@ -6,13 +6,25 @@ from .config import Settings, settings
 from .connectors import EvidenceCatalog
 from .engine import EvidenceVerifier
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
+from .provider_registry import create_provider
 from .security import APIKeyAuthenticator, APIPrincipal, SlidingWindowRateLimiter
 from .storage import VerificationStore
 
 
 def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = settings, store: VerificationStore | None = None, catalog: EvidenceCatalog | None = None) -> FastAPI:
     app = FastAPI(title="Arı Kaynak Evidence API", version="0.1.0")
-    app.state.verifier = verifier or EvidenceVerifier()
+
+    if verifier is None:
+        provider = create_provider(
+            provider_name=config.llm_provider,
+            api_key=config.llm_api_key,
+            model=config.llm_model,
+            temperature=config.llm_temperature,
+            max_tokens=config.llm_max_tokens,
+        )
+        verifier = EvidenceVerifier(provider=provider)
+
+    app.state.verifier = verifier
     app.state.store = store or VerificationStore(config.database_path)
     app.state.config = config
     app.state.authenticator = APIKeyAuthenticator(app.state.store, config)
