@@ -35,6 +35,13 @@ class Settings:
     gemini_api_key: str | None = os.getenv("EVIDENCE_GEMINI_API_KEY") or None
     gemini_model: str | None = os.getenv("EVIDENCE_GEMINI_MODEL") or None
 
+    # RAG settings
+    rag_persist_directory: str = os.getenv("EVIDENCE_RAG_PERSIST_DIRECTORY", "evidence/data/chroma")
+    rag_articles_dir: str = os.getenv("EVIDENCE_RAG_ARTICLES_DIR", "articles")
+    rag_tr_dir: str = os.getenv("EVIDENCE_RAG_TR_DIR", "tr/makaleler")
+    rag_max_results: int = int(os.getenv("EVIDENCE_RAG_MAX_RESULTS", "10"))
+    rag_max_context_length: int = int(os.getenv("EVIDENCE_RAG_MAX_CONTEXT_LENGTH", "4000"))
+
     def get_provider_config(self, provider_name: str) -> dict[str, Any]:
         """Get config for a specific provider. Provider-specific vars override generic."""
         provider_name = provider_name.lower()
