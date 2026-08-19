@@ -67,6 +67,7 @@ class PipelineResponse(BaseModel):
     extracted_claim: str
     archive_results: list[dict]
     external_results: list[dict]
+    health_org_results: list[dict]
     verdict: str
     verdict_confidence: float
     rating_value: int
@@ -282,10 +283,10 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
 
     @app.post("/v1/pipeline", response_model=PipelineResponse, tags=["pipeline"])
     async def run_full_pipeline(request: PipelineRequest, principal: APIPrincipal | None = Depends(principal_for_request)) -> PipelineResponse:
-        """Full verification pipeline: Claim Extraction → RAG + External → Evidence Engine → LLM Interpreter → Cited Response.
+        """Full verification pipeline: 11 sources in parallel → Evidence Engine → LLM Interpreter → Cited Response.
         
+        Sources: Archive, PubMed, Crossref, WHO, CDC, ECDC, Cochrane, ClinicalTrials, FDA, EMA, Google Scholar.
         LLM is used ONLY as an interpreter (yorumcu) to explain the verdict.
-        Evidence comes ONLY from verified sources (PubMed, Crossref, Archive).
         """
         result = await run_pipeline(
             user_query=request.query,
@@ -293,6 +294,7 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
             catalog=app.state.catalog,
             graph_builder=app.state.graph_builder,
             llm_provider=app.state.verifier.provider if hasattr(app.state.verifier, "provider") else None,
+            health_agent=app.state.health_agent,
             config=config,
         )
         return PipelineResponse(**result.to_dict())

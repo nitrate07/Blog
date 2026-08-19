@@ -188,7 +188,7 @@ class TestPipelineIntegration:
 
     @pytest.mark.asyncio
     async def test_pipeline_architecture_principle(self, tmp_path):
-        """Verify: LLM is never an evidence source. Evidence comes from archive/external only."""
+        """Verify: LLM is never an evidence source. Evidence comes from ALL 11 sources."""
         from evidence.rag.store import ArticleVectorStore
 
         store = ArticleVectorStore()
@@ -208,8 +208,9 @@ class TestPipelineIntegration:
             llm_provider=None,
         )
 
-        # Archive and external results contain evidence
+        # Archive, external, and health org results contain evidence
         assert isinstance(result.archive_results, list)
         assert isinstance(result.external_results, list)
+        assert isinstance(result.health_org_results, list)
         # Cited response references sources, not LLM-generated content
         assert "Arı Kaynak Evidence Engine" in result.cited_response
