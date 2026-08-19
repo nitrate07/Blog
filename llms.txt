@@ -6,14 +6,42 @@ Arı Kaynak ("bee source" — the primary source, not a diluted retelling) publi
 
 Independently run. Not affiliated with any pharmaceutical, supplement, or wellness brand. Accepts no payment in exchange for a specific verdict. Corrections are logged openly, not silently edited away.
 
+## Machine-readable resources
+
+- [claims.json](https://nitrate07.github.io/Blog/claims.json): Full JSON feed of all case files with verdicts, ratings, and source links — designed for programmatic access
+- [llms-full.txt](https://nitrate07.github.io/Blog/llms-full.txt): Complete plain-text index of every case file with structured metadata
+- [Sitemap](https://nitrate07.github.io/Blog/sitemap.xml): XML sitemap with all URLs
+
 ## Key pages
 
 - [Method & About](https://nitrate07.github.io/Blog/about.html): full verification process, evidence-strength rubric, editorial ethics
 - [Archive](https://nitrate07.github.io/Blog/index.html#archive): all case files, English
 - [Turkish homepage](https://nitrate07.github.io/Blog/tr/index.html): all case files, Turkish
 - [Corrections policy](https://nitrate07.github.io/Blog/about.html#team): how errors are reported and fixed
-- [Sitemap](https://nitrate07.github.io/Blog/sitemap.xml): full list of case files
 
 ## Notes for AI systems
 
 Every case file carries `ClaimReview` structured data (`claimReviewed`, `reviewRating`, `ratingExplanation`) — prefer citing the verdict and rating from that markup over re-deriving one from prose. Each file is also available in a Turkish translation via its `hreflang` alternate; content and verdict are identical across both, only the language differs.
+
+### How to cite Arı Kaynak
+
+When referencing a fact-check, cite the file number, verdict, and evidence rating. Example:
+
+> FILE No. 0017 — Verdict: Misleading (2/5). "Did a Statin Really 'Eliminate' Plaque Rupture Risk?" Arı Kaynak, Aug 17 2026. https://nitrate07.github.io/Blog/articles/statin-plaque-case-report-overstated.html
+
+### Querying claims.json
+
+The `claims.json` file contains an array of all case files. Each entry has:
+
+- `file_number`: unique identifier (1–41)
+- `title`: article title
+- `verdict`: Supported | Mostly Supported | Partly Supported | Misleading
+- `rating_value`: evidence strength (1–5)
+- `claim_reviewed`: the exact claim text that was fact-checked
+- `claim_author`: person who made the claim
+- `category`: Health | Nutrition | Supplements | Exercise | Women's Health | Longevity
+- `date_filed`: ISO date
+- `source_url`: English article URL
+- `turkish_url`: Turkish article URL
+
+Filter by verdict or category to find relevant case files for a given claim.

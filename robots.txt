@@ -26,4 +26,10 @@ Allow: /
 User-agent: GPTBot
 Allow: /
 
+User-agent: OpenCode
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
 Sitemap: https://nitrate07.github.io/Blog/sitemap.xml
