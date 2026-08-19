@@ -1,0 +1,594 @@
+# Arı Kaynak — Full Case File Index
+
+> Every fact-checked health claim in the Arı Kaynak archive, with file number, title, verdict, evidence rating, and source links. This file is designed for AI systems that need machine-readable access to the full archive.
+
+Total case files: 41
+
+## Verdict scale
+
+| Verdict | Count | Meaning |
+|---------|-------|---------|
+| Supported | 6 | Claim wording matches the source finding |
+| Mostly Supported | 27 | Core claim is accurate, wording slightly overstates or understates |
+| Partly Supported | 5 | Some elements supported, some not |
+| Misleading | 3 | Source exists but claim significantly misrepresents it |
+
+## Evidence strength scale
+
+| Rating | Meaning |
+|--------|---------|
+| 5/5 | Very High — regulatory-grade evidence |
+| 4/5 | High — large well-controlled studies |
+| 3/5 | Moderate — single well-run trial |
+| 2/5 | Limited — early-stage or animal studies |
+| 1/5 | Very Limited — preliminary or indirect |
+
+---
+
+## FILE No. 0001
+
+**Title:** Does Exercise Really Slow Ovarian Aging?
+**Category:** Longevity
+**Date filed:** 2026-08-16
+**Verdict:** Partly Supported (3/5)
+**Rating explanation:** The underlying finding that adiponectin plays a protective role during exercise is real and source-backed, but calling it a \
+**Claim reviewed:** Does Exercise Really Slow Ovarian Aging? What the Adiponectin Study Actually Shows
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/exercise-adiponectin-ovarian-aging.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/adiponektin-yumurtalik-yaslanmasi.html
+
+---
+
+## FILE No. 0002
+
+**Title:** Is BMI Actually Useless for Heart Risk?
+**Category:** Health
+**Date filed:** 2026-08-16
+**Verdict:** Supported (5/5)
+**Rating explanation:** The claim's wording maps almost exactly onto the study's actual finding that a high waist-to-hip ratio predicts elevated cardiovascular risk even at a normal BMI, one of the more precise matches in this archive.
+**Claim reviewed:** Is BMI Actually Useless for Heart Risk? What the New Waist-to-Hip Study Found
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/waist-hip-ratio-vs-bmi.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/bel-kalca-orani-bmi.html
+
+---
+
+## FILE No. 0003
+
+**Title:** 3 Minutes of Sprinting vs. 90 Minutes of Moderate Exercise
+**Category:** Exercise
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The core finding — sprint-intensity effort triggering a bigger acute molecular response than longer moderate exercise — matches the actual study, but the study measured an acute protein response, not long-term health outcomes like fitness or mortality.
+**Claim reviewed:** 3 Minutes of Sprinting vs. 90 Minutes of Moderate Exercise: What Actually Changes in Your Blood
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/sprint-vs-moderate-exercise.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/sprint-mi-orta-siddet-mi.html
+
+---
+
+## FILE No. 0004
+
+**Title:** Menopause, Muscle Loss, and Heart Risk
+**Category:** Women's Health
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The physiology behind menopause, muscle loss, and resistance training is accurately represented, but the cited trial measured muscle volume and strength directly, not blood vessel function, making the \
+**Claim reviewed:** Menopause, Muscle Loss, and Heart Risk: What Resistance Training Actually Does
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/menopause-muscle-loss-cardiovascular-risk.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/menopoz-kas-kaybi-kalp-riski.html
+
+---
+
+## FILE No. 0005
+
+**Title:** Does Rock Salt's '84 Minerals' Make It Harmless?
+**Category:** Nutrition
+**Date filed:** 2026-08-16
+**Verdict:** Misleading (2/5)
+**Rating explanation:** The 84-minerals figure is real but functionally irrelevant at normal intake levels, and using it to argue rock or pink salt is meaningfully safer for blood pressure than table salt isn't supported by the evidence.
+**Claim reviewed:** Does Rock Salt's \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/rock-salt-84-minerals-myth.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/kaya-tuzu-84-mineral-miti.html
+
+---
+
+## FILE No. 0006
+
+**Title:** The $400 Billion Supplement Industry
+**Category:** Supplements
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The market-size figure and the underlying safety concern are accurate and backed by a real position statement, but the word \
+**Claim reviewed:** The $400 Billion Supplement Industry: What a Brand-New Position Statement Says About the Real Risks
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/supplement-industry-size-safety-risks.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/takviye-endustrisi-400-milyar-dolar.html
+
+---
+
+## FILE No. 0007
+
+**Title:** The 5 Supplements With Real Evidence Behind Them
+**Category:** Supplements
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** All five supplements match categories a real NATA position statement backs with evidence, but the claim's word \
+**Claim reviewed:** The 5 Supplements With Real Evidence Behind Them, According to a New Position Statement
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/five-evidence-backed-supplements.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/kanitli-5-takviye.html
+
+---
+
+## FILE No. 0008
+
+**Title:** Can Extreme Exercise Actually Damage Your Heart?
+**Category:** Exercise
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** Chronic extreme endurance exercise is genuinely linked to measurable cardiac changes, but the specific arrhythmia risk highlighted was concentrated only in athletes with pre-existing scarring, a narrower group than the claim implies.
+**Claim reviewed:** Can Extreme Exercise Actually Damage Your Heart? What the Cardiology Evidence Shows
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/extreme-exercise-heart-risk.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/asiri-egzersiz-kalp-riski.html
+
+---
+
+## FILE No. 0009
+
+**Title:** Does Meat Protect the Brain in APOE4 Carriers?
+**Category:** Nutrition
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The JAMA study's finding — meat intake linked to better cognitive outcomes specifically in APOE4 carriers — is accurately traced to a real source, but framing that observational association as meat \
+**Claim reviewed:** Does Meat Actually Protect the Brain in People With the APOE4 Gene?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/apoe4-meat-cognitive-decline.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/apoe4-et-bilissel-gerileme.html
+
+---
+
+## FILE No. 0010
+
+**Title:** Is There Really Such a Thing as 'Healthy Obesity'?
+**Category:** Health
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The claim accurately identifies a real, current academic source and frames its central question correctly, but it's a synthesis/opinion review proposing a conceptual shift, not a study proving the new framework superior.
+**Claim reviewed:** Is There Really Such a Thing as \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/metabolically-healthy-obesity.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/saglikli-obezite-var-mi.html
+
+---
+
+## FILE No. 0011
+
+**Title:** Did a New Drug Get FDA Approval for High Triglycerides?
+**Category:** Health
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** Every checkable detail traces cleanly to the FDA's own announcement, but the claim's \
+**Claim reviewed:** Did a New Drug Really Just Get FDA Approval for Severe High Triglycerides?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/olezarsen-fda-approval-triglycerides.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/olezarsen-fda-onayi-trigliserit.html
+
+---
+
+## FILE No. 0012
+
+**Title:** Should AI Coronary CT Angiography Be Repeated Every Year?
+**Category:** Health
+**Date filed:** 2026-08-16
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** AI-assisted coronary CT angiography is real and current appropriate-use guidelines do genuinely discourage routine annual repeat testing without a clinical reason, though this file couldn't verify the exact spoken details of the specific video being checked.
+**Claim reviewed:** Should AI-Enhanced Coronary CT Angiography Be Repeated Every Year?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/ai-coronary-cta-repeat-frequency.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/yapay-zeka-anjiyo-siklik.html
+
+---
+
+## FILE No. 0013
+
+**Title:** Does the New 'Bio-Adaptive' Stent Really Outperform Classic Stents?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** Every specific figure in the claim matches the trial's own reported results precisely, but the framing overstates what a single 445-patient, industry-funded trial has established for stent patients generally.
+**Claim reviewed:** Does the New \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/bioadaptor-stent-4-year-results.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/bioadaptor-stent-4-yil-sonuclari.html
+
+---
+
+## FILE No. 0014
+
+**Title:** Does the COVID Vaccine Cut Major Heart Events by 38%?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The core statistic is accurately quoted from a real, recent JAMA Internal Medicine study with a methodologically strong comparator design, but the claim's mechanistic narrative about silent vascular damage goes beyond what this specific study measured.
+**Claim reviewed:** Does the Updated COVID-19 Vaccine Really Cut Major Heart Events by 38%?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/covid-vaccine-cardiovascular-events-veterans.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/covid-asisi-kalp-olaylari-gaziler.html
+
+---
+
+## FILE No. 0015
+
+**Title:** Did a New Guideline 'Retire' Old Obesity Rules?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Partly Supported (3/5)
+**Rating explanation:** The cardiovascular-kidney-metabolic guideline itself is real and accurately described, but the post misattributes it to the wrong lead author and uses \
+**Claim reviewed:** Did a New Guideline Really \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/ckm-syndrome-guideline.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/ckm-sendromu-rehberi.html
+
+---
+
+## FILE No. 0016
+
+**Title:** Is 90% of Statin Muscle Pain 'All in Your Head'?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Supported (5/5)
+**Rating explanation:** The trial's design and headline finding — that most statin-associated muscle symptoms were attributable to nocebo effect rather than the drug itself — are accurately described and match how the trial has been discussed in follow-up clinical commentary.
+**Claim reviewed:** Is 90% of Statin Muscle Pain Really \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/samson-trial-statin-nocebo.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/samson-calismasi-statin-nosebo.html
+
+---
+
+## FILE No. 0017
+
+**Title:** Did a Statin Really 'Eliminate' Plaque Rupture Risk?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Misleading (2/5)
+**Rating explanation:** The cited paper is real and its core numbers are in the right range, but the claim converts \
+**Claim reviewed:** Did a Statin Really \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/statin-plaque-case-report-overstated.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/statin-plak-vaka-raporu-abartisi.html
+
+---
+
+## FILE No. 0018
+
+**Title:** Does Unfiltered Coffee Raise Your Cholesterol?
+**Category:** Nutrition
+**Date filed:** 2026-08-17
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The core chemistry — unfiltered coffee like Turkish coffee carrying more LDL-raising compounds than filtered brews — is accurate and well-established, but the specific numeric dosing thresholds are stated with more certainty than this file could confirm traces to the source's exact wording.
+**Claim reviewed:** Does Unfiltered Coffee Actually Raise Your Cholesterol?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/turkish-coffee-cholesterol-cafestol.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/turk-kahvesi-kolesterol-kafestol.html
+
+---
+
+## FILE No. 0019
+
+**Title:** Does 'Safe' Plaque Really Double in Size Over 5 Years?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The underlying study is real, current, and addresses exactly the population and question described, though several of the claim's specific numbers couldn't be independently confirmed against the full text.
+**Claim reviewed:** Does \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/nature-ct-plaque-progression.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/nature-ct-plak-ilerlemesi.html
+
+---
+
+## FILE No. 0020
+
+**Title:** Is There a New ESC Statement on Heart Failure Prevention?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The statement's authors, sponsoring societies, and content are confirmed accurate; the only gap is a citation listing the wrong publication year.
+**Claim reviewed:** Is There Really a New ESC Statement Covering Everything From SGLT2 to Menopause and Heart Failure?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/esc-heart-failure-prevention.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/esc-kalp-yetmezligi-onleme.html
+
+---
+
+## FILE No. 0021
+
+**Title:** Does Creatine Really Not Harm Your Kidneys?
+**Category:** Supplements
+**Date filed:** 2026-08-17
+**Verdict:** Supported (5/5)
+**Rating explanation:** The meta-analysis is real and current, and its published conclusion — including the caveat about needing longer-term data — closely matches the claim.
+**Claim reviewed:** Does Creatine Really Not Harm Your Kidneys?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/creatine-kidney-function-meta-analysis.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/kreatin-bobrek-fonksiyonu.html
+
+---
+
+## FILE No. 0022
+
+**Title:** Can an Allergic Reaction Really Trigger a Heart Attack?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The medical condition and its mechanism are accurate and well-documented in independent literature, but the specific 2026 citation named in the post could not be independently verified.
+**Claim reviewed:** Can a Bee Sting or Allergic Reaction Really Trigger a Heart Attack?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/kounis-syndrome-allergic-cardiac-event.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/kounis-sendromu-alerjik-kalp-krizi.html
+
+---
+
+## FILE No. 0023
+
+**Title:** Does One Cigarette Cost 20 Minutes of Life?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Supported (5/5)
+**Rating explanation:** Every specific number in the claim — the 20-minutes-per-cigarette estimate and its breakdown by sex — matches a real UCL analysis exactly, correctly framed as an update to an older estimate.
+**Claim reviewed:** Does One Cigarette Really Cost 20 Minutes of Life, Not 11?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/cigarette-life-expectancy-20-minutes.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/sigara-omur-kaybi-20-dakika.html
+
+---
+
+## FILE No. 0024
+
+**Title:** Is the 'Zombie Infection' Study Really From BMJ?
+**Category:** Health
+**Date filed:** 2026-08-17
+**Verdict:** Supported (5/5)
+**Rating explanation:** The BMJ Christmas humor tradition is real and the post accurately and repeatedly discloses that the underlying study is satire, so its claim about the source's honesty holds up.
+**Claim reviewed:** Is the \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/bmj-christmas-zombie-satire.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/bmj-noel-zombi-satiri.html
+
+---
+
+## FILE No. 0025
+
+**Title:** Does Your Genetic Score Change What a 'Normal' LDL Means?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Partly Supported (3/5)
+**Rating explanation:** The specific risk comparison is accurately drawn from a real source, but that source is a letter re-analyzing someone else's data rather than new research, and it carries an undisclosed financial conflict of interest.
+**Claim reviewed:** Does Your Genetic Score Mean an LDL of 100 Is as Risky as 190?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/polygenic-risk-score-ldl-cholesterol.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/poligenik-risk-skoru-ldl-kolesterol.html
+
+---
+
+## FILE No. 0026
+
+**Title:** Can Keto Push LDL to 300+ in Lean People?
+**Category:** Nutrition
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The paper and its findings are accurately represented, but it's a review synthesizing existing evidence rather than new data, and the \
+**Claim reviewed:** Can a Keto Diet Push LDL to 300+ in Lean, Healthy People?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/ketogenic-diet-lmhr-ldl-cholesterol.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/ketojenik-diyet-lmhr-ldl.html
+
+---
+
+## FILE No. 0027
+
+**Title:** Does Hot Tea Really Raise Esophageal Cancer Risk 90%?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Supported (5/5)
+**Rating explanation:** Every specific detail in the claim — cohort size, follow-up period, temperature threshold, and risk increase — matches a methodologically strong, real study precisely.
+**Claim reviewed:** Does Drinking Tea Above 60°C Really Raise Cancer Risk by 90%?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/hot-tea-esophageal-cancer-risk.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/sicak-cay-yemek-borusu-kanseri.html
+
+---
+
+## FILE No. 0028
+
+**Title:** Is Sodium Really the #1 Dietary Killer for Hearts?
+**Category:** Nutrition
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The study and its headline death-toll figure are accurately quoted, but that figure is the combined burden of three dietary risk factors, and framing sodium alone as responsible for the entire number slightly overstates its individual share.
+**Claim reviewed:** Is Excess Sodium Really the #1 Dietary Killer for Hearts Worldwide?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/sodium-cardiovascular-deaths-global.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/sodyum-kardiyovaskuler-olumler.html
+
+---
+
+## FILE No. 0029
+
+**Title:** Does a Diabetes Pill Really Protect the Brain?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Misleading (2/5)
+**Rating explanation:** The underlying lab study is real, but it used direct intraocular injection in an animal retinal-injury model, not the oral diabetes pill people take, and the claim presents that narrow preclinical finding as established brain protection in humans.
+**Claim reviewed:** Does Your Diabetes Pill Also Protect Your Brain From Alzheimer's?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/acarbose-microglia-neuroprotection.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/akarbos-mikroglia-noro-koruma.html
+
+---
+
+## FILE No. 0030
+
+**Title:** Did a Major Report Say Red Meat Is Fine?
+**Category:** Nutrition
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The report, its authors, and its actual weak, low-to-moderate-certainty recommendation are described accurately, with the post responsibly flagging a genuinely two-sided scientific dispute rather than overstating consensus.
+**Claim reviewed:** Did a Major Report Really Say Red Meat Doesn't Need to Be Cut?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/nutrirecs-red-meat-guidelines.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/nutrirecs-kirmizi-et-rehberi.html
+
+---
+
+## FILE No. 0031
+
+**Title:** Is High Blood Pressure Behind Most Aortic Dissections?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The study, its authors, and its core risk-factor findings are accurately represented, but specific percentage figures and the follow-up duration weren't independently confirmed to match the paper's exact wording.
+**Claim reviewed:** Is Uncontrolled Blood Pressure Really Behind Most Aortic Dissections?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/aortic-dissection-risk-factors-aric-mesa.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/aort-diseksiyonu-risk-faktorleri.html
+
+---
+
+## FILE No. 0032
+
+**Title:** Do GLP-1 Drugs Carry No Extra Pancreatitis Risk?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Partly Supported (3/5)
+**Rating explanation:** The underlying 333,000-person study and its topline result are accurately quoted, but calling the overall picture \
+**Claim reviewed:** Do GLP-1 Weight-Loss Drugs Really Carry No Extra Pancreatitis Risk?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/glp1-pancreatitis-risk-target-trial.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/glp1-pankreatit-riski.html
+
+---
+
+## FILE No. 0033
+
+**Title:** Is Noise Pollution a Real Threat to Your Heart?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The statement's lead author and its identification of noise as an independent cardiovascular risk factor are accurate, but the specific numeric thresholds cited weren't independently confirmed to appear exactly that way in the source.
+**Claim reviewed:** Is Noise Pollution Really an Independent Threat to Your Heart?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/noise-pollution-cardiovascular-health.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/gurultu-kirliligi-kalp-sagligi.html
+
+---
+
+## FILE No. 0034
+
+**Title:** Do Ultra-Processed Foods Raise Heart Death Risk 65%?
+**Category:** Nutrition
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The ESC statement and its general findings linking ultra-processed foods to cardiovascular harm are accurately represented, but presenting specific percentages as flatly \
+**Claim reviewed:** Do Ultra-Processed Foods Really Raise Heart Death Risk by 65%?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/ultra-processed-foods-cardiovascular-risk.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/isli-gida-kardiyovaskuler-risk.html
+
+---
+
+## FILE No. 0035
+
+**Title:** Did EASO Redefine Which Obesity Drug to Use When?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Rating explanation:** The trial details, drug-to-complication matching logic, and sourcing are all accurately represented and independently confirmed, with only two secondary specifics unverifiable to the same standard.
+**Claim reviewed:** Did a New Algorithm Really Redefine Which Obesity Drug to Use When?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/easo-2026-obesity-treatment-algorithm.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/easo-2026-obezite-tedavi-algoritmasi.html
+
+---
+
+## FILE No. 0036
+
+**Title:** Does Nutrition Guidance Change GLP-1 Outcomes?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Claim reviewed:** Does Nutrition Guidance Really Change Outcomes on GLP-1 Drugs?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/glp1-nutritional-management-review.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/glp1-beslenme-yonetimi-derlemesi.html
+
+---
+
+## FILE No. 0037
+
+**Title:** Does Olive Oil Lose Its Health Benefits on the Shelf?
+**Category:** Nutrition
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Claim reviewed:** Does Olive Oil Really Lose Its Health Benefits on the Shelf?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/olive-oil-storage-phenolic-decline.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/zeytinyagi-depolama-fenolik-azalma.html
+
+---
+
+## FILE No. 0038
+
+**Title:** Is Vitamin E Acetate Behind Vaping Lung Injury?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Claim reviewed:** Is Vitamin E Acetate Really Behind Vaping-Associated Lung Injury?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/evali-vitamin-e-acetate-vaping-injury.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/evali-vitamin-e-asetat-vaping-hasari.html
+
+---
+
+## FILE No. 0039
+
+**Title:** Does Eating Onions Protect Your Blood Vessels?
+**Category:** Nutrition
+**Date filed:** 2026-08-18
+**Verdict:** Partly Supported (3/5)
+**Claim reviewed:** Does Eating Onions Really Protect Your Blood Vessels?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/onion-quercetin-vascular-protection.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/sogan-kuersetin-damar-korumasi.html
+
+---
+
+## FILE No. 0040
+
+**Title:** Does Running Water Remove 77-84% of Pesticides?
+**Category:** Nutrition
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Claim reviewed:** Does Just Rinsing Under Running Water Really Remove 77-84% of Pesticides?
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/pesticide-washing-vegetables-methods.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/pestisit-yikama-yontemleri-sebze.html
+
+---
+
+## FILE No. 0041
+
+**Title:** Does 'Vaping Is 95% Safer' Miss Heart Risk?
+**Category:** Health
+**Date filed:** 2026-08-18
+**Verdict:** Mostly Supported (4/5)
+**Claim reviewed:** Does the \
+**Claim author:** Ahmet Ekmekci
+**English URL:** https://nitrate07.github.io/Blog/articles/vaping-smoking-cardiovascular-comparison.html
+**Turkish URL:** https://nitrate07.github.io/Blog/tr/makaleler/vaping-sigara-kardiyovaskuler-karsilastirma.html
+
+---
