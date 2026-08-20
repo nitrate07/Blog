@@ -14,7 +14,7 @@ from .graph.agents import EvidenceSearchAgent
 from .graph.health_agents import HealthOrgSearchAgent
 from .graph.pipeline import run_pipeline
 from .models import EvidenceSearchResponse, VerificationRequest, VerificationResponse
-from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, test_provider
+from .provider_registry import create_provider_from_config, get_provider_statuses, list_providers, check_provider_health
 from .rag import ArticleRetriever, ArticleVectorStore
 from .security import APIKeyAuthenticator, APIPrincipal, SlidingWindowRateLimiter
 from .storage import VerificationStore
@@ -130,7 +130,7 @@ def create_app(verifier: EvidenceVerifier | None = None, *, config: Settings = s
     @app.post("/v1/provider/test/{provider_name}", tags=["provider"])
     async def provider_test(provider_name: str) -> dict[str, object]:
         """Send a minimal request to verify a provider is reachable."""
-        result = await test_provider(provider_name, app.state.config)
+        result = await check_provider_health(provider_name, app.state.config)
         if result.get("status") == "error":
             raise HTTPException(status_code=502, detail=result)
         return result

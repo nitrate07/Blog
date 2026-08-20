@@ -74,6 +74,7 @@ def create_provider_from_config(config: Settings | None = None) -> VerificationP
         model=provider_config["model"],
         temperature=provider_config["temperature"],
         max_tokens=provider_config["max_tokens"],
+        language=provider_config.get("language", "en"),
     )
 
 
@@ -108,7 +109,7 @@ def get_provider_statuses(config: Settings | None = None) -> list[ProviderStatus
     return statuses
 
 
-async def test_provider(provider_name: str, config: Settings | None = None) -> dict[str, Any]:
+async def check_provider_health(provider_name: str, config: Settings | None = None) -> dict[str, Any]:
     """Run a lightweight connectivity check against a provider.
 
     Returns {"status": "ok", ...} or {"status": "error", "error": "..."}.

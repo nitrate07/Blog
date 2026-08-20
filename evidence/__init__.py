@@ -21,7 +21,7 @@ from .provider_registry import (
     create_provider_from_config,
     get_provider_statuses,
     list_providers,
-    test_provider,
+    check_provider_health,
 )
 from .rag import ArticleRetriever, ArticleVectorStore, RetrievalResult
 
@@ -36,7 +36,7 @@ __all__ = [
     "create_provider_from_config",
     "get_provider_statuses",
     "list_providers",
-    "test_provider",
+    "check_provider_health",
     "ArticleRetriever",
     "ArticleVectorStore",
     "RetrievalResult",
