@@ -546,6 +546,53 @@ def create_app(
         records = db.get_verification_history(limit)
         return {"records": [r.to_dict() for r in records], "total": len(records)}
     
+    # --- Conversational Investigator ---
+    
+    from ...chat import ConversationManager
+    
+    # In-memory conversation managers per session
+    conversation_managers: dict[str, ConversationManager] = {}
+    
+    @app.post("/v1/investigator/chat")
+    async def investigator_chat(request: VerifyRequest):
+        """Conversational Investigator endpoint — interaktif kanit arastirma."""
+        session_id = "default"
+        
+        if session_id not in conversation_managers:
+            conversation_managers[session_id] = ConversationManager(
+                orchestrator=orchestrator,
+                llm_provider=llm_provider,
+                db=db,
+            )
+        
+        manager = conversation_managers[session_id]
+        response = await manager.handle_message(request.query)
+        
+        return {
+            "response": response.text,
+            "intent": response.intent_type,
+            "confidence": response.confidence,
+            "sources_cited": response.sources_cited,
+            "follow_up_suggestions": response.follow_up_suggestions,
+            "metadata": response.metadata,
+        }
+    
+    @app.post("/v1/investigator/reset")
+    async def investigator_reset():
+        """Conversation session'i sifirla."""
+        session_id = "default"
+        if session_id in conversation_managers:
+            conversation_managers[session_id].reset()
+        return {"status": "ok", "message": "Session sifirlandi"}
+    
+    @app.get("/v1/investigator/stats")
+    async def investigator_stats():
+        """Conversation istatistikleri."""
+        session_id = "default"
+        if session_id in conversation_managers:
+            return conversation_managers[session_id].get_stats()
+        return {"turn_count": 0, "total_sources_found": 0}
+    
     # --- Web UI ---
     
     @app.get("/", response_class=HTMLResponse)
