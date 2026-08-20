@@ -1026,3 +1026,7 @@ def get_chat_ui_html() -> str:
     </script>
 </body>
 </html>"""
+
+
+# Module-level app instance for uvicorn
+app = create_app()
