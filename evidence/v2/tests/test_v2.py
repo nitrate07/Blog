@@ -401,3 +401,228 @@ class TestAPI:
             resp = await client.get("/v1/history")
             assert resp.status_code == 200
             assert "records" in resp.json()
+
+
+# ---------------------------------------------------------------------------
+# Database Integration
+# ---------------------------------------------------------------------------
+
+class TestDatabaseIntegration:
+    def test_database_save_and_retrieve(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        claim = Claim(id="c1", text="test claim", author="pipeline", category="Health", date_filed="", file_number=0)
+        db.save_claim(claim)
+        retrieved = db.get_claim("c1")
+        assert retrieved is not None
+        assert retrieved.text == "test claim"
+    
+    def test_database_stats(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        stats = db.get_stats()
+        assert "claims" in stats
+        assert "sources" in stats
+        assert "passages" in stats
+        assert "evidence" in stats
+        assert "contradictions" in stats
+        assert "verifications" in stats
+    
+    def test_database_verification_history(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        record = VerificationRecord(
+            id="v1", query="test", claim_text="test claim", verdict="supported",
+            confidence=0.8, rating_value=4, sources_count=5, passages_count=3,
+            contradictions_count=0, created_at="2024-01-01", steps=[], cited_response="response",
+        )
+        db.save_verification_record(record)
+        
+        history = db.get_verification_history()
+        assert len(history) == 1
+        assert history[0].query == "test"
+    
+    @pytest.mark.asyncio
+    async def test_pipeline_persists_to_database(self, tmp_path):
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        db = EvidenceDatabase(db_path)
+        
+        mock_agent = MagicMock(spec=SourceAgent)
+        mock_agent.name = "test"
+        mock_agent.source_type = "test"
+        mock_agent.search = AsyncMock(return_value=[])
+        
+        orchestrator = SourceOrchestrator([mock_agent])
+        engine = DeterministicEngine()
+        pipeline = EvidencePipeline(orchestrator, engine, db=db)
+        
+        await pipeline.run("Is exercise good for heart health?")
+        
+        # Verify database was populated
+        stats = db.get_stats()
+        assert stats["claims"] >= 1
+        assert stats["evidence"] >= 1
+        assert stats["verifications"] >= 1
+    
+    @pytest.mark.asyncio
+    async def test_api_with_database(self, tmp_path):
+        from httpx import AsyncClient, ASGITransport
+        from evidence.v2.core.database import EvidenceDatabase
+        
+        db_path = str(tmp_path / "test.db")
+        app = create_app(db_path=db_path)
+        transport = ASGITransport(app=app)
+        
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Run a verification
+            resp = await client.post("/v1/verify", json={"query": "Is exercise good?"})
+            assert resp.status_code == 200
+            
+            # Check database stats
+            resp = await client.get("/v1/db/stats")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["claims"] >= 1
+            assert data["verifications"] >= 1
+            
+            # Check database history
+            resp = await client.get("/v1/db/history")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["total"] >= 1
+
+
+# ---------------------------------------------------------------------------
+# Authentication Tests
+# ---------------------------------------------------------------------------
+
+class TestAuthentication:
+    @pytest.mark.asyncio
+    async def test_register_user(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/v1/auth/register", json={
+                "username": "testuser",
+                "email": "test@example.com",
+            })
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "api_key" in data
+            assert data["username"] == "testuser"
+            assert data["rate_limit"] == 100
+    
+    @pytest.mark.asyncio
+    async def test_get_me_with_api_key(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Register
+            resp = await client.post("/v1/auth/register", json={
+                "username": "testuser2",
+                "email": "test2@example.com",
+            })
+            api_key = resp.json()["api_key"]
+            
+            # Get me
+            resp = await client.get("/v1/auth/me", headers={"X-API-Key": api_key})
+            assert resp.status_code == 200
+            assert resp.json()["username"] == "testuser2"
+    
+    @pytest.mark.asyncio
+    async def test_unauthorized_without_api_key(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/v1/auth/me")
+            assert resp.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# Chat Tests
+# ---------------------------------------------------------------------------
+
+class TestChat:
+    @pytest.mark.asyncio
+    async def test_chat_verify(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post("/v1/chat", json={"query": "Is exercise good?"})
+            assert resp.status_code == 200
+            data = resp.json()
+            assert "session_id" in data
+            assert "message" in data
+            assert data["message"]["role"] == "assistant"
+    
+    @pytest.mark.asyncio
+    async def test_chat_history(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Create session
+            resp = await client.post("/v1/chat", json={"query": "test1"})
+            session_id = resp.json()["session_id"]
+            
+            # Get history
+            resp = await client.get(f"/v1/chat/history/{session_id}")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["session_id"] == session_id
+            assert len(data["messages"]) == 2  # user + assistant
+    
+    @pytest.mark.asyncio
+    async def test_list_sessions(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            # Create sessions
+            await client.post("/v1/chat", json={"query": "test1"})
+            await client.post("/v1/chat", json={"query": "test2"})
+            
+            # List sessions
+            resp = await client.get("/v1/chat/sessions")
+            assert resp.status_code == 200
+            data = resp.json()
+            assert len(data["sessions"]) >= 2
+
+
+# ---------------------------------------------------------------------------
+# Web UI Tests
+# ---------------------------------------------------------------------------
+
+class TestWebUI:
+    @pytest.mark.asyncio
+    async def test_web_ui_returns_html(self):
+        from httpx import AsyncClient, ASGITransport
+        
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.get("/")
+            assert resp.status_code == 200
+            assert "text/html" in resp.headers["content-type"]
+            assert "Arı Kaynak" in resp.text

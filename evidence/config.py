@@ -20,12 +20,15 @@ class Settings:
     bootstrap_api_key: str | None = os.getenv("EVIDENCE_BOOTSTRAP_API_KEY") or None
     api_rate_limit_per_minute: int = int(os.getenv("EVIDENCE_API_RATE_LIMIT_PER_MINUTE", "30"))
 
+    # Language setting (en or tr)
+    language: str = os.getenv("EVIDENCE_LANGUAGE", "en")
+
     # Generic LLM settings (fallback when provider-specific not set)
     llm_provider: str | None = os.getenv("EVIDENCE_LLM_PROVIDER") or None
     llm_api_key: str | None = os.getenv("EVIDENCE_LLM_API_KEY") or None
     llm_model: str | None = os.getenv("EVIDENCE_LLM_MODEL") or None
     llm_temperature: float = float(os.getenv("EVIDENCE_LLM_TEMPERATURE", "0.0"))
-    llm_max_tokens: int = int(os.getenv("EVIDENCE_LLM_MAX_TOKENS", "256"))
+    llm_max_tokens: int = int(os.getenv("EVIDENCE_LLM_MAX_TOKENS", "4096"))
 
     # Provider-specific settings (override generic when set)
     claude_api_key: str | None = os.getenv("EVIDENCE_CLAUDE_API_KEY") or None
@@ -54,6 +57,7 @@ class Settings:
             "model": model,
             "temperature": self.llm_temperature,
             "max_tokens": self.llm_max_tokens,
+            "language": self.language,
         }
 
     def get_active_provider(self) -> str | None:
