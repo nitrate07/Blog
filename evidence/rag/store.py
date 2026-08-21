@@ -84,7 +84,10 @@ class ArticleVectorStore:
             })
         (store_dir / "chunks.json").write_text(json.dumps(raw_chunks, ensure_ascii=False))
         if self._matrix is not None:
-            np.save(store_dir / "matrix.npy", self._matrix)
+            # Sparse matrix dogrudan np.save ile object-dtype olarak kaydedilir;
+            # bu da allow_pickle gerektirir. Dense'e cevirerek guvenli kaydet.
+            m = self._matrix.toarray() if hasattr(self._matrix, "toarray") else self._matrix
+            np.save(store_dir / "matrix.npy", m)
 
     def upsert_chunks(self, chunks: list[ArticleChunk]) -> int:
         if not chunks:
