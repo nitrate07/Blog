@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .intent import Intent, IntentAnalyzer, IntentType
+from .intent import SOCIAL_INTENTS, Intent, IntentAnalyzer, IntentType
 from .investigator import EvidenceInvestigator, InvestigationResult
 from .planner import InvestigationPlan, Planner
 from .response import ChatResponse, ResponseBuilder
@@ -137,6 +137,20 @@ class ConversationManager:
             last_verdict=self.state.current_verdict,
         )
         logger.info(f"Intent: {intent.type.value} (confidence: {intent.confidence:.2f})")
+
+        # 1b. Sosyal niyetler (selamlasma, tesekkur, kimlik...) — arastirma yok,
+        #     dogrudan uzman yaniti. Bu mesajlar iddia degildir; state'i bozmaz.
+        if intent.type in SOCIAL_INTENTS:
+            response = self.response_builder.build_social(intent)
+            duration = (time.monotonic() - start) * 1000
+            self.state.turns.append(ConversationTurn(
+                user_query=user_query,
+                intent=intent,
+                response=response,
+                duration_ms=duration,
+            ))
+            self.state.turn_count += 1
+            return response
 
         # 2. Plan olusturma
         plan = self.planner.create_plan(intent)

@@ -55,6 +55,91 @@ class ResponseBuilder:
         method = getattr(self, f"_respond_{intent.type.value}", self._respond_default)
         return method(intent, sufficiency, investigation_results, previous_context)
 
+    # ------------------------------------------------------------------
+    # Sosyal niyetler — arastirma gerektirmez, dogrudan uzman yaniti.
+    # ------------------------------------------------------------------
+
+    def build_social(self, intent: Intent) -> ChatResponse:
+        """Selamlasma/kucuk konusma/identity icin hazir uzman yaniti."""
+        method = getattr(self, f"_social_{intent.type.value}", None)
+        if method is None:
+            return self._social_greeting(intent)
+        return method(intent)
+
+    def _social_greeting(self, intent: Intent) -> ChatResponse:
+        return ChatResponse(
+            text=(
+                "Merhaba! Ben **Arı Kaynak Soruşturucusu** — sağlık iddialarını kanıtına inen bir yapay zekâ araştırmacısıyım.\n\n"
+                "Bana şüphelendiğiniz herhangi bir sağlık iddiası yazın; şöyle çalışırım:\n"
+                "1. Önce kendi doğrulanmış makale arşivimde tararım\n"
+                "2. Sonra PubMed, Cochrane, WHO gibi harici tıbbi kaynakları yoklarım\n"
+                "3. Çelişkili kanıtları ayıklar, hükmümü damga basarak bildiririm\n\n"
+                "Örnek: *\"Kahve kolesterolü yükseltir mi?\"* ya da *\"Günlük aspirin kalp krizinden korur mu?\"*"
+            ),
+            intent_type=intent.type.value,
+            confidence=1.0,
+            follow_up_suggestions=[
+                "Kahve kolesterolü yükseltir mi?",
+                "Kreatin böbreğe zarar verir mi?",
+                "Nasıl çalışıyorsun?",
+            ],
+        )
+
+    def _social_smalltalk(self, intent: Intent) -> ChatResponse:
+        return ChatResponse(
+            text=(
+                "İyiyim, teşekkür ederim — dosya başında bekliyorum. 😊\n\n"
+                "Asıl uzmanlık alanım sağlık iddialarını kanıtlarıyla sorgulamak. "
+                "Duyduğunuz bir iddia varsa yazın, hemen soruşturmaya açalım."
+            ),
+            intent_type=intent.type.value,
+            confidence=1.0,
+            follow_up_suggestions=[
+                "Vitamin D eksikliği kemiklere zarar verir mi?",
+                "10.000 adım gerçekten gerekli mi?",
+            ],
+        )
+
+    def _social_identity(self, intent: Intent) -> ChatResponse:
+        return ChatResponse(
+            text=(
+                "Ben **Arı Kaynak Soruşturucusu**yum — viral sağlık iddialarını birincil bilimsel kaynaklara kadar takip eden bir yapay zekâ.\n\n"
+                "**Yöntemim:** İddianızı alırım → yerel makale arşivimi ve 19 harici tıbbi kaynağı (PubMed, Cochrane, WHO, NEJM, TÜSEB...) tararım → "
+                "kanıtları çapraz kontrol ederim → hükmümü güven skoruyla bildiririm.\n\n"
+                "Hükmem yetersiz kanıtla asla kesinleşmez; o zaman açıkça *\"doğrulanamadı\"* derim."
+            ),
+            intent_type=intent.type.value,
+            confidence=1.0,
+            follow_up_suggestions=[
+                "Hangi kaynakları kullanıyorsun?",
+                "Bir iddia soruşturalım",
+            ],
+        )
+
+    def _social_thanks(self, intent: Intent) -> ChatResponse:
+        return ChatResponse(
+            text=(
+                "Rica ederim! Dosyanız her zaman açık.\n\n"
+                "Aklınıza takılan başka bir sağlık iddiası olursa yazmanız yeterli."
+            ),
+            intent_type=intent.type.value,
+            confidence=1.0,
+            follow_up_suggestions=[
+                "Başka bir iddia soruştur",
+                "Arşivdeki popüler dosyaları göster",
+            ],
+        )
+
+    def _social_farewell(self, intent: Intent) -> ChatResponse:
+        return ChatResponse(
+            text=(
+                "Hoşça kalın! Arşiv her gün büyüyor — yeni bir iddiayla geri geldiğinizde kapımız açık."
+            ),
+            intent_type=intent.type.value,
+            confidence=1.0,
+            follow_up_suggestions=[],
+        )
+
     def _respond_verify_claim(
         self,
         intent: Intent,
@@ -152,13 +237,26 @@ class ResponseBuilder:
         response_text = context.get("cited_response", "")
         sources_count = context.get("sources_count", 0)
 
-        lines = [f"**'{claim}' icin neden {verdict}?**", ""]
+        lines = [f"**'{claim}' için hüküm gerekçesi:**", ""]
+
+        verdict_display = verdict.replace("_", " ") if isinstance(verdict, str) and verdict != "unknown" else None
 
         if response_text:
             lines.append(response_text)
+        elif verdict_display:
+            lines.append(f"Hüküm: **{verdict_display}** — güven seviyesi %{confidence:.0f}.")
+            lines.append(f"Bu sonuç {sources_count} kaynağın incelenmesiyle oluşturuldu.")
         else:
-            lines.append(f"Bu sonuc {sources_count} kaynak incelenerek elde edildi.")
-            lines.append(f"Guven seviyesi: %{confidence:.0f}")
+            lines.append(
+                "Bu konuda henüz dosyalanmış bir hüküm yok. "
+                "İddiayı yeniden soruşturmamı ister misiniz?"
+            )
+            return ChatResponse(
+                text="\n".join(lines),
+                intent_type=intent.type.value,
+                confidence=0.5,
+                follow_up_suggestions=["Yeniden soruştur"],
+            )
 
         lines.append("")
         lines.append("**Kanit zinciri:**")
@@ -389,18 +487,22 @@ class ResponseBuilder:
         sufficiency: SufficiencyResult,
     ) -> ChatResponse:
         """Yetersiz kanit durumunda cevap."""
-        reasons = "; ".join(sufficiency.reasons[:3])
-
         return ChatResponse(
             text=(
-                f"Yeterli kanit bulunamadi. {sufficiency.suggested_action}.\n\n"
-                f"Nedenler: {reasons}"
+                f"**'{intent.cleaned_query}'** için henüz yeterli kanıt toplayamadım.\n\n"
+                "Bu, iddianın yanlış olduğu anlamına gelmez — şu an arşivimde ve "
+                "erişebildiğim kaynaklarda bunu destekleyen ya da çürüten yeterli "
+                "kanıt bulamadım. Hükmümü ancak kanıta dayanarak veririm.\n\n"
+                "**Şunları deneyebilirsiniz:**\n"
+                "- İddiayı farklı kelimelerle ifade edin\n"
+                "- Daha spesifik bir alt iddiaya odaklanın\n"
+                "- Arşivdeki benzer dosyalara göz atın"
             ),
             intent_type=intent.type.value,
             confidence=sufficiency.confidence,
             follow_up_suggestions=[
-                "Farkli kelimelerle tekrar ara",
-                "Daha spesifik bir soru sor",
+                "Farklı kelimelerle tekrar sor",
+                "Arşivde benzer dosya var mı?",
             ],
         )
 

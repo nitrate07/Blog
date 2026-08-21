@@ -25,6 +25,72 @@ class IntentType(str, Enum):
     CLARIFY_CONTEXT = "clarify_context"    # "Aslinda su kastettim" - baglami netlestir
     EXPLORE_TOPIC = "explore_topic"         # "Bu konuda ne biliyorsun?" - genel arastirma
     META_QUESTION = "meta_question"         # "Nasal calisiyorsun?" - sistem hakkinda
+    GREETING = "greeting"                   # "Selam", "Merhaba"
+    SMALLTALK = "smalltalk"                 # "Nasilsin?", "Iyi misin?"
+    IDENTITY = "identity"                   # "Kimsin?", "Sen nesin?"
+    THANKS = "thanks"                       # "Tessekurler", "Sagol"
+    FAREWELL = "farewell"                   # "Gorusuruz", "Hoscakal"
+
+
+# Sosyal niyetler — arastirma akisina girmez, dogrudan yanitlanir.
+SOCIAL_INTENTS: frozenset[IntentType] = frozenset({
+    IntentType.GREETING,
+    IntentType.SMALLTALK,
+    IntentType.IDENTITY,
+    IntentType.THANKS,
+    IntentType.FAREWELL,
+})
+
+# Sosyal selamlasma pattern'leri. Siralama onemli: ilk eslesen kazanir.
+# Bu kontroller follow-up tespitinden ONCE yapilir; aksi halde "nasilsin"
+# gibi kisa mesajlar follow-up sanilip bozuk cevaplar uretilir.
+SOCIAL_PATTERNS: list[tuple[IntentType, list[str]]] = [
+    (IntentType.GREETING, [
+        r"^selam([uü]n\s?aleyk[uü]m)?$",
+        r"^merhaba(lar)?$",
+        r"^s[aə]lam$",
+        r"^(g[uü]nayd[iı]n|i[yi] ak[sş]amlar|i[yi] geceler|h[oö][sş] geldin)$",
+        r"^(naber|ne\s+haber|nas[iı]lsin)$",
+        r"^(hello|hi|hey|yo|good\s+(morning|afternoon|evening)|howdy)\b",
+        r"^selam\s+(arkada[sş]lar|hocam|abi|usta)$",
+    ]),
+    (IntentType.SMALLTALK, [
+        r"nas[iı]l(s?[iı]n|\s+gidiyor|\s+y[sş]in)",
+        r"^(iyi\s+m[iü]y[iü]m?|sen\s+i[yi]si\s+n)$",
+        r"^keyifler\s+nas[iı]l",
+        r"^(how\s+are\s+you|what'?s\s+up|wassup|how'?s\s+it\s+going)",
+        r"^[eə]h?e+h[eə]?$",           # "ehuehe", "hehe"
+        r"^h[m]+$",                     # "hm", "hmm"
+        r"^(ok|tamam|anlad[iı]m|peki|peki|tamm)$",
+    ]),
+    (IntentType.IDENTITY, [
+        r"(sen\s+)?kim(sin|dir|se)?\s*$",
+        r"^(ad[iı]n\s+ne|ismin\s+ne|sen\s+nesin|ne\s+sin)\b",
+        r"^(who|what)\s+are\s+you\b",
+        r"bot\s+mu(sun)?\b",
+        r"insan\s+m[iı]s[iı]n\b",
+        r"ger[cç]ek\s+mi(sin)?\b",
+        r"^kendini\s+tan[iı]t",
+    ]),
+    (IntentType.THANKS, [
+        r"te[sş]ekk[uü]r",
+        r"^(sa[gğ]ol|sa[gğ]olas[iı]n|eyvallah|sa[gğ]olun)$",
+        r"^(thanks|thank\s+you|thx|ty)\b",
+        r"^eline\s+sa[gğ]l[iı]k",
+        r"^harika(s[iı]n)?\s*(oldu)?\s*$",
+        r"^(s[uü]per|m[uü]kemmel|g[uü]zel)\s*oldu\s*$",
+    ]),
+    (IntentType.FAREWELL, [
+        r"^(h[oö][sş][cç]a\s+kal|g[oö]r[uü][sş][uü]r[uü]z|kendine\s+i[yi]i\s+bak)$",
+        r"^(bye|goodbye|see\s+you|later|cya)\b",
+        r"^(i[yi]i\s+g[uü]nler|i[yi]i\s+ak[sş]amlar)\s*$",
+        r"^kapat$",
+    ]),
+]
+
+# Sosyal sayilmayacak durumlar: icinde gercek soru/iddia tasiyan karisik mesajlar
+# ("selam, kahve kolesterolu yukseltir mi?") normal akisa girmeli.
+_SOCIAL_MAX_WORDS = 5
 
 
 class Topic(str, Enum):
@@ -166,6 +232,21 @@ class IntentAnalyzer:
         cleaned = self._clean_query(query)
         signals: list[str] = []
 
+        # 0. Sosyal niyet tespiti (selamlasma, tesekkur, kimlik...)
+        #    Follow-up'tan ONCE kontrol edilir; "nasilsin" gibi mesajlar
+        #    follow-up sanilip bozuk cevap uretmemesi icin.
+        social = self._detect_social(query)
+        if social is not None:
+            signals.append(f"social:{social.value}")
+            return Intent(
+                type=social,
+                confidence=0.95,
+                topic=Topic.GENERAL,
+                original_query=query,
+                cleaned_query=cleaned,
+                raw_signals=signals,
+            )
+
         # 1. Follow-up tespiti
         intent_type, followup_confidence = self._detect_followup(
             query, conversation_history, last_claim, last_verdict, signals,
@@ -214,6 +295,41 @@ class IntentAnalyzer:
             claim = claim + "?"
         return claim
 
+    def _is_interrogative(self, query: str) -> bool:
+        """Soru cumlesi mi? — TR soru eki (mi/mi/mu/mu) veya EN yardimci fiili.
+
+        Soru cumleleri yeni iddiadir; ayni topic olsa bile follow-up degil.
+        """
+        q = query.lower().strip()
+        if q.endswith("?"):
+            return True
+        # TR soru eki: ayri yazilan "mi/mi/mu/mu/mI" + ekleri
+        if re.search(r"\b(m[iıì]|m[uü])[nmuü]?\b", q):
+            return True
+        # EN soru yapisi
+        if re.search(r"^(is|are|does|do|did|can|should|will|would|could)\b", q):
+            return True
+        return False
+
+    def _detect_social(self, query: str) -> IntentType | None:
+        """Kisa, saf sosyal mesajlari tespit et.
+
+        Karisik mesajlar ("selam, kahve kolesterolu yukseltir mi?") sosyal
+        sayilmaz — icinde soru/iddia tasidigi icin normal akisa girer.
+        """
+        q = query.strip().rstrip("?!.,;:").lower()
+        if not q or len(q.split()) > _SOCIAL_MAX_WORDS:
+            return None
+        # Icinde saglik konusu gecen mesaj asla sosyal degil
+        if self._detect_topic(q) != Topic.GENERAL:
+            return None
+
+        for intent_type, patterns in SOCIAL_PATTERNS:
+            for pattern in patterns:
+                if re.search(pattern, q):
+                    return intent_type
+        return None
+
     def _detect_followup(
         self,
         query: str,
@@ -243,9 +359,14 @@ class IntentAnalyzer:
                     break
 
             # Onceki soruyla ayni topic mi?
-            if last_claim:
+            # Kisa/sohbet disi mesajlar ("merhaba", "ok") follow-up sanilmaz;
+            # en az 3 kelime ve somut bir topic gerekir.
+            # Ayrica soru cumlesiysen ("...yukseltir mi?") bu YENI iddiadir —
+            # ayni konu olsa bile follow-up degil.
+            if last_claim and len(query.split()) >= 3:
+                is_question = self._is_interrogative(query)
                 topic_match = self._detect_topic(query) == self._detect_topic(last_claim)
-                if topic_match and len(query.split()) <= 5:
+                if topic_match and self._detect_topic(query) != Topic.GENERAL and not is_question:
                     signals.append("topic_continuation")
                     return IntentType.FOLLOW_UP_WHY, 0.6
 
