@@ -2,7 +2,7 @@
 
 Flow:
 1. Claim Extraction (rule-based, no LLM)
-2. Source Discovery (19 sources in parallel)
+2. Source Discovery (21 sources in parallel — 20 external + archive)
 3. Passage Verification (verify against original sources)
 4. Evidence Engine (hakem — deterministic, no LLM)
 5. Contradiction Detection (find conflicting evidence)
@@ -801,7 +801,7 @@ class EvidencePipeline:
     
     Flow:
     1. Claim Extraction (rule-based, no LLM)
-    2. Source Discovery (19 sources in parallel)
+    2. Source Discovery (21 sources in parallel — 20 external + archive)
     3. Passage Verification (verify against original sources)
     4. Evidence Engine (hakem — deterministic, no LLM)
     5. Contradiction Detection (find conflicting evidence)
@@ -844,7 +844,7 @@ class EvidencePipeline:
         extracted_claim = extract_claim(user_query)
         steps.append({"name": "claim_extraction", "status": "done", "data": {"claim": extracted_claim}})
         
-        # Step 2: Source Discovery (19 sources in parallel)
+        # Step 2: Source Discovery (21 sources in parallel — 20 external + archive)
         archive, external, health_orgs = await discover_sources(
             search_query, self.orchestrator,
         )

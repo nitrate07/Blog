@@ -156,15 +156,13 @@ FOLLOW_UP_PATTERNS: dict[IntentType, list[str]] = {
         r"check\s+other",
     ],
     IntentType.CHALLENGE_VERDICT: [
-        r"katilmiyorum",
+        r"kat[ıi]lm[ıi]yorum",
         r"disagree",
-        r"yanlis",
+        r"yanl[ıi][şs]",
         r"wrong",
-        r"hatali",
+        r"hatal[ıi]",
         r"itiraz",
         r"objection",
-        r"ama\s+",
-        r"but\s+",
     ],
     IntentType.CLARIFY_CONTEXT: [
         r"aslinda",
@@ -182,7 +180,8 @@ FOLLOW_UP_PATTERNS: dict[IntentType, list[str]] = {
         r"hakkinda\s+bilgi",
     ],
     IntentType.META_QUESTION: [
-        r"nasil\s+calisiyorsun",
+        r"nas[ıi]l\s+çal[ıi][şs][ıi]yorsun",
+        r"nas[ıi]l\s+calisiyorsun",
         r"how\s+do\s+you\s+work",
         r"hangi\s+kaynak",
         r"which\s+source",

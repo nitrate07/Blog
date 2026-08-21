@@ -9,11 +9,42 @@ Bu modul LLM kullanmaz. Tamamen kural tabanli:
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
 from .intent import Intent, IntentType, Topic
 from .sufficiency import SufficiencyLevel, SufficiencyResult
+
+# Arama/ortusme kontrolunde anlamsiz genel kelimeler.
+_CLAIM_STOPWORDS = {
+    "the", "and", "for", "with", "that", "this", "does", "did", "are",
+    "gerçekten", "hakında", "neden", "nedir", "mi", "mı", "mu", "mü",
+    "bir", "gibi", "daha", "çok", "var", "yok", "yapar", "eder", "olur",
+}
+
+# Ajan adi -> kurum adi (yanitta okunur etiket).
+ORG_TR = {
+    "who": "DSÖ (WHO)",
+    "cdc": "CDC",
+    "ecdc": "ECDC",
+    "fda": "FDA",
+    "ema": "EMA",
+    "nice": "NICE",
+    "esc": "ESC",
+    "aha": "AHA",
+    "tuseb": "TÜSEB",
+    "clinicaltrials": "ClinicalTrials.gov",
+    "nejm": "NEJM",
+    "jama": "JAMA",
+    "lancet": "The Lancet",
+    "bmj": "BMJ",
+    "cochrane": "Cochrane",
+    "pubmed": "PubMed",
+    "europepmc": "Europe PMC",
+    "openalex": "OpenAlex",
+    "crossref": "Crossref",
+}
 
 
 @dataclass
@@ -69,18 +100,18 @@ class ResponseBuilder:
     def _social_greeting(self, intent: Intent) -> ChatResponse:
         return ChatResponse(
             text=(
-                "Merhaba! Ben **Arı Kaynak Soruşturucusu** — sağlık iddialarını kanıtına inen bir yapay zekâ araştırmacısıyım.\n\n"
-                "Bana şüphelendiğiniz herhangi bir sağlık iddiası yazın; şöyle çalışırım:\n"
-                "1. Önce kendi doğrulanmış makale arşivimde tararım\n"
-                "2. Sonra PubMed, Cochrane, WHO gibi harici tıbbi kaynakları yoklarım\n"
-                "3. Çelişkili kanıtları ayıklar, hükmümü damga basarak bildiririm\n\n"
-                "Örnek: *\"Kahve kolesterolü yükseltir mi?\"* ya da *\"Günlük aspirin kalp krizinden korur mu?\"*"
+                "Merhaba! Nasıl yardımcı olabilirim?\n\n"
+                "Ben **Arı Kaynak Soruşturucusu**yüm — sağlık iddialarını kanıtına inen bir yapay zekâ araştırmacısı.\n\n"
+                "**İddianız nedir? Hemen sorgulayalım.**\n"
+                "Şüphelendiğiniz herhangi bir sağlık iddiasını yazın; önce kendi doğrulanmış arşivimi,\n"
+                "sonra PubMed, Cochrane ve resmi sağlık kuruluşlarını (DSÖ, CDC, TÜSEB...) tarar,\n"
+                "kanıtları çapraz kontrol edip hükmümü kaynaklarıyla birlikte bildiririm."
             ),
             intent_type=intent.type.value,
             confidence=1.0,
             follow_up_suggestions=[
                 "Kahve kolesterolü yükseltir mi?",
-                "Kreatin böbreğe zarar verir mi?",
+                "Günlük aspirin kalp krizinden korur mu?",
                 "Nasıl çalışıyorsun?",
             ],
         )
@@ -104,9 +135,9 @@ class ResponseBuilder:
         return ChatResponse(
             text=(
                 "Ben **Arı Kaynak Soruşturucusu**yum — viral sağlık iddialarını birincil bilimsel kaynaklara kadar takip eden bir yapay zekâ.\n\n"
-                "**Yöntemim:** İddianızı alırım → yerel makale arşivimi ve 19 harici tıbbi kaynağı (PubMed, Cochrane, WHO, NEJM, TÜSEB...) tararım → "
+                "**Yöntemim:** İddianızı alırım → yerel makale arşivimi ve 20 harici tıbbi kaynağı (PubMed, Europe PMC, Cochrane, DSÖ, CDC, TÜSEB...) tararım → "
                 "kanıtları çapraz kontrol ederim → hükmümü güven skoruyla bildiririm.\n\n"
-                "Hükmem yetersiz kanıtla asla kesinleşmez; o zaman açıkça *\"doğrulanamadı\"* derim."
+                "Hükmüm yetersiz kanıtla asla kesinleşmez; o zaman açıkça *\"doğrulanamadı\"* derim."
             ),
             intent_type=intent.type.value,
             confidence=1.0,
@@ -161,7 +192,7 @@ class ResponseBuilder:
 
         archive = results.get("archive_results", []) or []
         total = results.get("total_sources", 0)
-        best_archive = self._best_archive_match(archive)
+        best_archive = self._best_archive_match(archive, claim=intent.cleaned_query)
 
         lines = [f"**{intent.cleaned_query}**", ""]
 
@@ -176,8 +207,16 @@ class ResponseBuilder:
         archive_verdict = (best_archive or {}).get("verdict") or ""
 
         if verdict not in ("unverified", "") and confidence:
-            verdict_display = VERDICT_TR.get(verdict, verdict.replace("_", " ").title())
-            lines.append(f"**Hüküm:** {verdict_display} (güven %{confidence:.0f})")
+            verdict_display = self.VERDICT_TR.get(verdict, verdict.replace("_", " ").title())
+            lines.append(f"**Hüküm:** {verdict_display} (güven %{confidence * 100:.0f})")
+            if results.get("verdict_conflict"):
+                consensus = results.get("consensus") or {}
+                parts = " · ".join(
+                    f"{self.VERDICT_TR.get(v, v)}: %{int(round(100 * s / max(sum(consensus.values()), 1)))}"
+                    for v, s in sorted(consensus.items(), key=lambda kv: -kv[1])
+                    if s > 0
+                )
+                lines.append(f"⚠ **Ajan uzlaşısı:** Kaynaklar farklı yönlere işaret ediyor ({parts}). İki sinyali de değerlendirin.")
         elif archive_verdict:
             lines.append(
                 f"**Hüküm:** Arşivimizdeki eşleşen dosya bu iddiayı "
@@ -189,24 +228,54 @@ class ResponseBuilder:
         lines.append("")
 
         if total > 0:
-            lines.append(f"**{total} kaynak** incelendi.")
+            breakdown = []
+            if archive:
+                breakdown.append(f"{len(archive)} arşiv")
+            orgs_all = results.get("health_org_results", []) or []
+            external_all = results.get("external_results", []) or []
+            if external_all:
+                breakdown.append(f"{len(external_all)} akademik")
+            if orgs_all:
+                breakdown.append(f"{len(orgs_all)} resmi kurum")
+            detail = f" ({', '.join(breakdown)})" if breakdown else ""
+            lines.append(f"**{total} kaynak** incelendi{detail}.")
             lines.append("")
 
-        # --- Harici kaynaklar (max 3) ---
-        external = (results.get("external_results", []) or [])[:3]
+        # --- Resmi kuruluslar (max 4, linkli) ---
+        orgs = (results.get("health_org_results", []) or [])[:4]
+        if orgs:
+            lines.append("**Resmi kuruluş kaynakları:**")
+            for src in orgs:
+                title = (src.get("title") or "Kurum kaydı").strip()
+                url = src.get("url") or ""
+                org_name = src.get("organization") or ORG_TR.get(src.get("source"), src.get("source", ""))
+                year = src.get("published_year")
+                label = f"{org_name}: {title}" if org_name and org_name not in title else title
+                if year:
+                    label += f" ({year})"
+                if url.startswith(("http://", "https://")):
+                    lines.append(f"- [{label}]({url})")
+                else:
+                    lines.append(f"- {label}")
+            lines.append("")
+
+        # --- Harici akademik kaynaklar (max 5, linkli) ---
+        external = (results.get("external_results", []) or [])[:5]
         if external:
-            lines.append("**Harici kaynaklar:**")
+            lines.append("**Akademik kaynaklar:**")
             for i, src in enumerate(external, 1):
-                title = src.get("title", "Bilinmeyen")
-                journal = src.get("journal", "")
-                year = src.get("published_year", "")
-                source_str = f"{title}"
-                if journal:
-                    source_str += f" ({journal}"
-                    if year:
-                        source_str += f", {year}"
-                    source_str += ")"
-                lines.append(f"{i}. {source_str}")
+                title = (src.get("title") or "Bilinmeyen").strip()
+                journal = src.get("journal") or ""
+                year = src.get("published_year") or src.get("year") or ""
+                label = title
+                meta = " — " + " · ".join(x for x in ([journal, str(year)] if year else [journal]) if x)
+                if meta:
+                    label += meta
+                url = src.get("url") or ""
+                if url.startswith(("http://", "https://")):
+                    lines.append(f"{i}. [{label}]({url})")
+                else:
+                    lines.append(f"{i}. {label}")
             lines.append("")
 
         # --- Celişkiler ---
@@ -235,18 +304,41 @@ class ResponseBuilder:
         "unverified": "Doğrulanamadı",
     }
 
-    def _best_archive_match(self, archive: list[dict[str, Any]]) -> dict[str, Any] | None:
-        """Arsiv sonuclari arasindan en alakali dosyayi sec (distance kucuk = yakin)."""
-        candidates = [
-            r for r in archive
-            if isinstance(r, dict) and (r.get("title") or r.get("url"))
-        ]
+    def _best_archive_match(self, archive: list[dict[str, Any]], claim: str = "") -> dict[str, Any] | None:
+        """Arsiv sonuclarindan gercekten ilgili dosyayi sec.
+
+        Sadece distance'a bakmak alakasiz dosyalari one cikarabilir; bu yuzden
+        iddiadaki icerik tokenlarinin baslik/pasajda ortusmesi sarttir.
+        """
+        claim_tokens = {
+            t for t in re.findall(r"[a-zçğıöşü0-9]{3,}", (claim or "").lower())
+            if t not in _CLAIM_STOPWORDS
+        }
+        candidates = []
+        for r in archive:
+            if not isinstance(r, dict) or not (r.get("title") or r.get("url")):
+                continue
+            haystack = f"{r.get('title') or ''} {r.get('passage') or ''}".lower()
+            hay_tokens = set(re.findall(r"[a-zçğıöşü0-9]{3,}", haystack))
+            hits = sum(1 for t in claim_tokens if self._token_hit(t, hay_tokens))
+            # En az 2 ortak terim VE iddianin en az yarisi — yoksa ilgisizdir.
+            if len(claim_tokens) >= 2 and hits >= 2 and hits / len(claim_tokens) >= 0.5:
+                candidates.append(r)
         if not candidates:
             return None
         return sorted(
             candidates,
             key=lambda r: r.get("distance", 999) if isinstance(r.get("distance"), (int, float)) else 999,
         )[0]
+
+    @staticmethod
+    def _token_hit(token: str, hay_tokens: set[str]) -> bool:
+        """Token ortusmesi — tam veya 4+ harflik kok payi (cekimlere dayanikli)."""
+        if token in hay_tokens:
+            return True
+        if len(token) >= 4:
+            return any(h.startswith(token) or token.startswith(h) for h in hay_tokens if len(h) >= 4)
+        return False
 
     def _format_archive_block(self, src: dict[str, Any]) -> list[str]:
         """Arsiv dosyasini link + hukum + pasaj olarak formatla."""
@@ -308,12 +400,16 @@ class ResponseBuilder:
 
         lines = [f"**'{claim}' için hüküm gerekçesi:**", ""]
 
-        verdict_display = verdict.replace("_", " ") if isinstance(verdict, str) and verdict != "unknown" else None
+        verdict_display = (
+            self.VERDICT_TR.get(verdict, str(verdict).replace("_", " ").title())
+            if isinstance(verdict, str) and verdict not in ("unknown", "")
+            else None
+        )
 
         if response_text:
             lines.append(response_text)
         elif verdict_display:
-            lines.append(f"Hüküm: **{verdict_display}** — güven seviyesi %{confidence:.0f}.")
+            lines.append(f"Hüküm: **{verdict_display}** — güven seviyesi %{confidence * 100:.0f}.")
             lines.append(f"Bu sonuç {sources_count} kaynağın incelenmesiyle oluşturuldu.")
         else:
             lines.append(
@@ -378,18 +474,25 @@ class ResponseBuilder:
             for src in external[:5]:
                 title = src.get("title", "Bilinmeyen")
                 journal = src.get("journal", "")
-                if journal:
-                    lines.append(f"- {title} ({journal})")
+                label = f"{title} ({journal})" if journal else title
+                url = src.get("url") or ""
+                if url.startswith(("http://", "https://")):
+                    lines.append(f"- [{label}]({url})")
                 else:
-                    lines.append(f"- {title}")
+                    lines.append(f"- {label}")
             lines.append("")
 
         if health:
-            lines.append("**Saglik kuruluslari:**")
-            for src in health[:3]:
+            lines.append("**Resmi kuruluşlar:**")
+            for src in health[:4]:
                 title = src.get("title", "Bilinmeyen")
-                source = src.get("source", "")
-                lines.append(f"- {title} ({source})")
+                source = ORG_TR.get(src.get("source"), src.get("source", ""))
+                label = f"{source}: {title}" if source and source not in title else title
+                url = src.get("url") or ""
+                if url.startswith(("http://", "https://")):
+                    lines.append(f"- [{label}]({url})")
+                else:
+                    lines.append(f"- {label}")
 
         text = "\n".join(lines)
 

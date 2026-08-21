@@ -30,10 +30,35 @@ from .intent import SOCIAL_INTENTS, Intent, IntentAnalyzer, IntentType
 from .investigator import EvidenceInvestigator, InvestigationResult
 from .planner import InvestigationPlan, Planner
 from .response import ChatResponse, ResponseBuilder
+from .search_query import build_search_query
 from .sufficiency import SufficiencyChecker, SufficiencyResult
 from .answer import AnswerPlanner, AnswerPlan
 
 logger = logging.getLogger(__name__)
+
+# Kaynak guven agirliklari — hukum sentezinde kalite carpani olarak kullanilir.
+_SOURCE_QUALITY = {
+    "archive": 1.0,
+    "cochrane": 1.0,
+    "who": 0.95,
+    "cdc": 0.95,
+    "ecdc": 0.95,
+    "nice": 0.95,
+    "tuseb": 0.95,
+    "fda": 0.9,
+    "ema": 0.9,
+    "esc": 0.9,
+    "aha": 0.9,
+    "nejm": 1.0,
+    "jama": 1.0,
+    "lancet": 1.0,
+    "bmj": 1.0,
+    "clinicaltrials": 0.85,
+    "pubmed": 0.85,
+    "europepmc": 0.85,
+    "openalex": 0.75,
+    "crossref": 0.7,
+}
 
 
 @dataclass
@@ -152,7 +177,21 @@ class ConversationManager:
             self.state.turn_count += 1
             return response
 
-        # 2. Plan olusturma
+        # 2. Plan olusturma — ama once guvenlik kapisi: "iddia" gorunumlu
+        #    mesaj icinde aranabilir bir saglik konusu yoksa (orn. "nasıl
+        #    çalışıyorsun?") bosuna 20 aji harekete getirme; aciklama ver.
+        if intent.type == IntentType.VERIFY_CLAIM and not build_search_query(intent.cleaned_query):
+            response = self.response_builder._social_identity(intent)
+            duration = (time.monotonic() - start) * 1000
+            self.state.turns.append(ConversationTurn(
+                user_query=user_query,
+                intent=intent,
+                response=response,
+                duration_ms=duration,
+            ))
+            self.state.turn_count += 1
+            return response
+
         plan = self.planner.create_plan(intent)
         logger.info(f"Plan: {len(plan.all_active_steps())} steps")
 
@@ -183,6 +222,11 @@ class ConversationManager:
         )
         logger.info(f"Answer format: {answer_plan.format.value}")
 
+        # 5b. Hukum sentezi — kanit pasajlari uzerinden deterministik hukum uret.
+        #     Arsiv damgasi varsa onceliklidir; yoksa pasajlar motorun
+        #     deterministik karsilastirmasindan gecer (LLM kullanilmaz).
+        verdict_info = self._derive_verdict(intent.cleaned_query, investigation)
+
         # 6. Cevap uretimi
         results_dict = {
             "archive_results": investigation.archive_results,
@@ -190,8 +234,10 @@ class ConversationManager:
             "health_org_results": investigation.health_org_results,
             "contradictions": investigation.contradictions,
             "total_sources": investigation.total_sources,
-            "verdict": self.state.current_verdict,
-            "verdict_confidence": self.state.current_confidence,
+            "verdict": verdict_info["verdict"],
+            "verdict_confidence": verdict_info["confidence"],
+            "verdict_conflict": verdict_info["conflict"],
+            "consensus": verdict_info["consensus"],
             "timeline": investigation.timeline.to_dict(),
         }
 
@@ -201,6 +247,11 @@ class ConversationManager:
             investigation_results=results_dict,
             previous_context=self.state.last_verification,
         )
+        # Kaynak gorunurlugu: arayuzun kart olarak gosterebilecegi yapisal liste.
+        response.metadata["sources"] = self._collect_source_metadata(investigation)
+        response.metadata["verdict"] = verdict_info["verdict"]
+        response.metadata["verdict_confidence"] = verdict_info["confidence"]
+        response.sources_cited = investigation.total_sources
 
         # 7. State guncelle
         duration = (time.monotonic() - start) * 1000
@@ -219,11 +270,12 @@ class ConversationManager:
         # Onceki dogrulama bilgisini guncelle
         if intent.type == IntentType.VERIFY_CLAIM:
             self.state.current_claim = intent.cleaned_query
-            self.state.current_verdict = investigation.all_results[0].get("verdict") if investigation.all_results else None
+            self.state.current_verdict = verdict_info["verdict"]
+            self.state.current_confidence = verdict_info["confidence"]
             self.state.last_verification = {
                 "claim_text": intent.cleaned_query,
-                "verdict": self.state.current_verdict,
-                "confidence": investigation.all_results[0].get("quality_score", 0) if investigation.all_results else 0,
+                "verdict": verdict_info["verdict"],
+                "confidence": verdict_info["confidence"],
                 "sources_count": investigation.total_sources,
                 "steps": [],
             }
@@ -231,6 +283,98 @@ class ConversationManager:
         logger.info(f"Turn completed in {duration:.0f}ms")
 
         return response
+
+    def _derive_verdict(self, claim: str, investigation: InvestigationResult) -> dict[str, Any]:
+        """Kanit pasajlarindan deterministik hukum sentezi (LLM yok).
+
+        Oncelik: arsiv damgasi (rating_value) > pasaj karsilastirmasi.
+        Toplama kurallari engine.py ile aynidir: dogrudan celiski ortalanmaz,
+        en iyi alaka*kalite kazanir; alaka esigi altinda hukum verilmez.
+        """
+        from evidence.engine import compare_claim_evidence
+
+        en_query = build_search_query(claim)
+        comparisons: list[tuple[str, float, float]] = []  # (verdict, relevance, quality)
+
+        for r in investigation.archive_results:
+            quality = _SOURCE_QUALITY.get("archive", 1.0)
+            rating = r.get("rating_value")
+            distance = r.get("distance")
+            if isinstance(rating, int) and rating >= 1:
+                verdict = {5: "supported", 4: "mostly_supported", 3: "partly_supported"}.get(rating, "unsupported")
+                relevance = max(0.3, min(1.0, 1.0 - float(distance))) if isinstance(distance, (int, float)) else 0.6
+            else:
+                verdict, _, relevance = compare_claim_evidence(claim, r.get("passage") or "")
+                verdict = verdict.value
+                if relevance < 0.28:
+                    continue
+            comparisons.append((verdict, relevance, quality))
+
+        for r in investigation.external_results + investigation.health_org_results:
+            passage = (r.get("passage") or "").strip()
+            if not passage:
+                continue
+            quality = _SOURCE_QUALITY.get(r.get("source", ""), 0.7)
+            verdict, _, relevance = compare_claim_evidence(en_query, passage)
+            if relevance < 0.28:
+                continue
+            comparisons.append((verdict.value, relevance, quality))
+
+        if not comparisons:
+            return {"verdict": None, "confidence": 0.0, "consensus": {}, "conflict": False}
+
+        # engine.py ile ayni kural: cok zayif "karsi" kanit hukumu devirmesin.
+        unsupported = [c for c in comparisons if c[0] == "unsupported" and c[1] >= 0.35]
+        best = max(comparisons, key=lambda c: c[1] * c[2])
+        if unsupported and max(c[1] * c[2] for c in unsupported) >= best[1] * best[2] - 0.05:
+            verdict = "unsupported"
+            confidence = max(c[1] * c[2] for c in unsupported)
+        else:
+            verdict = best[0]
+            confidence = best[1] * best[2]
+
+        # Ajanlar-arasi uzlasi profili: her hukum yonunun agirlikli oyu.
+        consensus: dict[str, float] = {}
+        for v, rel, qual in comparisons:
+            consensus[v] = round(consensus.get(v, 0.0) + rel * qual, 2)
+
+        # Tartisma sinyali: arsiv damgasi ile harici kaynaklar ayri yone gidiyorsa
+        # bunu acikca bildir — tek bir kaynagi mutlaklastirmadan.
+        archive_verdicts = {c[0] for c in comparisons[: len(investigation.archive_results)]} if investigation.archive_results else set()
+        external_verdicts = {c[0] for c in comparisons[len(investigation.archive_results):]}
+        conflict = bool(
+            archive_verdicts
+            and external_verdicts
+            and verdict not in (archive_verdicts & external_verdicts)
+            and len(archive_verdicts | external_verdicts) > 1
+        )
+        return {"verdict": verdict, "confidence": round(min(0.9, confidence), 2), "consensus": consensus, "conflict": conflict}
+
+    def _collect_source_metadata(self, investigation: InvestigationResult) -> list[dict[str, Any]]:
+        """Yanita eklenecek yapisal kaynak listesi — arayuz kartlari icin."""
+        sources: list[dict[str, Any]] = []
+        seen_urls: set[str] = set()
+
+        def add(items: list[dict[str, Any]], category: str, limit: int) -> None:
+            for r in items[:limit]:
+                url = r.get("url") or ""
+                key = url.rstrip("/").lower()
+                if not url or key in seen_urls:
+                    continue
+                seen_urls.add(key)
+                sources.append({
+                    "title": r.get("title") or "",
+                    "url": url,
+                    "source": r.get("source") or "",
+                    "category": category,
+                    "verdict": r.get("verdict"),
+                    "published_year": r.get("published_year") or r.get("year"),
+                })
+
+        add(investigation.archive_results, "archive", 3)
+        add(investigation.health_org_results, "health_org", 4)
+        add(investigation.external_results, "academic", 5)
+        return sources
 
     async def _investigate_with_loop(
         self,
