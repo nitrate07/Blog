@@ -1,0 +1,36 @@
+name: Evidence API tests
+
+on:
+  push:
+    paths:
+      - "evidence/**"
+      - "conftest.py"
+      - ".github/workflows/evidence-tests.yml"
+  pull_request:
+    paths:
+      - "evidence/**"
+      - "conftest.py"
+      - ".github/workflows/evidence-tests.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r evidence/requirements.txt
+      - name: Unit tests (deterministic engine, sources, providers)
+        run: python -m pytest evidence/tests -q
+        env:
+          EVIDENCE_REQUIRE_API_KEY: "false"
+          EVIDENCE_DATABASE_PATH: ":memory:"
+          EVIDENCE_AUTO_INDEX: "0"
+      - name: V2 API tests
+        run: python -m pytest evidence/v2/tests -q
+        env:
+          EVIDENCE_REQUIRE_API_KEY: "false"
+          EVIDENCE_DATABASE_PATH: ":memory:"
+          EVIDENCE_AUTO_INDEX: "0"

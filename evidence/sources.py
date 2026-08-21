@@ -63,14 +63,25 @@ def _is_ip_literal(host: str) -> bool:
         return False
 
 
+_PRIMARY_TLDS = (".gov", ".edu", ".int", ".ac.uk", ".edu.au", ".edu.tr", ".ac.jp", ".gc.ca")
+_PRIMARY_HOSTS = (
+    "who.int", "nih.gov", "pubmed", "ncbi.nlm.nih.gov", "clinicaltrials.gov", "fda.gov",
+    "ema.europa.eu", "ecdc.europa.eu", "cdc.gov", "nice.org.uk", "escardio.org", "heart.org",
+    "acc.org", "diabetes.org", "nejm.org", "jamanetwork.com", "thelancet.com", "bmj.com",
+    "nature.com", "cochranelibrary.com", "cochrane.org", "saglik.gov.tr", "tuseb.gov.tr",
+)
+_SECONDARY_TERMS = ("systematic review", "meta-analysis", "meta analysis", "review article", "journalistic investigation", "position statement", "clinical guideline")
+_TERTIARY_HOSTS = ("blog", "medium", "reddit", "facebook", "x.com", "twitter", "tiktok", "instagram", "quora", "pinterest")
+
+
 def classify_source(url: str, text: str = "") -> SourceQuality:
     host = (urlsplit(url).hostname or "").lower()
     corpus = f"{host} {text[:2000]}".lower()
-    if host.endswith((".gov", ".edu", ".int")) or any(name in host for name in ("who.int", "nih.gov", "pubmed", "clinicaltrials.gov", "fda.gov", "ema.europa.eu")):
+    if host.endswith(_PRIMARY_TLDS) or any(name in host for name in _PRIMARY_HOSTS):
         return SourceQuality.PRIMARY
-    if any(term in corpus for term in ("systematic review", "meta-analysis", "review article", "journalistic investigation")):
+    if any(term in corpus for term in _SECONDARY_TERMS):
         return SourceQuality.SECONDARY
-    if any(term in host for term in ("blog", "medium", "reddit", "facebook", "x.com", "twitter")):
+    if any(term in host for term in _TERTIARY_HOSTS):
         return SourceQuality.TERTIARY
     return SourceQuality.UNKNOWN
 

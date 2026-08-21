@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 import re
 
 from .models import EvidenceItem, SourceQuality, Verdict, VerificationRequest, VerificationResponse
-from .providers import NullProvider, VerificationProvider
+from .providers import VerificationProvider, default_provider
 from .sources import RetrievedSource, SourceFetcher
 
 _STOPWORDS = {"a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "were", "with"}
@@ -48,7 +48,7 @@ _QUALITY_SCORE = {SourceQuality.PRIMARY: 1.0, SourceQuality.SECONDARY: 0.75, Sou
 class EvidenceVerifier:
     def __init__(self, fetcher: SourceFetcher | None = None, provider: VerificationProvider | None = None) -> None:
         self.fetcher = fetcher or SourceFetcher()
-        self.provider = provider or NullProvider()
+        self.provider = provider or default_provider()
 
     async def verify(self, request: VerificationRequest) -> VerificationResponse:
         evidence: list[EvidenceItem] = []
