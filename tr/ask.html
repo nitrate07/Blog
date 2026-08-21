@@ -1,0 +1,407 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Soruşturucuya Sor — Arı Kaynak</title>
+<meta name="description" content="Herhangi bir sağlık iddiasını sor. Soruşturucu arşivi ve harici tıbbi kaynakları adım adım tarar, kaynaklı hükmü dosyalatır.">
+<link rel="canonical" href="https://nitrate07.github.io/Blog/tr/ask.html">
+<meta property="og:title" content="Soruşturucuya Sor — Arı Kaynak">
+<meta property="og:description" content="Herhangi bir sağlık iddiasını sor. Kaynaklı hüküm al.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Arı Kaynak">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<style>
+/* ---------- Ask page ---------- */
+.ask-layout{ max-width:860px; margin:0 auto; padding:34px 28px 60px; }
+.ask-kicker{ font-family:var(--font-mono); font-size:11px; letter-spacing:.22em; text-transform:uppercase; color:var(--amber); margin-bottom:10px; }
+.ask-title{ font-family:var(--font-display); font-size:clamp(28px,4vw,40px); line-height:1.15; margin:0 0 8px; }
+.ask-sub{ color:var(--ink-soft); font-size:15px; margin:0 0 26px; }
+
+.chat-scroll{ display:flex; flex-direction:column; gap:18px; min-height:200px; }
+.msg-user{
+  align-self:flex-end; max-width:78%;
+  background:var(--paper-card); border:1px solid var(--line-strong);
+  padding:12px 17px;
+}
+.msg-user .role, .msg-file .role{
+  font-family:var(--font-mono); font-size:10px; letter-spacing:.2em;
+  color:var(--ink-faint); text-transform:uppercase; margin-bottom:3px;
+}
+.msg-file{
+  align-self:stretch;
+  background:var(--paper-card); border:1px solid var(--line-strong);
+}
+.file-head{
+  display:flex; align-items:center; gap:12px;
+  padding:9px 17px; border-bottom:1px dashed var(--line-strong);
+  background:var(--paper);
+}
+.stamp{
+  margin-left:auto; font-family:var(--font-mono); font-size:10px; letter-spacing:.14em;
+  text-transform:uppercase; padding:3px 10px; border:2px solid currentColor;
+  transform:rotate(-2deg); opacity:0; transition:opacity .4s;
+}
+.stamp.show{ opacity:.85; }
+.v-ok{ color:var(--verified); } .v-flag{ color:var(--flag); } .v-amber{ color:var(--amber); } .v-faint{ color:var(--ink-faint); }
+.file-body{ padding:15px 17px 13px; }
+
+.steps{ display:flex; flex-direction:column; gap:7px; }
+.step{ display:flex; align-items:center; gap:10px; font-family:var(--font-mono); font-size:12.5px; color:var(--ink-soft); }
+.step .icon{ width:14px; height:14px; border-radius:50%; flex-shrink:0; border:2px solid var(--line-strong); position:relative; }
+.step.running .icon{ border-color:var(--amber); border-top-color:transparent; animation:spin .7s linear infinite; }
+.step.running{ color:var(--ink); }
+.step.done .icon{ border-color:var(--verified); }
+.step.done .icon::after{ content:"✓"; position:absolute; inset:-5px 0 0 -1px; font-size:11px; color:var(--verified); }
+.step.done{ color:var(--ink-faint); }
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+.content{ margin-top:11px; white-space:pre-wrap; font-size:15.5px; line-height:1.65; }
+.content.streaming::after{ content:"▍"; color:var(--amber); animation:blink 1s steps(2) infinite; }
+@keyframes blink{ 50%{ opacity:0; } }
+.content.error{ color:var(--flag); font-family:var(--font-mono); font-size:13.5px; }
+
+.meta-row{
+  margin-top:13px; padding-top:11px; border-top:1px dashed var(--line-strong);
+  display:flex; align-items:center; flex-wrap:wrap; gap:8px 16px;
+  font-family:var(--font-mono); font-size:11.5px; color:var(--ink-faint);
+}
+.copy-btn{
+  margin-left:auto; background:transparent; border:1px solid var(--line-strong);
+  color:var(--ink-soft); font-family:var(--font-mono); font-size:10px; text-transform:uppercase;
+  letter-spacing:.12em; padding:4px 10px; cursor:pointer; transition:all .15s;
+}
+.copy-btn:hover{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+.chips{ display:flex; flex-wrap:wrap; gap:8px; margin-top:11px; }
+.chip{
+  background:var(--paper); border:1px solid var(--line-strong);
+  color:var(--ink-soft); font-family:var(--font-body); font-size:12.5px; padding:6px 13px;
+  cursor:pointer; transition:all .15s; text-align:left;
+}
+.chip::before{ content:"+ "; color:var(--amber); }
+.chip:hover{ border-color:var(--ink); color:var(--ink); background:var(--paper-card); }
+
+.examples{ display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:22px; }
+.example{
+  background:var(--paper-card); border:1px solid var(--line-strong);
+  padding:13px 15px 11px; cursor:pointer; transition:all .15s;
+  font-family:var(--font-body); font-size:14px; line-height:1.5; color:var(--ink);
+  text-align:left;
+}
+.example::before{
+  content:attr(data-no); display:block; font-family:var(--font-mono);
+  font-size:10px; letter-spacing:.18em; color:var(--ink-faint); margin-bottom:5px;
+}
+.example:hover{ border-color:var(--ink); transform:translateY(-2px); box-shadow:3px 4px 0 rgba(28,38,31,.12); }
+
+.ask-inputbar{
+  margin-top:26px; border-top:1px solid var(--line-strong); padding-top:20px;
+  display:flex; gap:12px; align-items:flex-end;
+}
+.ask-inputbar textarea{
+  flex:1; background:var(--paper-card); border:1px solid var(--line-strong);
+  padding:12px 15px; color:var(--ink); font-family:var(--font-body);
+  font-size:15px; resize:none; min-height:48px; max-height:170px; line-height:1.5;
+}
+.ask-inputbar textarea:focus{ outline:none; border-color:var(--ink); box-shadow:2px 3px 0 rgba(28,38,31,.12); }
+.ask-inputbar textarea::placeholder{ color:var(--ink-faint); }
+.send-btn{
+  background:var(--ink); color:var(--paper); border:1px solid var(--ink);
+  font-family:var(--font-mono); padding:13px 24px; font-size:12px; text-transform:uppercase;
+  letter-spacing:.14em; cursor:pointer; height:48px; transition:all .15s;
+}
+.send-btn:hover:not(:disabled){ background:var(--verified); border-color:var(--verified); }
+.send-btn:disabled{ background:var(--paper-deep); border-color:var(--line-strong); color:var(--ink-faint); cursor:not-allowed; }
+
+@media (max-width:640px){
+  .examples{ grid-template-columns:1fr; }
+  .msg-user{ max-width:92%; }
+  .ask-layout{ padding:24px 18px 48px; }
+}
+</style>
+</head>
+<body>
+<a href="#main" class="skip-link">İçeriğe geç</a>
+
+<header class="site-header">
+  <div class="wrap">
+    <a href="/Blog/tr/index.html" class="mark">
+      <span class="mark-box">AK</span>
+      <span class="mark-text">ARI KAYNAK<small>doğrulanmış bilgi dosyaları</small></span>
+    </a>
+    <nav class="site-nav">
+      <a href="/Blog/tr/index.html#arsiv">Arşiv</a>
+      <a href="/Blog/tr/hakkimizda.html">Yöntem</a>
+      <a href="/Blog/ask.html" class="lang-switch">EN</a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <div class="ask-layout">
+    <div class="ask-kicker">Açık soruşturma · canlı</div>
+    <h1 class="ask-title">Soruşturucuya sor.</h1>
+    <p class="ask-sub">Herhangi bir sağlık iddiası yaz. Adım adım araştırılır — önce arşiv, sonra harici kaynaklar — damgalı hüküm ve kaynaklarla cevaplanır.</p>
+
+    <div class="chat-scroll" id="chatScroll"></div>
+
+    <div class="examples" id="examples">
+      <button type="button" class="example" data-no="DOSYA 01">Kahve kolesterolü yükseltir mi?</button>
+      <button type="button" class="example" data-no="DOSYA 02">Kreatin böbreğe zarar verir mi?</button>
+      <button type="button" class="example" data-no="DOSYA 03">Günlük aspirin kalp krizinden korur mu?</button>
+      <button type="button" class="example" data-no="DOSYA 04">Bal, şekerden daha mı sağlıklı?</button>
+    </div>
+
+    <div class="ask-inputbar">
+      <textarea id="askInput" placeholder="İddianızı yazın...  (Enter ile gönder)" rows="1" aria-label="İddianız"></textarea>
+      <button type="button" class="send-btn" id="sendBtn">Soruştur</button>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <span>© 2026 Arı Kaynak. Bağımsız, okur destekli.</span>
+    <div class="footer-links">
+      <a href="/Blog/tr/index.html">Arşiv</a>
+      <a href="/Blog/tr/hakkimizda.html">Yöntem</a>
+      <a href="/Blog/tr/gizlilik.html">Gizlilik</a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function(){
+  // Canlı API adresi — deploy sonrası burayı güncelle (örn. https://api.arikaynak.org)
+  var API_BASE = window.ARI_API_BASE || 'http://localhost:8000';
+
+  var scroll = document.getElementById('chatScroll');
+  var input = document.getElementById('askInput');
+  var sendBtn = document.getElementById('sendBtn');
+  var examples = document.getElementById('examples');
+  var isProcessing = false;
+  var turnCount = 0;
+
+  var sessionId = null;
+  try {
+    sessionId = localStorage.getItem('ariSession');
+    if (!sessionId) {
+      sessionId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+      localStorage.setItem('ariSession', sessionId);
+    }
+  } catch (e) { sessionId = 'default'; }
+
+  function escapeHtml(t){ var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+  function nearBottom(){ return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 160; }
+  function down(){ scroll.scrollTop = scroll.scrollHeight; }
+
+  input.addEventListener('input', function(){
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 170) + 'px';
+  });
+  input.addEventListener('keydown', function(e){
+    if (e.key === 'Enter' && !e.shiftKey){ e.preventDefault(); send(); }
+  });
+  sendBtn.addEventListener('click', send);
+
+  Array.prototype.forEach.call(document.querySelectorAll('.example'), function(ex){
+    ex.addEventListener('click', function(){
+      input.value = ex.textContent.trim();
+      input.dispatchEvent(new Event('input'));
+      input.focus();
+    });
+  });
+
+  function detectVerdict(text){
+    var m = text.match(/verdict:?\s*\**\s*([a-z_ ]+)/i) || text.match(/h[uü]k[uü]m:?\s*\**\s*([a-z_ ]+)/i);
+    var v = m ? m[1].toLowerCase() : '';
+    if (v.indexOf('unsupported') !== -1 || v.indexOf('misrepresented') !== -1) return ['v-flag', 'Unsupported'];
+    if (v.indexOf('partly') !== -1) return ['v-amber', 'Partly Supported'];
+    if (v.indexOf('mostly') !== -1) return ['v-ok', 'Mostly Supported'];
+    if (v.indexOf('supported') !== -1) return ['v-ok', 'Supported'];
+    if (v.indexOf('unverified') !== -1) return ['v-faint', 'Unverified'];
+    return null;
+  }
+
+  function addUser(text){
+    if (examples) examples.style.display = 'none';
+    var div = document.createElement('div');
+    div.className = 'msg-user';
+    div.innerHTML = '<div class="role">Sen</div><div>' + escapeHtml(text) + '</div>';
+    scroll.appendChild(div);
+    down();
+  }
+
+  function addShell(){
+    turnCount++;
+    var div = document.createElement('div');
+    div.className = 'msg-file';
+    div.innerHTML =
+      '<div class="file-head">' +
+        '<span class="role">Soruşturma Dosyası №' + String(turnCount).padStart(3, '0') + '</span>' +
+        '<span class="stamp" id="stamp"></span>' +
+      '</div>' +
+      '<div class="file-body">' +
+        '<div class="steps" id="steps"></div>' +
+        '<div class="content" id="content"></div>' +
+        '<div class="meta-row" id="meta" style="display:none">' +
+          '<span id="metaInfo"></span>' +
+          '<button type="button" class="copy-btn" id="copyBtn">Kopyala</button>' +
+        '</div>' +
+        '<div class="chips" id="chips"></div>' +
+      '</div>';
+    scroll.appendChild(div);
+    down();
+    return div;
+  }
+
+  function finalize(div, data, fullText){
+    var content = div.querySelector('#content');
+    content.classList.remove('streaming');
+    content.innerHTML = escapeHtml(fullText).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+    var verdict = detectVerdict(fullText);
+    if (verdict){
+      var stamp = div.querySelector('#stamp');
+      stamp.textContent = verdict[1];
+      stamp.className = 'stamp show ' + verdict[0];
+    }
+
+    var meta = div.querySelector('#meta');
+    meta.style.display = 'flex';
+    div.querySelector('#metaInfo').textContent =
+      (data.sources_cited != null ? data.sources_cited + ' kaynak · ' : '') +
+      (data.confidence != null ? 'güvenirlik %' + Math.round(data.confidence * 100) + ' · ' : '') +
+      (data.duration_ms ? (data.duration_ms / 1000).toFixed(1) + ' sn' : '');
+
+    div.querySelector('#copyBtn').addEventListener('click', function(){
+      navigator.clipboard.writeText(fullText).then(function(){
+        var b = div.querySelector('#copyBtn');
+        b.textContent = 'Kopyalandı ✓';
+        setTimeout(function(){ b.textContent = 'Kopyala'; }, 1600);
+      });
+    });
+
+    var chips = div.querySelector('#chips');
+    (data.follow_up_suggestions || []).slice(0, 3).forEach(function(s){
+      var chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'chip';
+      chip.textContent = s;
+      chip.addEventListener('click', function(){
+        if (!isProcessing){ input.value = s; send(); }
+      });
+      chips.appendChild(chip);
+    });
+  }
+
+  function parseSSE(buffer, onEvent){
+    var parts = buffer.split('\n\n');
+    var rest = parts.pop();
+    parts.forEach(function(part){
+      part = part.trim();
+      if (!part.startsWith('data:')) return;
+      try { onEvent(JSON.parse(part.slice(5))); } catch (e) {}
+    });
+    return rest;
+  }
+
+  async function stream(query, div){
+    var stepsEl = div.querySelector('#steps');
+    var content = div.querySelector('#content');
+    var fullText = '';
+
+    var resp = await fetch(API_BASE + '/v1/investigator/chat/stream', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query, session_id: sessionId }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+
+    var reader = resp.body.getReader();
+    var decoder = new TextDecoder();
+    var buffer = '';
+
+    while (true){
+      var r = await reader.read();
+      if (r.done) break;
+      buffer += decoder.decode(r.value, { stream: true });
+      buffer = parseSSE(buffer, function(ev){
+        if (ev.type === 'step'){
+          var row = document.createElement('div');
+          row.className = 'step running';
+          row.innerHTML = '<span class="icon"></span><span>' + escapeHtml(ev.label) + '</span>';
+          stepsEl.appendChild(row);
+          down();
+        } else if (ev.type === 'steps_done'){
+          stepsEl.querySelectorAll('.running').forEach(function(x){
+            x.classList.remove('running'); x.classList.add('done');
+          });
+          content.classList.add('streaming');
+        } else if (ev.type === 'chunk'){
+          fullText += ev.content;
+          content.textContent = fullText;
+          if (nearBottom()) down();
+        } else if (ev.type === 'done'){
+          finalize(div, ev, fullText);
+        }
+      });
+    }
+  }
+
+  async function fallback(query, div){
+    var resp = await fetch(API_BASE + '/v1/investigator/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: query, session_id: sessionId }),
+    });
+    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+    var data = await resp.json();
+    div.querySelectorAll('.running').forEach(function(x){
+      x.classList.remove('running'); x.classList.add('done');
+    });
+    var content = div.querySelector('#content');
+    content.classList.add('streaming');
+    content.textContent = data.response;
+    finalize(div, data, data.response);
+  }
+
+  async function send(){
+    var query = input.value.trim();
+    if (!query || isProcessing) return;
+
+    isProcessing = true;
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Soruşturuluyor…';
+    addUser(query);
+    input.value = '';
+    input.style.height = 'auto';
+
+    var div = addShell();
+
+    try {
+      await stream(query, div);
+    } catch (err) {
+      try {
+        await fallback(query, div);
+      } catch (err2) {
+        var content = div.querySelector('#content');
+        content.classList.add('error');
+        content.textContent = 'Soruşturucu hizmetine şu anda ulaşılamıyor. Lütfen daha sonra tekrar deneyin.';
+      }
+    }
+
+    isProcessing = false;
+    sendBtn.disabled = false;
+    sendBtn.textContent = 'Soruştur';
+    input.focus();
+  }
+})();
+</script>
+</body>
+</html>
