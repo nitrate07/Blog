@@ -348,7 +348,7 @@ class TestAPI:
             assert resp.status_code == 200
             data = resp.json()
             assert data["status"] == "ok"
-            assert data["agents"] == 18  # Without ArchiveAgent
+            assert data["agents"] == 20  # Without ArchiveAgent
     
     @pytest.mark.asyncio
     async def test_verify_endpoint(self):

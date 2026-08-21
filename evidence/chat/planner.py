@@ -12,13 +12,14 @@ from dataclasses import dataclass, field
 from enum import Enum
 
 from .intent import Intent, IntentType, Topic
+from .search_query import build_search_query
 
 
 class StepType(str, Enum):
     """Plan adimi turleri."""
-    SEARCH_EXTERNAL = "search_external"       # PubMed, Crossref, etc.
+    SEARCH_EXTERNAL = "search_external"       # PubMed, Europe PMC, Crossref, dergiler
     SEARCH_ARCHIVE = "search_archive"         # Mevcut Arı Kaynak arsivi
-    SEARCH_HEALTH_ORG = "search_health_org"  # WHO, CDC, ESC vb.
+    SEARCH_HEALTH_ORG = "search_health_org"  # WHO, CDC, NICE, TUSEB vb.
     CHECK_CONTRADICTIONS = "check_contradictions"  # Celişkileri kontrol et
     LOOKUP_PREVIOUS = "lookup_previous"       # Onceki dogrulamalara bak
     ASK_CLARIFICATION = "ask_clarification"   # Kullaniciya soru sor
@@ -77,8 +78,14 @@ class Planner:
         return plan
 
     def _plan_verify_claim(self, intent: Intent) -> InvestigationPlan:
-        """Yeni iddia dogrulama plani — en kapsamli arastirma."""
+        """Yeni iddia dogrulama plani — en kapsamli arastirma.
+
+        Gorev alanlari ayriktir: arsiv Turkce orijinal sorguyla, harici
+        akademik/resmi kanallar Ingilizce anahtar-kelime sorgusuyla arar
+        (PubMed/Crossref/WHO gibi API'ler Turkce dogal dilde alakasiz sonuc dondurur).
+        """
         claim = intent.cleaned_query
+        en_query = build_search_query(claim)
 
         steps = [
             PlanStep(
@@ -91,23 +98,23 @@ class Planner:
             PlanStep(
                 step_type=StepType.SEARCH_EXTERNAL,
                 priority=StepPriority.HIGH,
-                description="PubMed/Crossref'te akademik makaleler ara",
-                search_query=claim,
-                source_filter=["pubmed", "crossref", "nejm", "jama", "lancet", "bmj"],
+                description="Akademik kaynaklarda ara (PubMed, Europe PMC, dergiler)",
+                search_query=en_query,
+                source_filter=["pubmed", "crossref", "europepmc", "openalex", "nejm", "jama", "lancet", "bmj", "aha", "cochrane"],
                 limit=5,
             ),
             PlanStep(
                 step_type=StepType.SEARCH_HEALTH_ORG,
                 priority=StepPriority.MEDIUM,
-                description="Saglik kuruluslarinda (WHO, CDC) kılavuz ara",
-                search_query=claim,
+                description="Resmi saglik kurumlarinda ara (WHO, CDC, NICE, TUSEB)",
+                search_query=en_query,
                 limit=3,
             ),
             PlanStep(
                 step_type=StepType.CHECK_CONTRADICTIONS,
                 priority=StepPriority.MEDIUM,
                 description="Celişkili kanitlari kontrol et",
-                search_query=claim,
+                search_query=en_query,
                 limit=3,
             ),
         ]
@@ -132,7 +139,7 @@ class Planner:
                 step_type=StepType.SEARCH_EXTERNAL,
                 priority=StepPriority.MEDIUM,
                 description="Ek aciklayici kanit ara (e.g. mekanizma calismalari)",
-                search_query=intent.cleaned_query,
+                search_query=build_search_query(intent.cleaned_query),
                 limit=3,
             ),
         ]
@@ -145,19 +152,24 @@ class Planner:
 
     def _plan_follow_up_more(self, intent: Intent) -> InvestigationPlan:
         """'Daha fazla kanit' plani — ek kaynak ara."""
+        # Baglamdaki onceki iddia asil konudur; "daha fazla kanit goster"
+        # gibi komut metni arama sorgusu OLAMAZ.
+        base = intent.referenced_claim or intent.cleaned_query or intent.original_query
+        en_query = build_search_query(base)
         steps = [
             PlanStep(
                 step_type=StepType.SEARCH_EXTERNAL,
                 priority=StepPriority.HIGH,
                 description="Ek akademik makaleler ara",
-                search_query=intent.cleaned_query or intent.original_query,
+                search_query=en_query,
+                source_filter=["pubmed", "crossref", "europepmc", "openalex", "nejm", "jama", "lancet", "bmj"],
                 limit=8,
             ),
             PlanStep(
                 step_type=StepType.SEARCH_HEALTH_ORG,
                 priority=StepPriority.HIGH,
-                description="Ek saglik kurulusu kaynaklari ara",
-                search_query=intent.cleaned_query or intent.original_query,
+                description="Ek resmi saglik kurumu kaynaklari ara",
+                search_query=en_query,
                 limit=5,
             ),
         ]
@@ -170,19 +182,21 @@ class Planner:
 
     def _plan_follow_up_different(self, intent: Intent) -> InvestigationPlan:
         """'Baska kaynak' plani — farkli perspektif."""
+        base = intent.referenced_claim or intent.original_query
+        en_query = build_search_query(base)
         steps = [
             PlanStep(
                 step_type=StepType.SEARCH_HEALTH_ORG,
                 priority=StepPriority.HIGH,
-                description="Farkli saglik kuruluslarindan bak (WHO, ESC, AHA)",
-                search_query=intent.referenced_claim or intent.original_query,
+                description="Farkli resmi kurumlardan bak (WHO, NICE, ESC)",
+                search_query=en_query,
                 limit=5,
             ),
             PlanStep(
                 step_type=StepType.SEARCH_EXTERNAL,
                 priority=StepPriority.HIGH,
                 description="Farkli journal'lardan makaleler",
-                search_query=intent.referenced_claim or intent.original_query,
+                search_query=en_query,
                 source_filter=["nejm", "lancet", "jama", "bmj"],
                 limit=5,
             ),
@@ -196,26 +210,30 @@ class Planner:
 
     def _plan_challenge_verdict(self, intent: Intent) -> InvestigationPlan:
         """'Katilmiyorum' plani — celişkili kanitlari on planda ara."""
+        base = intent.referenced_claim or intent.cleaned_query or intent.original_query
+        en_query = build_search_query(base)
+        challenge_query = en_query
         steps = [
             PlanStep(
                 step_type=StepType.SEARCH_EXTERNAL,
                 priority=StepPriority.HIGH,
                 description="Celişkili kanitlari one cikararak ara",
-                search_query=intent.cleaned_query or intent.original_query,
+                search_query=en_query,
+                source_filter=["pubmed", "crossref", "europepmc", "openalex", "nejm", "jama", "lancet", "bmj"],
                 limit=8,
             ),
             PlanStep(
                 step_type=StepType.CHECK_CONTRADICTIONS,
                 priority=StepPriority.HIGH,
                 description="Celişkili kanitlari detayli analiz et",
-                search_query=intent.referenced_claim or intent.original_query,
+                search_query=challenge_query,
                 limit=5,
             ),
             PlanStep(
                 step_type=StepType.SEARCH_HEALTH_ORG,
                 priority=StepPriority.MEDIUM,
                 description="Resmi kılavuzlarda farkli gorus kontrol et",
-                search_query=intent.referenced_claim or intent.original_query,
+                search_query=challenge_query,
                 limit=3,
             ),
         ]
@@ -256,7 +274,7 @@ class Planner:
                 step_type=StepType.SEARCH_EXTERNAL,
                 priority=StepPriority.MEDIUM,
                 description="Genel bakis icin derleme makaleleri ara",
-                search_query=intent.cleaned_query,
+                search_query=build_search_query(intent.cleaned_query),
                 source_filter=["pubmed", "crossref"],
                 limit=3,
             ),

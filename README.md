@@ -1,7 +1,7 @@
 # Arı Kaynak — Evidence Verification Infrastructure
 
 Sağlık iddialarını birincil kaynaklardan doğrulayan, kanıt toplayıp hüküm veren AI altyapısı.
-Yerel makale arşivi (RAG) ve 19 harici tıbbi kaynak ajanıyla (PubMed, Cochrane, WHO, NEJM, ...) çalışır.
+Yerel makale arşivi (RAG) ve 20 harici tıbbi kaynak ajanıyla (PubMed, Cochrane, WHO, NEJM, Europe PMC, OpenAlex, EMA, ECDC, NICE, ESC, FDA, ClinicalTrials, TÜSEB, AHA, ...) çalışır.
 
 ## Mimari
 
@@ -12,7 +12,7 @@ evidence/
 │   ├── core/                # Tipler, arayüzler, SQLite kalıcılık, rate limiter
 │   ├── engine/              # Deterministik doğrulama motoru + çelişki analizi
 │   ├── pipeline/            # Kanıt toplama hattı
-│   └── sources/             # 19 kaynak ajanı (PubMed, WHO, CDC, NEJM, TÜSEB, ...)
+│   └── sources/             # 21 kaynak ajanı — 20 harici + arşiv (PubMed, WHO, CDC, NEJM, Europe PMC, OpenAlex, EMA, ECDC, NICE, ESC, FDA, ClinicalTrials, TÜSEB, AHA, ...)
 ├── chat/                    # Konuşmacı Soruşturucu katmanı (intent → plan → araştır → hüküm)
 ├── graph/                   # Ajan grafiği (sağlık ajanları, pipeline)
 ├── rag/                     # Yerel arşiv parser + retriever + store

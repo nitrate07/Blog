@@ -49,6 +49,8 @@ from ..sources import (
     AHAAgent,
     ESCAgent,
     TUSEBAgent,
+    EuropePMCAgent,
+    OpenAlexAgent,
     SourceOrchestrator,
 )
 
@@ -293,7 +295,7 @@ def create_app(
             logger.warning(f"RAG auto-index atlandi: {e}")
             retriever = None
 
-    # Initialize all agents (19 sources)
+    # Initialize all agents (20 harici + arsiv = 21 kaynak ajanı)
     agents = [
         PubMedAgent(),
         CrossrefAgent(),
@@ -313,6 +315,8 @@ def create_app(
         AHAAgent(),
         ESCAgent(),
         TUSEBAgent(),
+        EuropePMCAgent(),
+        OpenAlexAgent(),
     ]
     if retriever:
         agents.insert(2, ArchiveAgent(retriever))
