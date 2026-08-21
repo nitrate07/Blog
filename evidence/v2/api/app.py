@@ -13,9 +13,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import os
 import secrets
 import time
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Depends, Request, Response
@@ -229,6 +231,7 @@ def create_app(
     retriever: Any | None = None,
     llm_provider: Any | None = None,
     db_path: str | None = None,
+    auto_index: bool | None = None,
 ) -> FastAPI:
     """Create the FastAPI application.
     
@@ -257,6 +260,39 @@ def create_app(
     # Initialize rate limiter
     rate_limiter = RateLimiter(max_requests=100, window_seconds=3600)
     
+    # Otomatik RAG kurulumu: retriever verilmediyse yerel arsivi endeksle.
+    # Bot boylece kendi dogrulanmis makale arsivini gorebilir.
+    # EVIDENCE_AUTO_INDEX=0 ile kapatilabilir (testler/hizli baslangic).
+    _auto_env = os.getenv("EVIDENCE_AUTO_INDEX", "1").strip().lower() in {"1", "true", "yes", "on"}
+    if retriever is None and (auto_index if auto_index is not None else _auto_env):
+        try:
+            from ...config import Settings
+            from ...rag.parser import parse_all_articles
+            from ...rag.retriever import ArticleRetriever
+            from ...rag.store import ArticleVectorStore
+
+            _settings = Settings()
+            _articles_dir = Path(_settings.rag_articles_dir)
+            _tr_dir = Path(_settings.rag_tr_dir)
+            if _articles_dir.exists():
+                _store = ArticleVectorStore(_settings.rag_persist_directory)
+                retriever = ArticleRetriever(_store)
+                _chunks = parse_all_articles(
+                    _articles_dir,
+                    _tr_dir if _tr_dir.exists() else None,
+                )
+                if _chunks:
+                    for _aid in {c.article_id for c in _chunks}:
+                        _store.delete_article(_aid)
+                    _upserted = _store.upsert_chunks(_chunks)
+                    logger.info(
+                        f"RAG auto-index: {_upserted} chunks / "
+                        f"{len({c.article_id for c in _chunks})} articles"
+                    )
+        except Exception as e:
+            logger.warning(f"RAG auto-index atlandi: {e}")
+            retriever = None
+
     # Initialize all agents (19 sources)
     agents = [
         PubMedAgent(),
@@ -292,6 +328,7 @@ def create_app(
     app.state.orchestrator = orchestrator
     app.state.engine = engine
     app.state.pipeline = pipeline
+    app.state.retriever = retriever
     app.state.db = db
     app.state.user_store = user_store
     app.state.chat_store = chat_store
