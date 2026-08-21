@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 class VerifyRequest(BaseModel):
     query: str = Field(min_length=3, max_length=4000)
     stream: bool = False
+    session_id: str | None = Field(default=None, max_length=64)
 
 
 class VerifyResponse(BaseModel):
@@ -552,20 +553,23 @@ def create_app(
     
     # In-memory conversation managers per session
     conversation_managers: dict[str, ConversationManager] = {}
-    
-    @app.post("/v1/investigator/chat")
-    async def investigator_chat(request: VerifyRequest):
-        """Conversational Investigator endpoint — interaktif kanit arastirma."""
-        session_id = "default"
-        
+    MAX_SESSIONS = 64
+
+    def _get_manager(session_id: str) -> ConversationManager:
         if session_id not in conversation_managers:
+            while len(conversation_managers) >= MAX_SESSIONS:
+                conversation_managers.pop(next(iter(conversation_managers)))
             conversation_managers[session_id] = ConversationManager(
                 orchestrator=orchestrator,
                 llm_provider=llm_provider,
                 db=db,
             )
-        
-        manager = conversation_managers[session_id]
+        return conversation_managers[session_id]
+
+    @app.post("/v1/investigator/chat")
+    async def investigator_chat(request: VerifyRequest):
+        """Conversational Investigator endpoint — interaktif kanit arastirma."""
+        manager = _get_manager(request.session_id or "default")
         response = await manager.handle_message(request.query)
         
         return {
@@ -578,17 +582,15 @@ def create_app(
         }
     
     @app.post("/v1/investigator/reset")
-    async def investigator_reset():
+    async def investigator_reset(session_id: str = "default"):
         """Conversation session'i sifirla."""
-        session_id = "default"
         if session_id in conversation_managers:
             conversation_managers[session_id].reset()
         return {"status": "ok", "message": "Session sifirlandi"}
     
     @app.get("/v1/investigator/stats")
-    async def investigator_stats():
+    async def investigator_stats(session_id: str = "default"):
         """Conversation istatistikleri."""
-        session_id = "default"
         if session_id in conversation_managers:
             return conversation_managers[session_id].get_stats()
         return {"turn_count": 0, "total_sources_found": 0}
@@ -596,16 +598,7 @@ def create_app(
     @app.post("/v1/investigator/chat/stream")
     async def investigator_chat_stream(request: VerifyRequest):
         """Conversational Investigator — adim adim SSE akisi."""
-        session_id = "default"
-        
-        if session_id not in conversation_managers:
-            conversation_managers[session_id] = ConversationManager(
-                orchestrator=orchestrator,
-                llm_provider=llm_provider,
-                db=db,
-            )
-        
-        manager = conversation_managers[session_id]
+        manager = _get_manager(request.session_id or "default")
         
         async def event(payload: dict) -> str:
             return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -910,6 +903,14 @@ def get_chat_ui_html() -> str:
     <script>
         let isProcessing = false;
         let turnCount = 0;
+        let sessionId = null;
+        try {
+            sessionId = localStorage.getItem('ariSession');
+            if (!sessionId) {
+                sessionId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+                localStorage.setItem('ariSession', sessionId);
+            }
+        } catch (e) { sessionId = 'default'; }
 
         const container = document.getElementById('chatContainer');
         const inner = document.getElementById('chatInner');
@@ -949,7 +950,11 @@ def get_chat_ui_html() -> str:
 
         document.getElementById('resetBtn').addEventListener('click', async () => {
             if (isProcessing) return;
-            try { await fetch('/v1/investigator/reset', { method: 'POST' }); } catch (e) {}
+            try { await fetch(`/v1/investigator/reset?session_id=${encodeURIComponent(sessionId)}`, { method: 'POST' }); } catch (e) {}
+            try {
+                sessionId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+                localStorage.setItem('ariSession', sessionId);
+            } catch (e) { sessionId = 'default'; }
             turnCount = 0;
             updateStats({ turn_count: 0, total_sources_found: 0 });
             [...inner.querySelectorAll('.message')].forEach(m => m.remove());
@@ -1060,7 +1065,7 @@ def get_chat_ui_html() -> str:
             const resp = await fetch('/v1/investigator/chat/stream', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query }),
+                body: JSON.stringify({ query, session_id: sessionId }),
             });
 
             const reader = resp.body.getReader();
@@ -1103,7 +1108,7 @@ def get_chat_ui_html() -> str:
             const resp = await fetch('/v1/investigator/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ query }),
+                body: JSON.stringify({ query, session_id: sessionId }),
             });
             const data = await resp.json();
             div.querySelector('#steps').querySelectorAll('.step.running')
@@ -1143,7 +1148,7 @@ def get_chat_ui_html() -> str:
                 }
             }
 
-            fetch('/v1/investigator/stats').then(r => r.json()).then(updateStats).catch(() => {});
+            fetch(`/v1/investigator/stats?session_id=${encodeURIComponent(sessionId)}`).then(r => r.json()).then(updateStats).catch(() => {});
 
             isProcessing = false;
             sendBtn.disabled = false;
