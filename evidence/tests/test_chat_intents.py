@@ -161,3 +161,63 @@ class TestConversationFlow:
         )
         resp = m.response_builder.build(intent, None, None, None)
         assert "None" not in resp.text
+
+
+class TestArchiveFirstResponse:
+    """Iddia cevabi arsiv dosyasini link + damga ile on plana almali."""
+
+    def setup_method(self):
+        self.builder = ResponseBuilder()
+        self.analyzer = IntentAnalyzer()
+
+    def _results(self):
+        return {
+            "archive_results": [{
+                "source": "archive",
+                "title": "Filtresiz Kahve Gerçekten Kolesterolünüzü Yükseltiyor mu? — Arı Kaynak",
+                "url": "https://nitrate07.github.io/Blog/tr/makaleler/turk-kahvesi.html",
+                "passage": "Bir gönderi Türk kahvesinin filtresiz demleme yöntemini savunuyor",
+                "verdict": "Büyük Ölçüde Desteklendi",
+                "rating_value": 4,
+                "distance": 0.42,
+            }],
+            "external_results": [{"title": "Coffee study", "journal": "J Nutr", "published_year": 2025}],
+            "health_org_results": [],
+            "contradictions": [],
+            "total_sources": 5,
+            "verdict": "unverified",
+            "verdict_confidence": 0,
+        }
+
+    def _respond(self):
+        intent = self.analyzer.analyze("kahve kolesterolü yükseltir mi?")
+        from evidence.chat.sufficiency import SufficiencyResult, SufficiencyLevel
+        suff = SufficiencyResult(level=SufficiencyLevel.SUFFICIENT, confidence=0.8)
+        return self.builder.build(intent, suff, self._results(), None)
+
+    def test_archive_link_in_response(self):
+        r = self._respond()
+        assert "[Filtresiz Kahve" in r.text and "](https://" in r.text
+
+    def test_archive_verdict_used_when_engine_unverified(self):
+        r = self._respond()
+        assert "Büyük Ölçüde Desteklendi" in r.text
+        assert "Unverified" not in r.text
+
+    def test_stamp_and_stars_shown(self):
+        r = self._respond()
+        assert "Damga:" in r.text and "●●●●○" in r.text
+
+    def test_followup_offers_article(self):
+        r = self._respond()
+        assert any("makale" in s for s in r.follow_up_suggestions)
+
+    def test_no_archive_falls_back_cleanly(self):
+        results = self._results()
+        results["archive_results"] = []
+        intent = self.analyzer.analyze("bilinmeyen bir iddia burada")
+        from evidence.chat.sufficiency import SufficiencyResult, SufficiencyLevel
+        suff = SufficiencyResult(level=SufficiencyLevel.SUFFICIENT, confidence=0.5)
+        r = self.builder.build(intent, suff, results, None)
+        assert "Doğrulanamadı" in r.text
+        assert "📁" not in r.text
