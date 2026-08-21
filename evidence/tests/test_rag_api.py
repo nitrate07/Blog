@@ -35,7 +35,7 @@ def _make_test_chunks():
 
 @pytest.fixture
 def rag_client(tmp_path):
-    store = ArticleVectorStore()
+    store = ArticleVectorStore(persist_directory=str(tmp_path / "chroma"))
     store.upsert_chunks(_make_test_chunks())
     retriever = ArticleRetriever(store)
     config = Settings(
@@ -97,7 +97,7 @@ async def test_rag_stats_returns_info(rag_client):
 
 
 @pytest.mark.asyncio
-async def test_rag_index_rebuilds(rag_client, tmp_path):
+async def test_rag_index_rebuilds(rag_client, tmp_path, monkeypatch):
     en_dir = tmp_path / "articles"
     en_dir.mkdir()
     (en_dir / "test.html").write_text("""<!doctype html>
@@ -123,8 +123,7 @@ async def test_rag_index_rebuilds(rag_client, tmp_path):
 </body>
 </html>""")
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=rag_client), base_url="http://test") as client:
-        import os
-        os.chdir(tmp_path)
+        monkeypatch.chdir(tmp_path)
         response = await client.post("/v1/rag/index", headers=HEADERS)
     assert response.status_code == 200
     body = response.json()

@@ -115,6 +115,10 @@ export EVIDENCE_GEMINI_API_KEY=your-google-key
 
 The system auto-detects the active provider: provider-specific env vars take precedence, then `EVIDENCE_LLM_PROVIDER`, then the first provider with a configured API key.
 
+### Constrained Verdict Provider (`VerificationProvider` seam)
+
+Separate from the free-form provider above, `providers.py` exposes `AnthropicVerificationProvider` for the deterministic `/v1/verify` engine. It judges a claim strictly against an already-retrieved passage via a single forced tool call constrained to the four verdicts, never fetches its own sources, and fails closed to the deterministic comparison on any error. It activates automatically when a Claude key is configured (`EVIDENCE_CLAUDE_API_KEY`, model defaults to `claude-haiku-4-5-20251001`); unset keeps pure deterministic behavior.
+
 ### Provider Status API
 
 ```bash

@@ -61,10 +61,40 @@ class PubMedProvider:
         return [EvidenceSearchResult(title=f"PubMed record {pmid}", url=f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/", provider="pubmed", pmid=pmid, source_type=SourceQuality.UNKNOWN) for pmid in ids]
 
 
+class EuropePMCProvider:
+    """Complements PubMed with preprints and full-text-indexed life-science records."""
+    name = "europepmc"
+    endpoint = "https://www.ebi.ac.uk/europepmc/webservices/rest/search"
+
+    def __init__(self, config: Settings = settings) -> None:
+        self.config = config
+
+    async def search(self, query: str, limit: int) -> list[EvidenceSearchResult]:
+        timeout = httpx.Timeout(self.config.request_timeout_seconds)
+        async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": self.config.user_agent}) as client:
+            response = await client.get(self.endpoint, params={"query": query, "format": "json", "pageSize": limit})
+            response.raise_for_status()
+        return self.parse(response.json())
+
+    @staticmethod
+    def parse(payload: dict) -> list[EvidenceSearchResult]:
+        results = []
+        for item in payload.get("resultList", {}).get("result", []):
+            title = item.get("title")
+            pmid = item.get("pmid")
+            doi = item.get("doi")
+            url = f"https://pubmed.ncbi.nlm.nih.gov/{pmid}/" if pmid else (f"https://doi.org/{doi}" if doi else None)
+            if not title or not url:
+                continue
+            year = item.get("pubYear")
+            results.append(EvidenceSearchResult(title=title, url=url, provider="europepmc", doi=doi, pmid=pmid, published_year=int(year) if year else None, source_type=SourceQuality.UNKNOWN))
+        return results
+
+
 class EvidenceCatalog:
     """Combines independent discovery providers and removes duplicate records."""
     def __init__(self, providers: list[EvidenceSearchProvider] | None = None) -> None:
-        self.providers = providers or [PubMedProvider(), CrossrefProvider()]
+        self.providers = providers or [PubMedProvider(), CrossrefProvider(), EuropePMCProvider()]
 
     async def search(self, query: str, limit: int = 5) -> list[EvidenceSearchResult]:
         results: list[EvidenceSearchResult] = []
