@@ -960,6 +960,16 @@ def get_chat_ui_html() -> str:
             return div.innerHTML;
         }
 
+        function renderMarkdown(text) {
+            let html = escapeHtml(text);
+            html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, (_, t, u) =>
+                `<a href="${u}" target="_blank" rel="noopener" style="color:var(--ok);font-weight:600;text-decoration:underline;text-underline-offset:2px;">${t}</a>`);
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            html = html.replace(/^(?:&gt;|>) (.+)$/gm, (_, q) =>
+                `<span style="display:block;border-left:3px solid var(--amber);padding-left:10px;color:var(--ink-soft);font-size:.92em;margin:5px 0;">${q}</span>`);
+            return html;
+        }
+
         function nearBottom() {
             return container.scrollHeight - container.scrollTop - container.clientHeight < 140;
         }
@@ -1060,7 +1070,7 @@ def get_chat_ui_html() -> str:
         function finalize(div, data, fullText) {
             const content = div.querySelector('#content');
             content.classList.remove('streaming');
-            content.innerHTML = escapeHtml(fullText).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            content.innerHTML = renderMarkdown(fullText);
 
             const stamp = div.querySelector('#stamp');
             const verdict = detectVerdict(fullText);

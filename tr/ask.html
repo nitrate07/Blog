@@ -197,6 +197,18 @@
   } catch (e) { sessionId = 'default'; }
 
   function escapeHtml(t){ var d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+
+  function renderMarkdown(text){
+    var html = escapeHtml(text);
+    html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, function(_, t, u){
+      return '<a href="' + u + '" target="_blank" rel="noopener" style="color:var(--verified);font-weight:600;text-decoration:underline;text-underline-offset:2px;">' + t + '</a>';
+    });
+    html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    html = html.replace(/^(?:&gt;|>) (.+)$/gm, function(_, q){
+      return '<span style="display:block;border-left:3px solid var(--amber);padding-left:10px;color:var(--ink-soft);font-size:.92em;margin:5px 0;">' + q + '</span>';
+    });
+    return html;
+  }
   function nearBottom(){ return scroll.scrollHeight - scroll.scrollTop - scroll.clientHeight < 160; }
   function down(){ scroll.scrollTop = scroll.scrollHeight; }
 
@@ -263,7 +275,7 @@
   function finalize(div, data, fullText){
     var content = div.querySelector('#content');
     content.classList.remove('streaming');
-    content.innerHTML = escapeHtml(fullText).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+    content.innerHTML = renderMarkdown(fullText);
 
     var verdict = detectVerdict(fullText);
     if (verdict){

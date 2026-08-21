@@ -159,29 +159,43 @@ class ResponseBuilder:
                 follow_up_suggestions=["Daha spesifik bir soru sor", "Farkli kelimelerle ifade et"],
             )
 
-        # Kaynaklari sirala
-        sources = self._rank_sources(results)
+        archive = results.get("archive_results", []) or []
+        total = results.get("total_sources", 0)
+        best_archive = self._best_archive_match(archive)
 
         lines = [f"**{intent.cleaned_query}**", ""]
 
-        # Verdict ozeti
+        # --- Arsiv dosyasi: en degerli sonuc; link + kendi hukmu + pasaj ---
+        if best_archive:
+            lines.extend(self._format_archive_block(best_archive))
+            lines.append("")
+
+        # --- Hukum ---
         verdict = results.get("verdict") or "unverified"
         confidence = results.get("verdict_confidence") or 0
-        verdict_display = verdict.replace("_", " ").title()
+        archive_verdict = (best_archive or {}).get("verdict") or ""
 
-        lines.append(f"**Hukum:** {verdict_display} (Guven: %{confidence:.0f})")
+        if verdict not in ("unverified", "") and confidence:
+            verdict_display = VERDICT_TR.get(verdict, verdict.replace("_", " ").title())
+            lines.append(f"**Hüküm:** {verdict_display} (güven %{confidence:.0f})")
+        elif archive_verdict:
+            lines.append(
+                f"**Hüküm:** Arşivimizdeki eşleşen dosya bu iddiayı "
+                f"**\"{archive_verdict}\"** olarak damgalamış. "
+                f"Aşağıdaki dosyadan kanıt zincirini inceleyebilirsiniz."
+            )
+        else:
+            lines.append("**Hüküm:** Doğrulanamadı — henüz yeterli kanıt zinciri kurulamadı.")
         lines.append("")
 
-        # Kanit ozeti
-        total = results.get("total_sources", 0)
         if total > 0:
             lines.append(f"**{total} kaynak** incelendi.")
             lines.append("")
 
-        # En onemli kaynaklar (max 3)
-        external = results.get("external_results", [])[:3]
+        # --- Harici kaynaklar (max 3) ---
+        external = (results.get("external_results", []) or [])[:3]
         if external:
-            lines.append("**Onemli kaynaklar:**")
+            lines.append("**Harici kaynaklar:**")
             for i, src in enumerate(external, 1):
                 title = src.get("title", "Bilinmeyen")
                 journal = src.get("journal", "")
@@ -195,10 +209,10 @@ class ResponseBuilder:
                 lines.append(f"{i}. {source_str}")
             lines.append("")
 
-        # Celişkiler
-        contradictions = results.get("contradictions", [])
+        # --- Celişkiler ---
+        contradictions = results.get("contradictions", []) or []
         if contradictions:
-            lines.append(f"**{len(contradictions)} celişkili kanit** tespit edildi.")
+            lines.append(f"⚠️ **{len(contradictions)} çelişkili kanıt** tespit edildi — hüküm dikkatle okuyun.")
             lines.append("")
 
         text = "\n".join(lines)
@@ -208,12 +222,67 @@ class ResponseBuilder:
             intent_type=intent.type.value,
             confidence=intent.confidence,
             sources_cited=total,
-            follow_up_suggestions=[
-                "Neden boyle sonuclandigini acikla",
-                "Daha fazla kanit ara",
-                "Farkli kaynaklardan kontrol et",
-            ],
+            follow_up_suggestions=self._claim_followups(best_archive),
         )
+
+    # Arsiv verdict'lerini Turkce etiketlere cevir
+    VERDICT_TR = {
+        "supported": "Destekleniyor",
+        "mostly_supported": "Büyük Ölçüde Destekleniyor",
+        "partly_supported": "Kısmen Destekleniyor",
+        "misleading": "Yanıltıcı",
+        "unsupported": "Desteklenmiyor",
+        "unverified": "Doğrulanamadı",
+    }
+
+    def _best_archive_match(self, archive: list[dict[str, Any]]) -> dict[str, Any] | None:
+        """Arsiv sonuclari arasindan en alakali dosyayi sec (distance kucuk = yakin)."""
+        candidates = [
+            r for r in archive
+            if isinstance(r, dict) and (r.get("title") or r.get("url"))
+        ]
+        if not candidates:
+            return None
+        return sorted(
+            candidates,
+            key=lambda r: r.get("distance", 999) if isinstance(r.get("distance"), (int, float)) else 999,
+        )[0]
+
+    def _format_archive_block(self, src: dict[str, Any]) -> list[str]:
+        """Arsiv dosyasini link + hukum + pasaj olarak formatla."""
+        title = (src.get("title") or "Arşiv dosyası").replace(" — Arı Kaynak", "")
+        url = src.get("url") or ""
+        verdict_tr = src.get("verdict") or ""
+        rating = src.get("rating_value")
+        passage = (src.get("passage") or "").strip()
+
+        out = ["📁 **Arşivimizdeki dosya:**"]
+        if url.startswith(("http://", "https://")):
+            out.append(f"[{title}]({url})")
+        else:
+            out.append(title)
+
+        if verdict_tr:
+            stars = ""
+            if isinstance(rating, int) and 0 <= rating <= 5:
+                stars = f" {'●' * rating}{'○' * (5 - rating)}"
+            out.append(f"Damga: **{verdict_tr}**{stars}")
+
+        if passage:
+            cut = passage[:200].rsplit(" ", 1)[0]
+            out.append(f"> {cut}…")
+        return out
+
+    def _claim_followups(self, best_archive: dict[str, Any] | None) -> list[str]:
+        """Iddia cevabina ozel takip onerileri."""
+        suggestions = []
+        if best_archive and best_archive.get("url"):
+            suggestions.append("Bu dosyanın tam makalesini aç")
+        suggestions.extend([
+            "Neden böyle sonuçlandığını açıkla",
+            "Daha fazla kanıt ara",
+        ])
+        return suggestions
 
     def _respond_follow_up_why(
         self,
