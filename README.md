@@ -76,6 +76,19 @@ SSE olay tipleri: `start` → `step` (sıra sıra soruşturma adımları) → `s
 pytest evidence/v2/tests/ -q
 ```
 
+## Dağıtım (Docker)
+
+```bash
+cp .env.example .env        # LLM anahtarını doldurun
+docker compose up -d --build
+# → http://localhost:8000
+```
+
+- Kalıcı veri (SQLite + Chroma) `ari-data` volume'ünde tutulur.
+- Sağlık kontrolü: `GET /health`.
+- Statik site (GitHub Pages) `allow_origins=["*"]` sayesinde bu API'ye doğrudan çağrı yapabilir.
+- Üretimde `EVIDENCE_REQUIRE_API_KEY=true` bırakın ve `EVIDENCE_BOOTSTRAP_API_KEY` ile ilk anahtarınızı oluşturun.
+
 ## Güvenlik Notları
 
 - Gerçek API anahtarlarını asla commit etmeyin; yalnızca `.env` kullanın (`.env.example` şablondur).
