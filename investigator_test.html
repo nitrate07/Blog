@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arı Kaynak - Investigator Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #1a1a1a;
+            padding: 16px 24px;
+            border-bottom: 1px solid #333;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .header h1 { font-size: 20px; color: #fff; }
+        .header .subtitle { color: #888; font-size: 14px; }
+        .header .status {
+            margin-left: auto;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            color: #888;
+        }
+        .header .status .dot {
+            width: 8px; height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .message {
+            max-width: 800px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 16px;
+            border-radius: 12px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .message.user {
+            background: #1e3a5f;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .message.assistant {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .message .role {
+            font-size: 12px;
+            color: #888;
+            margin-bottom: 8px;
+            text-transform: uppercase;
+        }
+        .message .content {
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        .message .content strong { color: #60a5fa; }
+        .message .meta {
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid #333;
+            font-size: 12px;
+            color: #666;
+        }
+        .message .suggestions {
+            margin-top: 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .message .suggestions button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .message .suggestions button:hover {
+            background: #1d4ed8;
+        }
+        .input-container {
+            background: #1a1a1a;
+            padding: 16px 24px;
+            border-top: 1px solid #333;
+            display: flex;
+            gap: 12px;
+            max-width: 848px;
+            margin: 0 auto;
+            width: 100%;
+        }
+        .input-container input {
+            flex: 1;
+            background: #0f0f0f;
+            border: 1px solid #333;
+            border-radius: 8px;
+            padding: 12px 16px;
+            color: #e0e0e0;
+            font-size: 14px;
+            outline: none;
+        }
+        .input-container input:focus {
+            border-color: #2563eb;
+        }
+        .input-container button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .input-container button:hover {
+            background: #1d4ed8;
+        }
+        .input-container button:disabled {
+            background: #374151;
+            cursor: not-allowed;
+        }
+        .loading {
+            text-align: center;
+            color: #888;
+            padding: 20px;
+        }
+        .welcome {
+            text-align: center;
+            color: #666;
+            padding: 40px;
+            max-width: 600px;
+            margin: auto;
+        }
+        .welcome h2 { color: #fff; margin-bottom: 16px; }
+        .welcome p { margin-bottom: 12px; line-height: 1.6; }
+        .welcome .examples {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            margin-top: 20px;
+        }
+        .welcome .examples button {
+            background: #1a1a1a;
+            border: 1px solid #333;
+            color: #e0e0e0;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            text-align: left;
+            transition: background 0.2s;
+        }
+        .welcome .examples button:hover {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Arı Kaynak</h1>
+        <span class="subtitle">Conversational Investigator</span>
+        <div class="status">
+            <div class="dot"></div>
+            <span id="status">Bagli</span>
+        </div>
+    </div>
+    
+    <div class="chat-container" id="chat">
+        <div class="welcome" id="welcome">
+            <h2>Hoş Geldiniz</h2>
+            <p>Saglik iddialarini bilimsel kanitlara karsi dogrulayin.</p>
+            <p>System; niyetinizi anlayip,onceki konusma baglaminizi takip ederek size yardimci olur.</p>
+            <div class="examples">
+                <button onclick="sendExample('GLP-1 kilo vermede etkili mi?')">
+                    GLP-1 kilo vermede etkili mi?
+                </button>
+                <button onclick="sendExample('Aspirin kalp krizi onler mi?')">
+                    Aspirin kalp krizi onler mi?
+                </button>
+                <button onclick="sendExample('Vitamin D eksikligi ne yapar?')">
+                    Vitamin D eksikligi ne yapar?
+                </button>
+                <button onclick="sendExample('Nasil calisiyorsun?')">
+                    Nasil calisiyorsun?
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="input-container">
+        <input type="text" id="input" placeholder="Sorunuzu yazin..." autocomplete="off">
+        <button id="sendBtn" onclick="sendMessage()">Gonder</button>
+    </div>
+
+    <script>
+        const chat = document.getElementById('chat');
+        const input = document.getElementById('input');
+        const sendBtn = document.getElementById('sendBtn');
+        const welcome = document.getElementById('welcome');
+        let isLoading = false;
+
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !isLoading) {
+                sendMessage();
+            }
+        });
+
+        function sendExample(text) {
+            input.value = text;
+            sendMessage();
+        }
+
+        async function sendMessage() {
+            const text = input.value.trim();
+            if (!text || isLoading) return;
+
+            // Hide welcome
+            if (welcome) {
+                welcome.style.display = 'none';
+            }
+
+            // Add user message
+            addMessage('user', text);
+            input.value = '';
+            
+            // Show loading
+            isLoading = true;
+            sendBtn.disabled = true;
+            const loadingId = addLoading();
+
+            try {
+                const response = await fetch('/v1/investigator/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: text }),
+                });
+
+                const data = await response.json();
+                
+                // Remove loading
+                removeLoading(loadingId);
+                
+                // Add assistant message
+                addMessage('assistant', data.response, {
+                    intent: data.intent,
+                    confidence: data.confidence,
+                    sourcesCited: data.sources_cited,
+                    suggestions: data.follow_up_suggestions,
+                });
+            } catch (error) {
+                removeLoading(loadingId);
+                addMessage('assistant', 'Hata: ' + error.message);
+            } finally {
+                isLoading = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function addMessage(role, content, meta = null) {
+            const div = document.createElement('div');
+            div.className = `message ${role}`;
+            
+            let html = `<div class="role">${role === 'user' ? 'Sen' : 'Asistan'}</div>`;
+            html += `<div class="content">${escapeHtml(content)}</div>`;
+            
+            if (meta) {
+                html += `<div class="meta">`;
+                html += `Intent: ${meta.intent} | `;
+                html += `Guven: %${(meta.confidence * 100).toFixed(0)} | `;
+                html += `Kaynak: ${meta.sourcesCited}`;
+                html += `</div>`;
+                
+                if (meta.suggestions && meta.suggestions.length > 0) {
+                    html += `<div class="suggestions">`;
+                    meta.suggestions.forEach(s => {
+                        html += `<button onclick="sendExample('${escapeHtml(s)}')">${escapeHtml(s)}</button>`;
+                    });
+                    html += `</div>`;
+                }
+            }
+            
+            div.innerHTML = html;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function addLoading() {
+            const id = 'loading-' + Date.now();
+            const div = document.createElement('div');
+            div.id = id;
+            div.className = 'loading';
+            div.textContent = '⏳ Arastiriliyor...';
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return id;
+        }
+
+        function removeLoading(id) {
+            const div = document.getElementById(id);
+            if (div) div.remove();
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Focus input on load
+        input.focus();
+    </script>
+</body>
+</html>

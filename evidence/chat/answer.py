@@ -150,7 +150,7 @@ class AnswerPlanner:
         sections = [
             AnswerSection.HEADER,
             AnswerSection.VERDICT,
-            AnswerSection.EXPLANATION if AnswerSection.EXPLANATION else AnswerSection.SUMMARY,
+            AnswerSection.SUMMARY,
             AnswerSection.EVIDENCE_ANALYSIS,
             AnswerSection.SOURCES,
         ]

@@ -80,8 +80,8 @@ class ResponseBuilder:
         lines = [f"**{intent.cleaned_query}**", ""]
 
         # Verdict ozeti
-        verdict = results.get("verdict", "unverified")
-        confidence = results.get("verdict_confidence", 0)
+        verdict = results.get("verdict") or "unverified"
+        confidence = results.get("verdict_confidence") or 0
         verdict_display = verdict.replace("_", " ").title()
 
         lines.append(f"**Hukum:** {verdict_display} (Guven: %{confidence:.0f})")

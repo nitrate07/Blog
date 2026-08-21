@@ -60,6 +60,7 @@ logger = logging.getLogger(__name__)
 class VerifyRequest(BaseModel):
     query: str = Field(min_length=3, max_length=4000)
     stream: bool = False
+    session_id: str | None = Field(default=None, max_length=64)
 
 
 class VerifyResponse(BaseModel):
@@ -546,6 +547,109 @@ def create_app(
         records = db.get_verification_history(limit)
         return {"records": [r.to_dict() for r in records], "total": len(records)}
     
+    # --- Conversational Investigator ---
+    
+    from ...chat import ConversationManager
+    
+    # In-memory conversation managers per session
+    conversation_managers: dict[str, ConversationManager] = {}
+    MAX_SESSIONS = 64
+
+    def _get_manager(session_id: str) -> ConversationManager:
+        if session_id not in conversation_managers:
+            while len(conversation_managers) >= MAX_SESSIONS:
+                conversation_managers.pop(next(iter(conversation_managers)))
+            conversation_managers[session_id] = ConversationManager(
+                orchestrator=orchestrator,
+                llm_provider=llm_provider,
+                db=db,
+            )
+        return conversation_managers[session_id]
+
+    @app.post("/v1/investigator/chat")
+    async def investigator_chat(request: VerifyRequest):
+        """Conversational Investigator endpoint — interaktif kanit arastirma."""
+        manager = _get_manager(request.session_id or "default")
+        response = await manager.handle_message(request.query)
+        
+        return {
+            "response": response.text,
+            "intent": response.intent_type,
+            "confidence": response.confidence,
+            "sources_cited": response.sources_cited,
+            "follow_up_suggestions": response.follow_up_suggestions,
+            "metadata": response.metadata,
+        }
+    
+    @app.post("/v1/investigator/reset")
+    async def investigator_reset(session_id: str = "default"):
+        """Conversation session'i sifirla."""
+        if session_id in conversation_managers:
+            conversation_managers[session_id].reset()
+        return {"status": "ok", "message": "Session sifirlandi"}
+    
+    @app.get("/v1/investigator/stats")
+    async def investigator_stats(session_id: str = "default"):
+        """Conversation istatistikleri."""
+        if session_id in conversation_managers:
+            return conversation_managers[session_id].get_stats()
+        return {"turn_count": 0, "total_sources_found": 0}
+    
+    @app.post("/v1/investigator/chat/stream")
+    async def investigator_chat_stream(request: VerifyRequest):
+        """Conversational Investigator — adim adim SSE akisi."""
+        manager = _get_manager(request.session_id or "default")
+        
+        async def event(payload: dict) -> str:
+            return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+        
+        async def generator():
+            started = time.time()
+            yield await event({"type": "start", "query": request.query})
+            
+            steps = [
+                ("intent", "İddia çözümleniyor"),
+                ("archive", "Arşiv makaleleri taranıyor"),
+                ("external", "Harici kaynaklar kontrol ediliyor"),
+                ("contradiction", "Çelişkiler inceleniyor"),
+                ("synthesis", "Hüküm yazılıyor"),
+            ]
+            
+            task = asyncio.create_task(manager.handle_message(request.query))
+            for name, label in steps:
+                if task.done():
+                    break
+                yield await event({"type": "step", "name": name, "label": label})
+                try:
+                    await asyncio.wait_for(asyncio.shield(task), timeout=0.45)
+                except asyncio.TimeoutError:
+                    continue
+            
+            response = await task
+            yield await event({"type": "steps_done"})
+            
+            text = response.text
+            chunk_size = 14
+            for i in range(0, len(text), chunk_size):
+                yield await event({"type": "chunk", "content": text[i:i + chunk_size]})
+                await asyncio.sleep(0.015)
+            
+            yield await event({
+                "type": "done",
+                "intent": response.intent_type,
+                "confidence": response.confidence,
+                "sources_cited": response.sources_cited,
+                "follow_up_suggestions": response.follow_up_suggestions,
+                "metadata": response.metadata,
+                "duration_ms": int((time.time() - started) * 1000),
+            })
+        
+        return StreamingResponse(
+            generator(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+        )
+    
     # --- Web UI ---
     
     @app.get("/", response_class=HTMLResponse)
@@ -561,421 +665,503 @@ def create_app(
 # ---------------------------------------------------------------------------
 
 def get_chat_ui_html() -> str:
-    """Return the HTML for the chat web UI."""
-    return """<!DOCTYPE html>
+    """Return the chat web UI (kagit/murekkep tema, SSE akisli)."""
+    return r"""<!DOCTYPE html>
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Arı Kaynak - Fact Checker</title>
+    <title>Arı Kaynak — Kanıt Soruşturucusu</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
+        :root{
+            --paper:#d9dccb; --card:#e3e6d4; --deep:#c7cbb6;
+            --ink:#1c261f; --ink-soft:#4a564a; --faint:#7c8579;
+            --ok:#3f6b4f; --flag:#a23b2e; --amber:#a8763a;
+            --line:rgba(28,38,31,.16); --line-strong:rgba(28,38,31,.34);
+            --serif:'Fraunces',Georgia,serif;
+            --sans:'Inter',-apple-system,sans-serif;
+            --mono:'IBM Plex Mono',monospace;
         }
-        
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: #0f0f0f;
-            color: #e0e0e0;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
+        *{ box-sizing:border-box; margin:0; padding:0; }
+        html{ height:100%; }
+        body{
+            height:100vh; display:flex; flex-direction:column;
+            background:var(--paper); color:var(--ink);
+            font-family:var(--sans); font-size:16px; line-height:1.6;
+            -webkit-font-smoothing:antialiased;
         }
-        
-        .header {
-            background: #1a1a1a;
-            padding: 16px 24px;
-            border-bottom: 1px solid #333;
-            display: flex;
-            align-items: center;
-            gap: 12px;
+        body::before{
+            content:""; position:fixed; inset:0; pointer-events:none; z-index:999;
+            opacity:.035;
+            background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
         }
-        
-        .header h1 {
-            font-size: 20px;
-            color: #fff;
+        ::selection{ background:var(--deep); }
+        button{ font-family:var(--mono); cursor:pointer; }
+        :focus-visible{ outline:2px solid var(--ok); outline-offset:2px; }
+
+        /* ---------- Header ---------- */
+        .header{
+            background:var(--paper);
+            border-bottom:1px solid var(--line-strong);
+            padding:14px 28px;
+            display:flex; align-items:center; gap:14px;
         }
-        
-        .header .subtitle {
-            color: #888;
-            font-size: 14px;
+        .mark-box{
+            width:36px; height:36px; border:2px solid var(--ink);
+            display:flex; align-items:center; justify-content:center;
+            font-family:var(--serif); font-weight:700; font-size:19px; flex-shrink:0;
+            background:var(--card);
         }
-        
-        .header .status {
-            margin-left: auto;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            font-size: 13px;
-            color: #888;
+        .mark-text{ display:flex; flex-direction:column; }
+        .mark-text b{ font-family:var(--mono); font-size:15px; letter-spacing:.16em; font-weight:500; }
+        .mark-text span{ font-family:var(--mono); font-size:11px; letter-spacing:.08em; color:var(--faint); }
+        .header-right{ margin-left:auto; display:flex; align-items:center; gap:16px; }
+        #stats{ font-family:var(--mono); font-size:12px; color:var(--ink-soft); letter-spacing:.04em; }
+        .reset-btn{
+            background:transparent; border:1px solid var(--line-strong);
+            color:var(--ink-soft); padding:7px 14px; font-size:11px;
+            text-transform:uppercase; letter-spacing:.12em;
+            transition:all .15s;
         }
-        
-        .header .status .dot {
-            width: 8px;
-            height: 8px;
-            background: #4ade80;
-            border-radius: 50%;
+        .reset-btn:hover{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+        /* ---------- Chat area ---------- */
+        .chat-container{
+            flex:1; overflow-y:auto; padding:32px 24px 16px;
+            scrollbar-width:thin; scrollbar-color:var(--line-strong) transparent;
         }
-        
-        .chat-container {
-            flex: 1;
-            overflow-y: auto;
-            padding: 24px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
+        .chat-inner{ max-width:860px; margin:0 auto; display:flex; flex-direction:column; gap:20px; }
+
+        /* Welcome */
+        .welcome{ max-width:640px; margin:auto; text-align:center; padding:40px 0; }
+        .welcome .tag{ font-family:var(--mono); font-size:11px; letter-spacing:.22em; color:var(--amber); text-transform:uppercase; margin-bottom:14px; }
+        .welcome h2{ font-family:var(--serif); font-size:34px; line-height:1.25; margin-bottom:14px; }
+        .welcome p{ color:var(--ink-soft); font-size:15px; }
+        .examples{ margin-top:34px; display:grid; grid-template-columns:1fr 1fr; gap:12px; text-align:left; }
+        .example{
+            background:var(--card); border:1px solid var(--line-strong);
+            padding:14px 16px 12px; cursor:pointer; transition:all .15s;
+            font-family:var(--sans); font-size:14px; line-height:1.5; color:var(--ink);
+            position:relative;
         }
-        
-        .message {
-            max-width: 800px;
-            width: 100%;
-            margin: 0 auto;
-            padding: 16px;
-            border-radius: 12px;
-            animation: fadeIn 0.3s ease;
+        .example::before{
+            content:attr(data-no); display:block; font-family:var(--mono);
+            font-size:10px; letter-spacing:.18em; color:var(--faint); margin-bottom:6px;
         }
-        
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+        .example:hover{ border-color:var(--ink); transform:translateY(-2px); box-shadow:3px 4px 0 rgba(28,38,31,.12); }
+
+        /* Messages */
+        .message{ animation:fadeUp .3s ease; }
+        @keyframes fadeUp{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:translateY(0);} }
+        .message.user{
+            align-self:flex-end; max-width:78%;
+            background:var(--card); border:1px solid var(--line-strong);
+            padding:13px 18px; position:relative;
         }
-        
-        .message.user {
-            background: #1e3a5f;
-            align-self: flex-end;
-            border-bottom-right-radius: 4px;
+        .message.user .role{
+            font-family:var(--mono); font-size:10px; letter-spacing:.2em;
+            color:var(--faint); text-transform:uppercase; margin-bottom:4px;
         }
-        
-        .message.assistant {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            align-self: flex-start;
-            border-bottom-left-radius: 4px;
+        .message.assistant{
+            align-self:flex-start; width:100%;
+            background:var(--card); border:1px solid var(--line-strong);
         }
-        
-        .message .role {
-            font-size: 12px;
-            color: #888;
-            margin-bottom: 8px;
-            text-transform: uppercase;
+        .file-head{
+            display:flex; align-items:center; gap:12px;
+            padding:10px 18px; border-bottom:1px dashed var(--line-strong);
+            background:var(--paper);
         }
-        
-        .message .content {
-            line-height: 1.6;
-            white-space: pre-wrap;
+        .file-head .role{ font-family:var(--mono); font-size:11px; letter-spacing:.18em; color:var(--ink-soft); text-transform:uppercase; }
+        .stamp{
+            margin-left:auto; font-family:var(--mono); font-size:10px; letter-spacing:.14em;
+            text-transform:uppercase; padding:3px 10px; border:2px solid currentColor;
+            transform:rotate(-2deg); opacity:0; transition:opacity .4s;
         }
-        
-        .message .content strong {
-            color: #60a5fa;
+        .stamp.show{ opacity:.85; }
+        .stamp.v-ok{ color:var(--ok); } .stamp.v-flag{ color:var(--flag); } .stamp.v-amber{ color:var(--amber); } .stamp.v-faint{ color:var(--faint); }
+        .msg-body{ padding:16px 18px 14px; }
+
+        /* Steps timeline */
+        .steps{ display:flex; flex-direction:column; gap:8px; margin-bottom:4px; }
+        .step{ display:flex; align-items:center; gap:10px; font-family:var(--mono); font-size:12.5px; color:var(--ink-soft); animation:fadeUp .25s ease; }
+        .step .icon{
+            width:15px; height:15px; border-radius:50%; flex-shrink:0;
+            border:2px solid var(--line-strong); position:relative;
         }
-        
-        .message .meta {
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid #333;
-            font-size: 12px;
-            color: #666;
+        .step.running .icon{ border-color:var(--amber); border-top-color:transparent; animation:spin .7s linear infinite; }
+        @keyframes spin{ to{ transform:rotate(360deg);} }
+        .step.done .icon{ border-color:var(--ok); background:transparent; }
+        .step.done .icon::after{
+            content:"✓"; position:absolute; inset:-5px 0 0 -1px;
+            font-size:12px; color:var(--ok);
         }
-        
-        .message .verdict {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-weight: 600;
-            font-size: 12px;
-            text-transform: uppercase;
+        .step.done{ color:var(--faint); }
+        .step.running{ color:var(--ink); }
+
+        /* Content */
+        .content{
+            margin-top:12px; white-space:pre-wrap; font-size:15.5px; line-height:1.65;
         }
-        
-        .verdict.supported { background: #065f46; color: #34d399; }
-        .verdict.mostly_supported { background: #065f46; color: #34d399; }
-        .verdict.partly_supported { background: #78350f; color: #fbbf24; }
-        .verdict.unsupported { background: #7f1d1d; color: #f87171; }
-        .verdict.unverified { background: #374151; color: #9ca3af; }
-        
-        .input-container {
-            background: #1a1a1a;
-            padding: 24px;
-            border-top: 1px solid #333;
+        .content strong{ font-weight:600; }
+        .content.streaming::after{
+            content:"▍"; color:var(--amber); animation:blink 1s steps(2) infinite;
         }
-        
-        .input-wrapper {
-            max-width: 800px;
-            margin: 0 auto;
-            display: flex;
-            gap: 12px;
+        @keyframes blink{ 50%{ opacity:0; } }
+        .content.error{ color:var(--flag); font-family:var(--mono); font-size:13.5px; }
+
+        /* Meta footer */
+        .meta{
+            margin-top:14px; padding-top:12px; border-top:1px dashed var(--line-strong);
+            display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px;
+            font-family:var(--mono); font-size:11.5px; color:var(--faint); letter-spacing:.04em;
         }
-        
-        .input-wrapper textarea {
-            flex: 1;
-            background: #0f0f0f;
-            border: 1px solid #333;
-            border-radius: 12px;
-            padding: 12px 16px;
-            color: #fff;
-            font-size: 15px;
-            resize: none;
-            min-height: 48px;
-            max-height: 200px;
-            font-family: inherit;
+        .copy-btn{
+            margin-left:auto; background:transparent; border:1px solid var(--line-strong);
+            color:var(--ink-soft); font-size:10px; text-transform:uppercase;
+            letter-spacing:.12em; padding:4px 10px; transition:all .15s;
         }
-        
-        .input-wrapper textarea:focus {
-            outline: none;
-            border-color: #60a5fa;
+        .copy-btn:hover{ background:var(--ink); color:var(--paper); border-color:var(--ink); }
+
+        /* Suggestions */
+        .suggest-row{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+        .chip{
+            background:var(--paper); border:1px solid var(--line-strong);
+            color:var(--ink-soft); font-size:12px; padding:6px 13px;
+            transition:all .15s; text-align:left;
         }
-        
-        .input-wrapper button {
-            background: #60a5fa;
-            color: #fff;
-            border: none;
-            border-radius: 12px;
-            padding: 12px 24px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: background 0.2s;
+        .chip::before{ content:"+ "; color:var(--amber); }
+        .chip:hover{ border-color:var(--ink); color:var(--ink); background:var(--card); }
+
+        /* Input bar */
+        .input-container{
+            background:var(--paper); border-top:1px solid var(--line-strong); padding:18px 24px 22px;
         }
-        
-        .input-wrapper button:hover {
-            background: #3b82f6;
+        .input-wrapper{ max-width:860px; margin:0 auto; display:flex; gap:12px; align-items:flex-end; }
+        .input-wrapper textarea{
+            flex:1; background:var(--card); border:1px solid var(--line-strong);
+            padding:13px 16px; color:var(--ink); font-family:var(--sans);
+            font-size:15px; resize:none; min-height:48px; max-height:180px; line-height:1.5;
         }
-        
-        .input-wrapper button:disabled {
-            background: #374151;
-            cursor: not-allowed;
+        .input-wrapper textarea:focus{ outline:none; border-color:var(--ink); box-shadow:2px 3px 0 rgba(28,38,31,.12); }
+        .input-wrapper textarea::placeholder{ color:var(--faint); }
+        .send-btn{
+            background:var(--ink); color:var(--paper); border:1px solid var(--ink);
+            padding:13px 26px; font-size:12px; text-transform:uppercase; letter-spacing:.14em;
+            transition:all .15s; height:48px;
         }
-        
-        .typing-indicator {
-            display: none;
-            align-items: center;
-            gap: 4px;
-            padding: 16px;
-            color: #888;
-        }
-        
-        .typing-indicator.active {
-            display: flex;
-        }
-        
-        .typing-indicator span {
-            width: 8px;
-            height: 8px;
-            background: #666;
-            border-radius: 50%;
-            animation: typing 1.4s infinite;
-        }
-        
-        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
-        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
-        
-        @keyframes typing {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-4px); }
-        }
-        
-        .welcome {
-            max-width: 800px;
-            margin: auto;
-            text-align: center;
-            padding: 48px 24px;
-        }
-        
-        .welcome h2 {
-            font-size: 28px;
-            margin-bottom: 16px;
-            color: #fff;
-        }
-        
-        .welcome p {
-            color: #888;
-            font-size: 16px;
-            line-height: 1.6;
-        }
-        
-        .welcome .examples {
-            margin-top: 32px;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        
-        .welcome .example {
-            background: #1a1a1a;
-            border: 1px solid #333;
-            border-radius: 8px;
-            padding: 12px 16px;
-            cursor: pointer;
-            transition: border-color 0.2s;
-            text-align: left;
-        }
-        
-        .welcome .example:hover {
-            border-color: #60a5fa;
+        .send-btn:hover:not(:disabled){ background:var(--ok); border-color:var(--ok); }
+        .send-btn:disabled{ background:var(--deep); border-color:var(--line-strong); color:var(--faint); cursor:not-allowed; }
+
+        @media (max-width:640px){
+            .mark-text span, #stats{ display:none; }
+            .examples{ grid-template-columns:1fr; }
+            .message.user{ max-width:92%; }
+            .header{ padding:12px 16px; }
         }
     </style>
 </head>
 <body>
     <div class="header">
-        <h1>Arı Kaynak</h1>
-        <span class="subtitle">AI Fact Checker</span>
-        <div class="status">
-            <span class="dot"></span>
-            <span>19 sources active</span>
+        <div class="mark-box">A</div>
+        <div class="mark-text"><b>ARI KAYNAK</b><span>Kanıt Soruşturucusu</span></div>
+        <div class="header-right">
+            <span id="stats">0 sorgu · 0 kaynak</span>
+            <button class="reset-btn" id="resetBtn">Dosyayı Kapat</button>
         </div>
     </div>
-    
+
     <div class="chat-container" id="chatContainer">
-        <div class="welcome" id="welcome">
-            <h2>Merhaba!</h2>
-            <p>Herhangi bir iddiayı doğrulamak için sorunuzu yazın.<br>
-            19 tıbbi kaynaktan kanıt toplayarak hüküm vereceğim.</p>
-            <div class="examples">
-                <div class="example" onclick="setExample(this)">
-                    Vitamin D eksikliği osteoporoz riskini artırır mı?
-                </div>
-                <div class="example" onclick="setExample(this)">
-                    Günlük 10000 adım ölüm riskini azaltır mı?
-                </div>
-                <div class="example" onclick="setExample(this)">
-                    Probiyotikler sindirim sağlığını iyileştirir mi?
+        <div class="chat-inner" id="chatInner">
+            <div class="welcome" id="welcome">
+                <div class="tag">— Dosya Numarası Bekleniyor —</div>
+                <h2>İddia sor,<br>kanıtlarıyla cevap al.</h2>
+                <p>Sorunuzu arşivdeki makalelerden ve harici tıbbi kaynaklardan<br>sıra sıra soruşturur, hükümü damga basarak veririm.</p>
+                <div class="examples">
+                    <button class="example" data-no="DOSYA 01">Kahve kolesterolü yükseltir mi?</button>
+                    <button class="example" data-no="DOSYA 02">Kreatin takviyesi böbreğe zarar verir mi?</button>
+                    <button class="example" data-no="DOSYA 03">Günlük aspirin kalp krizinden korur mu?</button>
+                    <button class="example" data-no="DOSYA 04">Yapay tatillerde şeker yerine bal daha mı sağlıklı?</button>
                 </div>
             </div>
         </div>
-        
-        <div class="typing-indicator" id="typingIndicator">
-            <span></span>
-            <span></span>
-            <span></span>
-            <span style="width: auto; font-size: 13px;">19 kaynaktan kanıt toplanıyor...</span>
-        </div>
     </div>
-    
+
     <div class="input-container">
         <div class="input-wrapper">
-            <textarea 
-                id="userInput" 
-                placeholder="İddianızı yazın..."
+            <textarea
+                id="userInput"
+                placeholder="İddianızı yazın...  (Enter ile gönder)"
                 rows="1"
-                onkeydown="handleKeyDown(event)"
-                oninput="autoResize(this)"
             ></textarea>
-            <button id="sendBtn" onclick="sendMessage()">Gönder</button>
+            <button class="send-btn" id="sendBtn">Soruştur</button>
         </div>
     </div>
-    
+
     <script>
-        let sessionId = null;
         let isProcessing = false;
-        
-        function setExample(el) {
-            document.getElementById('userInput').value = el.textContent.trim();
-            autoResize(document.getElementById('userInput'));
-            document.getElementById('userInput').focus();
-        }
-        
-        function autoResize(el) {
-            el.style.height = 'auto';
-            el.style.height = Math.min(el.scrollHeight, 200) + 'px';
-        }
-        
-        function handleKeyDown(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
+        let turnCount = 0;
+        let sessionId = null;
+        try {
+            sessionId = localStorage.getItem('ariSession');
+            if (!sessionId) {
+                sessionId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+                localStorage.setItem('ariSession', sessionId);
             }
-        }
-        
-        function addMessage(role, content, meta = null) {
-            const container = document.getElementById('chatContainer');
-            const welcome = document.getElementById('welcome');
-            if (welcome) welcome.style.display = 'none';
-            
-            const div = document.createElement('div');
-            div.className = `message ${role}`;
-            
-            let html = `<div class="role">${role === 'user' ? 'Sen' : 'Arı Kaynak'}</div>`;
-            html += `<div class="content">${escapeHtml(content)}</div>`;
-            
-            if (meta) {
-                html += `<div class="meta">${meta}</div>`;
-            }
-            
-            div.innerHTML = html;
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-            
-            return div;
-        }
-        
-        function addStreamingMessage() {
-            const container = document.getElementById('chatContainer');
-            const welcome = document.getElementById('welcome');
-            if (welcome) welcome.style.display = 'none';
-            
-            const div = document.createElement('div');
-            div.className = 'message assistant';
-            div.id = 'streamingMessage';
-            div.innerHTML = `
-                <div class="role">Arı Kaynak</div>
-                <div class="content" id="streamingContent"></div>
-                <div class="meta" id="streamingMeta"></div>
-            `;
-            container.appendChild(div);
-            container.scrollTop = container.scrollHeight;
-            
-            return div;
-        }
-        
+        } catch (e) { sessionId = 'default'; }
+
+        const container = document.getElementById('chatContainer');
+        const inner = document.getElementById('chatInner');
+        const input = document.getElementById('userInput');
+        const sendBtn = document.getElementById('sendBtn');
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
+
+        function nearBottom() {
+            return container.scrollHeight - container.scrollTop - container.clientHeight < 140;
+        }
+
+        function scrollDown() { container.scrollTop = container.scrollHeight; }
+
+        function autoResize(el) {
+            el.style.height = 'auto';
+            el.style.height = Math.min(el.scrollHeight, 180) + 'px';
+        }
+
+        input.addEventListener('input', () => autoResize(input));
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+        });
+        sendBtn.addEventListener('click', sendMessage);
+
+        document.querySelectorAll('.example').forEach(ex => {
+            ex.addEventListener('click', () => {
+                input.value = ex.textContent.trim();
+                autoResize(input);
+                input.focus();
+            });
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', async () => {
+            if (isProcessing) return;
+            try { await fetch(`/v1/investigator/reset?session_id=${encodeURIComponent(sessionId)}`, { method: 'POST' }); } catch (e) {}
+            try {
+                sessionId = (crypto.randomUUID ? crypto.randomUUID() : Date.now() + '-' + Math.random().toString(36).slice(2));
+                localStorage.setItem('ariSession', sessionId);
+            } catch (e) { sessionId = 'default'; }
+            turnCount = 0;
+            updateStats({ turn_count: 0, total_sources_found: 0 });
+            [...inner.querySelectorAll('.message')].forEach(m => m.remove());
+            document.getElementById('welcome').style.display = '';
+            input.focus();
+        });
+
+        function updateStats(s) {
+            document.getElementById('stats').textContent =
+                `${s.turn_count || 0} sorgu · ${s.total_sources_found || 0} kaynak`;
+        }
+
+        function addUserMsg(text) {
+            const welcome = document.getElementById('welcome');
+            if (welcome) welcome.style.display = 'none';
+            const div = document.createElement('div');
+            div.className = 'message user';
+            div.innerHTML = `<div class="role">Sen</div><div>${escapeHtml(text)}</div>`;
+            inner.appendChild(div);
+            scrollDown();
+        }
+
+        function addAssistantShell() {
+            turnCount++;
+            const div = document.createElement('div');
+            div.className = 'message assistant';
+            div.innerHTML = `
+                <div class="file-head">
+                    <span class="role">Soruşturma Dosyası №${String(turnCount).padStart(3, '0')}</span>
+                    <span class="stamp" id="stamp"></span>
+                </div>
+                <div class="msg-body">
+                    <div class="steps" id="steps"></div>
+                    <div class="content" id="content"></div>
+                    <div class="meta" id="meta" style="display:none">
+                        <span id="metaInfo"></span>
+                        <button class="copy-btn" id="copyBtn">Kopyala</button>
+                    </div>
+                    <div class="suggest-row" id="chips"></div>
+                </div>`;
+            inner.appendChild(div);
+            scrollDown();
+            return div;
+        }
+
+        function addStepRow(stepsEl, label) {
+            const row = document.createElement('div');
+            row.className = 'step running';
+            row.innerHTML = `<span class="icon"></span><span>${escapeHtml(label)}</span>`;
+            stepsEl.appendChild(row);
+            scrollDown();
+            return row;
+        }
+
+        function detectVerdict(text) {
+            const m = text.match(/h[uü]k[uü]m:?\s*\**\s*([a-z_ ]+)/i);
+            const v = m ? m[1].toLowerCase() : '';
+            if (v.includes('unsupported') || v.includes('misrepresented')) return ['v-flag', 'Desteklenmiyor'];
+            if (v.includes('partly')) return ['v-amber', 'Kısmen Destekli'];
+            if (v.includes('mostly')) return ['v-ok', 'Büyük Ölçüde Destekli'];
+            if (v.includes('supported')) return ['v-ok', 'Destekleniyor'];
+            if (v.includes('unverified')) return ['v-faint', 'Doğrulanamadı'];
+            return null;
+        }
+
+        function finalize(div, data, fullText) {
+            const content = div.querySelector('#content');
+            content.classList.remove('streaming');
+            content.innerHTML = escapeHtml(fullText).replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+
+            const stamp = div.querySelector('#stamp');
+            const verdict = detectVerdict(fullText);
+            if (verdict) {
+                stamp.textContent = verdict[1];
+                stamp.className = `stamp show ${verdict[0]}`;
+            }
+
+            const meta = div.querySelector('#meta');
+            meta.style.display = 'flex';
+            div.querySelector('#metaInfo').textContent =
+                `${data.sources_cited ?? '–'} kaynak · güvenirlik %${Math.round((data.confidence ?? 0) * 100)} · ${(data.duration_ms / 1000).toFixed(1)} sn`;
+
+            div.querySelector('#copyBtn').addEventListener('click', () => {
+                navigator.clipboard.writeText(fullText).then(() => {
+                    const btn = div.querySelector('#copyBtn');
+                    btn.textContent = 'Kopyalandı ✓';
+                    setTimeout(() => btn.textContent = 'Kopyala', 1600);
+                });
+            });
+
+            const chips = div.querySelector('#chips');
+            (data.follow_up_suggestions || []).slice(0, 3).forEach(s => {
+                const chip = document.createElement('button');
+                chip.className = 'chip';
+                chip.textContent = s;
+                chip.addEventListener('click', () => {
+                    if (!isProcessing) { input.value = s; sendMessage(); }
+                });
+                chips.appendChild(chip);
+            });
+        }
+
+        async function streamResponse(query, div) {
+            const stepsEl = div.querySelector('#steps');
+            const content = div.querySelector('#content');
+            let fullText = '';
+
+            const resp = await fetch('/v1/investigator/chat/stream', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, session_id: sessionId }),
+            });
+
+            const reader = resp.body.getReader();
+            const decoder = new TextDecoder();
+            let buffer = '';
+
+            while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                buffer += decoder.decode(value, { stream: true });
+
+                const parts = buffer.split('\n\n');
+                buffer = parts.pop();
+
+                for (const part of parts) {
+                    const line = part.trim();
+                    if (!line.startsWith('data:')) continue;
+                    const ev = JSON.parse(line.slice(5));
+
+                    if (ev.type === 'step') {
+                        addStepRow(stepsEl, ev.label);
+                    } else if (ev.type === 'steps_done') {
+                        stepsEl.querySelectorAll('.step.running').forEach(r => {
+                            r.classList.remove('running'); r.classList.add('done');
+                        });
+                        content.classList.add('streaming');
+                    } else if (ev.type === 'chunk') {
+                        fullText += ev.content;
+                        content.textContent = fullText;
+                        if (nearBottom()) scrollDown();
+                    } else if (ev.type === 'done') {
+                        finalize(div, ev, fullText);
+                    }
+                }
+            }
+        }
+
+        async function fallbackResponse(query, div) {
+            const content = div.querySelector('#content');
+            const resp = await fetch('/v1/investigator/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, session_id: sessionId }),
+            });
+            const data = await resp.json();
+            div.querySelector('#steps').querySelectorAll('.step.running')
+                .forEach(r => { r.classList.remove('running'); r.classList.add('done'); });
+            content.classList.add('streaming');
+            content.textContent = data.response;
+            finalize(div, {
+                sources_cited: data.sources_cited,
+                confidence: data.confidence,
+                follow_up_suggestions: data.follow_up_suggestions,
+                duration_ms: 0,
+            }, data.response);
+        }
+
         async function sendMessage() {
-            const input = document.getElementById('userInput');
             const query = input.value.trim();
-            
             if (!query || isProcessing) return;
-            
+
             isProcessing = true;
-            document.getElementById('sendBtn').disabled = true;
-            document.getElementById('typingIndicator').classList.add('active');
-            
-            addMessage('user', query);
+            sendBtn.disabled = true;
+            sendBtn.textContent = 'Soruşturuluyor…';
+            addUserMsg(query);
             input.value = '';
             autoResize(input);
-            
+
+            const div = addAssistantShell();
+
             try {
-                const response = await fetch('/v1/verify', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-Session-ID': sessionId || '',
-                    },
-                    body: JSON.stringify({ query, stream: false }),
-                });
-                
-                const data = await response.json();
-                sessionId = data.session_id || sessionId;
-                
-                const meta = `
-                    <span class="verdict ${data.verdict}">${data.verdict.replace('_', ' ')}</span>
-                    &nbsp;|&nbsp; Confidence: ${Math.round(data.verdict_confidence * 100)}%
-                    &nbsp;|&nbsp; Sources: ${data.archive_results.length + data.external_results.length + data.health_org_results.length}
-                `;
-                
-                addMessage('assistant', data.cited_response, meta);
-            } catch (error) {
-                addMessage('assistant', 'Bir hata oluştu: ' + error.message);
+                await streamResponse(query, div);
+            } catch (err) {
+                try {
+                    await fallbackResponse(query, div);
+                } catch (err2) {
+                    const content = div.querySelector('#content');
+                    content.classList.add('error');
+                    content.textContent = 'Bağlantı hatası: ' + err2.message;
+                }
             }
-            
-            document.getElementById('typingIndicator').classList.remove('active');
+
+            fetch(`/v1/investigator/stats?session_id=${encodeURIComponent(sessionId)}`).then(r => r.json()).then(updateStats).catch(() => {});
+
             isProcessing = false;
-            document.getElementById('sendBtn').disabled = false;
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Soruştur';
+            input.focus();
         }
+
+        updateStats({ turn_count: 0, total_sources_found: 0 });
+        input.focus();
     </script>
 </body>
 </html>"""
+
+
+# Module-level app instance for uvicorn
+app = create_app()
