@@ -359,6 +359,15 @@ a.index-item:hover{ background:var(--paper-card); }
   background:var(--paper-card);
   font-size:.92rem; color:var(--ink-soft);
 }
+.ask-cta{
+  margin-top:26px; padding:18px 22px;
+  border:1px dashed var(--line-strong);
+  background:var(--paper);
+  font-size:.94rem;
+}
+.ask-cta p{ margin:0; color:var(--ink-soft); }
+.ask-cta a{ color:var(--verified); font-weight:600; text-decoration-thickness:1px; text-underline-offset:3px; }
+.ask-cta a:hover{ color:var(--ink); }
 .sources-box{
   margin-top:36px; padding:22px 24px; background:var(--paper-card); border:1px solid var(--line);
   font-size:.92rem;

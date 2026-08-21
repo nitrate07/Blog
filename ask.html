@@ -402,6 +402,16 @@
     sendBtn.textContent = 'Investigate';
     input.focus();
   }
+
+  // ?claim= ile gelen on-doldurma: kutuya yaz ve otomatik sorustur
+  (function(){
+    var prefill = new URLSearchParams(location.search).get('claim');
+    if (!prefill) return;
+    input.value = prefill;
+    input.dispatchEvent(new Event('input'));
+    examples.style.display = 'none';
+    send();
+  })();
 })();
 </script>
 </body>
