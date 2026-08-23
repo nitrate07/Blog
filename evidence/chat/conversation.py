@@ -247,6 +247,14 @@ class ConversationManager:
             investigation_results=results_dict,
             previous_context=self.state.last_verification,
         )
+        # 6b. Aciklayici (LLM) + Duzenleyici — llm_provider yoksa veya hukum
+        #     yoksa metin degismeden kural-tabanli kalir (bkz. _narrate_response).
+        response.text = await self._narrate_response(
+            claim=intent.cleaned_query,
+            verdict_info=verdict_info,
+            results_dict=results_dict,
+            rule_based_text=response.text,
+        )
         # Kaynak gorunurlugu: arayuzun kart olarak gosterebilecegi yapisal liste.
         response.metadata["sources"] = self._collect_source_metadata(investigation)
         response.metadata["verdict"] = verdict_info["verdict"]
@@ -283,6 +291,64 @@ class ConversationManager:
         logger.info(f"Turn completed in {duration:.0f}ms")
 
         return response
+
+    async def _narrate_response(
+        self,
+        claim: str,
+        verdict_info: dict[str, Any],
+        results_dict: dict[str, Any],
+        rule_based_text: str,
+    ) -> str:
+        """Aciklayici (LLM) + Duzenleyici katmani.
+
+        llm_provider ayarli DEGILSE ya da bu turda deterministik bir hukum
+        uretilemediyse (verdict_info["verdict"] None), bugunku davranisla
+        BIREBIR ayni sekilde kural-tabanli metni degistirmeden dondurur —
+        bu, llm_provider=None olan test/CI varsayilaninda sifir davranis
+        degisikligi garanti eder.
+
+        LLM taslagi uretilse bile, duzenleyici (editor.edit_and_validate)
+        saglanmayan bir kaynaga atif yaptigini tespit ederse taslak REDDEDILIR
+        ve yine kural-tabanli metne donulur — dogrulanmamis metin kullaniciya
+        asla gosterilmez (fail-closed).
+        """
+        if self.llm_provider is None or not verdict_info.get("verdict"):
+            return rule_based_text
+
+        from .editor import edit_and_validate, narrate_verdict
+
+        matches: list[dict[str, Any]] = []
+        for r in (
+            list(results_dict.get("archive_results", []))
+            + list(results_dict.get("external_results", []))
+            + list(results_dict.get("health_org_results", []))
+        ):
+            url = r.get("url")
+            if not url:
+                continue
+            matches.append({
+                "title": r.get("title") or "",
+                "url": url,
+                "source_type": r.get("source_type") or "unknown",
+                "quality_score": _SOURCE_QUALITY.get(r.get("source", ""), 0.7),
+                "text": r.get("passage") or r.get("text") or "",
+            })
+
+        draft = await narrate_verdict(
+            claim=claim,
+            verdict=verdict_info["verdict"],
+            confidence=verdict_info["confidence"],
+            matches=matches,
+            provider=self.llm_provider,
+        )
+        if draft is None:
+            return rule_based_text
+
+        edited = edit_and_validate(draft, matches)
+        if edited is None:
+            return rule_based_text
+
+        return edited
 
     def _derive_verdict(self, claim: str, investigation: InvestigationResult) -> dict[str, Any]:
         """Kanit pasajlarindan deterministik hukum sentezi (LLM yok).
