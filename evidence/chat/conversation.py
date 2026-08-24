@@ -165,8 +165,23 @@ class ConversationManager:
 
         # 1b. Sosyal niyetler (selamlasma, tesekkur, kimlik...) — arastirma yok,
         #     dogrudan uzman yaniti. Bu mesajlar iddia degildir; state'i bozmaz.
+        #     llm_provider ayarliysa sabit sablon yerine daha dogal bir yanit
+        #     denenir (bkz. social_chat.narrate_social) — basarisiz olursa
+        #     sabit sablona geri doner (fail-closed, sifir davranis degisikligi
+        #     garantisi llm_provider=None icin).
         if intent.type in SOCIAL_INTENTS:
             response = self.response_builder.build_social(intent)
+            if self.llm_provider is not None:
+                from .social_chat import narrate_social
+
+                narrated = await narrate_social(
+                    intent_type=intent.type.value,
+                    user_message=user_query,
+                    recent_history=self.state.get_history_for_api(),
+                    provider=self.llm_provider,
+                )
+                if narrated is not None:
+                    response.text = narrated
             duration = (time.monotonic() - start) * 1000
             self.state.turns.append(ConversationTurn(
                 user_query=user_query,

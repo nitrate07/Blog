@@ -40,6 +40,52 @@ class TestSocialIntentDetection:
         assert intent.type == IntentType.FAREWELL, f"{query!r} -> {intent.type}"
 
 
+class TestNaturalPhrasingVariantsNotMisclassifiedAsClaims:
+    """Regresyon: dogal, kisa-ama-tek-kelime-olmayan sosyal ifadeler yanlislikla
+    VERIFY_CLAIM'e dusup kullanicinin mesajini bir 'saglik iddiasi' gibi
+    sorgulamamali (ör. 'cok tesekkur ederim, cok yardimci oldun' -> bir iddiaymis
+    gibi 'kanit bulunamadi' cevabi almamali)."""
+
+    def setup_method(self):
+        self.analyzer = IntentAnalyzer()
+
+    def test_thanks_with_extra_words(self):
+        intent = self.analyzer.analyze("çok teşekkür ederim, çok yardımcı oldun")
+        assert intent.type == IntentType.THANKS, f"-> {intent.type}"
+
+    def test_farewell_combined_with_iyi_gunler(self):
+        intent = self.analyzer.analyze("görüşürüz, iyi günler")
+        assert intent.type == IntentType.FAREWELL, f"-> {intent.type}"
+
+    def test_iyi_gunler_alone_is_greeting(self):
+        intent = self.analyzer.analyze("iyi günler")
+        assert intent.type == IntentType.GREETING, f"-> {intent.type}"
+
+    def test_iyi_aksamlar_alone_is_greeting(self):
+        # Regresyon: onceki regex `i[yi] ak[sş]amlar` (2 karakter) hicbir zaman
+        # "iyi akşamlar" (3 karakterli "iyi") ile eslesemiyordu.
+        intent = self.analyzer.analyze("iyi akşamlar")
+        assert intent.type == IntentType.GREETING, f"-> {intent.type}"
+
+    def test_are_you_a_real_doctor_is_identity(self):
+        intent = self.analyzer.analyze("are you a real doctor?")
+        assert intent.type == IntentType.IDENTITY, f"-> {intent.type}"
+
+    def test_are_you_a_bot_is_identity(self):
+        intent = self.analyzer.analyze("are you a bot?")
+        assert intent.type == IntentType.IDENTITY, f"-> {intent.type}"
+
+    def test_help_request_is_identity(self):
+        intent = self.analyzer.analyze("iyi günler, yardım eder misin?")
+        assert intent.type == IntentType.IDENTITY, f"-> {intent.type}"
+
+    def test_mixed_farewell_with_health_topic_still_verify_claim(self):
+        """Guvenlik ozelligi korunmali: sosyal kelime + gercek saglik konusu
+        birlikte gecerse hala VERIFY_CLAIM olmali (konu-veto)."""
+        intent = self.analyzer.analyze("görüşürüz, ama önce kalp krizi riskini sorayım")
+        assert intent.type == IntentType.VERIFY_CLAIM, f"-> {intent.type}"
+
+
 class TestMixedMessagesAreClaims:
     """Selamlasma iceren ama gercek iddia tasiyan mesajlar VERIFY_CLAIM olmali."""
 
