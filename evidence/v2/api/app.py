@@ -277,7 +277,12 @@ def create_app(
             _articles_dir = Path(_settings.rag_articles_dir)
             _tr_dir = Path(_settings.rag_tr_dir)
             if _articles_dir.exists():
-                _store = ArticleVectorStore(_settings.rag_persist_directory)
+                if _settings.rag_backend == "chroma":
+                    from ...rag.chroma_store import ChromaArticleVectorStore
+
+                    _store = ChromaArticleVectorStore(_settings.rag_chroma_persist_directory)
+                else:
+                    _store = ArticleVectorStore(_settings.rag_persist_directory)
                 retriever = ArticleRetriever(_store)
                 _chunks = parse_all_articles(
                     _articles_dir,
