@@ -1,0 +1,20 @@
+# Ortam / gizli anahtarlar
+.env
+.env.local
+*.env
+!.env.example
+!evidence/.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.venv/
+venv/
+
+# Veri / derlenmiş
+evidence/data/
+evidence/v2/data/
+*.db
+*.sqlite3
