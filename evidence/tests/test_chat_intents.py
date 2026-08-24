@@ -360,3 +360,45 @@ class TestNarrationWiring:
         m = ConversationManager(llm_provider=FakeNarratorProvider(response="LLM yaniti."))
         r = await m.handle_message("selam")
         assert "None" not in r.text
+
+
+class TestNoFakeVerdictOnNonHealthMessages:
+    """Regresyon: 'benim adım Ümit' gibi saglik konusu ICERMEYEN, ama
+    SOCIAL_PATTERNS'e de tam uymayan mesajlar, arastirma hattina girip
+    sahte/anlamsiz bir hukum uretmemeli (ör. 'Destekleniyor %85' gibi).
+    Kok neden: eski guvenlik kapisi build_search_query() kullaniyordu, o
+    fonksiyon eslesme olmasa bile orijinal metni fallback olarak dondugu
+    icin kapi hicbir zaman tetiklenmiyordu — has_health_topic() ile
+    duzeltildi (bkz. search_query.py)."""
+
+    @pytest.mark.asyncio
+    async def test_name_introduction_produces_no_verdict(self):
+        m = ConversationManager()
+        r = await m.handle_message("benim adım Ümit")
+        assert r.metadata.get("verdict") is None
+        assert "destekleniyor" not in r.text.lower()
+        assert "kaynak" not in r.text.lower() or "incelendi" not in r.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_unrelated_smalltalk_produces_no_verdict(self):
+        m = ConversationManager()
+        r = await m.handle_message("bugün hava çok güzel")
+        assert r.metadata.get("verdict") is None
+
+    @pytest.mark.asyncio
+    async def test_real_claim_still_gets_researched(self):
+        """Guvenlik kapisi asiri kisilmamali — gercek bir saglik iddiasi
+        hala normal akisa girmeli (has_health_topic True donmeli)."""
+        m = ConversationManager()
+        r = await m.handle_message("kahve kolesterolü yükseltir mi?")
+        assert r.intent_type == "verify_claim"
+        # Orchestrator=None oldugu icin gercek arastirma yapilamaz ama en
+        # azindan _social_identity kisa devresine DUSMEMELI (farkli metin).
+        assert "Nasıl yardımcı olabilirim" not in r.text
+
+    @pytest.mark.asyncio
+    async def test_name_introduction_uses_llm_when_available(self):
+        provider = FakeNarratorProvider(response="Merhaba Ümit! Nasıl yardımcı olabilirim?")
+        m = ConversationManager(llm_provider=provider)
+        r = await m.handle_message("benim adım Ümit")
+        assert r.text == "Merhaba Ümit! Nasıl yardımcı olabilirim?"
