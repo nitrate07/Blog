@@ -100,3 +100,21 @@ class TestHasHealthTopic:
         # "adim sayisi"/"gunluk adim" gibi belirgin iki-kelimelik kaliplar
         # hala taniniyor olmali — sadece tek basina "adim" kaldirildi.
         assert has_health_topic("günlük adım sayısı yeterli mi?") is True
+
+    def test_false_for_goz_atmak_idiom(self):
+        # Regresyon: bare "göz" -> "eye vision" eslesmesi "göz atmak" (bir
+        # seye bakmak) gibi cok yaygin, saglikla alakasiz bir deyimi de
+        # yakaliyordu.
+        assert has_health_topic("şu ürüne bir göz atar mısın?") is False
+
+    def test_true_for_goz_sagligi_compound(self):
+        assert has_health_topic("göz sağlığı için havuç yemeli miyim?") is True
+
+    def test_false_for_bare_letter_c(self):
+        # Regresyon: bare "c" -> "c" eslesmesi herhangi bir yalniz "c"
+        # harfini vitamin C sanıyordu.
+        assert has_health_topic("c harfi ile başlayan bir kelime söyle") is False
+
+    def test_true_for_vitamin_c_compound(self):
+        assert has_health_topic("vitamin c bağışıklığa iyi gelir mi?") is True
+        assert has_health_topic("c vitamini soğuk algınlığına iyi gelir mi?") is True
