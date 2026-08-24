@@ -78,7 +78,13 @@ _TERM_MAP: dict[str, str] = {
     "antibiyotik": "antibiotic", "ilaç": "medication drug",
     # egzersiz/yaşam
     "egzersiz": "exercise physical activity", "spor": "exercise training",
-    "koşu": "running aerobic", "yürüyüş": "walking", "adım": "steps walking",
+    "koşu": "running aerobic", "yürüyüş": "walking",
+    "adım sayısı": "step count daily steps", "günlük adım": "daily step count",
+    # NOT: bare "adım" kasıtlı olarak yok — Türkçe'de "benim adım X" (my name
+    # is X) ile "adım" (step) ayrım gerektirir; tek başına "adım" cümlenin
+    # bir isim tanıtımı mı yoksa adım-sayısı iddiası mı oldugunu ayırt edemez,
+    # bu yuzden sadece "adım sayısı"/"günlük adım" gibi belirgin iki-kelimelik
+    # kaliplar eslestirilir.
     "ağır kaldırma": "resistance training", "kas": "muscle hypertrophy",
     "esneme": "stretching", "yoga": "yoga", "oruç": "fasting intermittent fasting",
     "açlık": "caloric restriction", "uzun ömür": "longevity",
@@ -128,14 +134,15 @@ def _match_term(token: str) -> str | None:
     return best[1] if best else None
 
 
-def build_search_query(claim: str) -> str:
-    """İddiayı harici API'ler için İngilizce anahtar-kelime sorgusuna çevirir.
+def _matched_terms(claim: str) -> list[str]:
+    """Iddiadan SADECE sozlukte/bilinen-terim olarak taninan kavramlari toplar.
 
-    Kural: terim sözlüğünden eşleşenleri sırayla topla; sözlükte olmayan ve
-    doldurucu/fiil olan kelimeleri at; eşleşme yoksa temizlenmiş orijinali dön.
+    build_search_query'nin cevirisiyle has_health_topic'in konu-tespiti ayni
+    eslestirme mantigini paylasir — burada, tek bir yerde. Bos donerse, mesajda
+    HICBIR bilinen saglik/tibbi kavram yok demektir (fallback metni degil).
     """
     if not claim:
-        return ""
+        return []
     tokens = _normalize(claim).split()
     out: list[str] = []
     seen: set[str] = set()
@@ -165,7 +172,35 @@ def build_search_query(claim: str) -> str:
         # Türkçe özel karakterli ve sözlükte olmayan kelime: düşür
         i += 1
 
+    return out
+
+
+def build_search_query(claim: str) -> str:
+    """İddiayı harici API'ler için İngilizce anahtar-kelime sorgusuna çevirir.
+
+    Kural: terim sözlüğünden eşleşenleri sırayla topla; sözlükte olmayan ve
+    doldurucu/fiil olan kelimeleri at; eşleşme yoksa temizlenmiş orijinali dön
+    (arşiv RAG araması Türkçe çalışır, tamamen boş dönmemesi onun için).
+
+    NOT: bu fonksiyonun "eşleşme yoksa orijinali dön" davranışı, onu bir
+    "bu mesajda gerçek bir sağlık konusu var mı?" sinyali olarak KULLANMAYI
+    güvenilmez kılar — her zaman dolu bir string döner. Bu amaç için
+    has_health_topic() kullanın.
+    """
+    if not claim:
+        return ""
+    out = _matched_terms(claim)
     query = " ".join(out)
     if not query:
         return claim.strip()
     return query[:200]
+
+
+def has_health_topic(claim: str) -> bool:
+    """Mesajda sozlukte taninan en az bir saglik/tibbi kavram var mi?
+
+    build_search_query'nin aksine, eslesme yoksa False doner (fallback
+    metni degil) — bu yuzden "bu mesaj gercekten arastirmaya deger mi"
+    guvenlik kapisi icin dogru fonksiyon budur.
+    """
+    return bool(_matched_terms(claim))

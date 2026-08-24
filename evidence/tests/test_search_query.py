@@ -2,7 +2,7 @@
 
 import pytest
 
-from evidence.chat.search_query import build_search_query
+from evidence.chat.search_query import build_search_query, has_health_topic
 
 
 class TestKnownTranslations:
@@ -74,3 +74,29 @@ class TestSafeInputs:
 
     def test_whitespace_only(self):
         assert build_search_query("   ") == ""
+
+
+class TestHasHealthTopic:
+    """has_health_topic — build_search_query'nin aksine, eslesme yoksa False
+    doner (fallback metni degil). Guvenlik kapisi icin dogru sinyal budur."""
+
+    def test_true_for_real_health_claim(self):
+        assert has_health_topic("Kahve kolesterolü yükseltir mi?") is True
+
+    def test_false_for_name_introduction(self):
+        # Regresyon: eskiden "adım" (step) sozlukte tekti ve "benim adım
+        # Ümit" gibi bir isim tanitimini "steps walking" saglik konusuyla
+        # eslestirip botun sahte bir hukum uretmesine yol aciyordu.
+        assert has_health_topic("benim adım Ümit") is False
+
+    def test_false_for_unrelated_smalltalk(self):
+        assert has_health_topic("bugün hava çok güzel") is False
+
+    def test_false_for_empty(self):
+        assert has_health_topic("") is False
+        assert has_health_topic(None) is False
+
+    def test_true_for_step_count_compound(self):
+        # "adim sayisi"/"gunluk adim" gibi belirgin iki-kelimelik kaliplar
+        # hala taniniyor olmali — sadece tek basina "adim" kaldirildi.
+        assert has_health_topic("günlük adım sayısı yeterli mi?") is True

@@ -30,7 +30,7 @@ from .intent import SOCIAL_INTENTS, Intent, IntentAnalyzer, IntentType
 from .investigator import EvidenceInvestigator, InvestigationResult
 from .planner import InvestigationPlan, Planner
 from .response import ChatResponse, ResponseBuilder
-from .search_query import build_search_query
+from .search_query import build_search_query, has_health_topic
 from .sufficiency import SufficiencyChecker, SufficiencyResult
 from .answer import AnswerPlanner, AnswerPlan
 
@@ -193,10 +193,26 @@ class ConversationManager:
             return response
 
         # 2. Plan olusturma — ama once guvenlik kapisi: "iddia" gorunumlu
-        #    mesaj icinde aranabilir bir saglik konusu yoksa (orn. "nasıl
-        #    çalışıyorsun?") bosuna 20 aji harekete getirme; aciklama ver.
-        if intent.type == IntentType.VERIFY_CLAIM and not build_search_query(intent.cleaned_query):
+        #    mesaj icinde TANINAN bir saglik konusu yoksa (orn. "nasıl
+        #    çalışıyorsun?", "benim adım Ümit") bosuna 20 ajani harekete
+        #    getirme; aciklama ver. NOT: eskiden build_search_query() burada
+        #    kullaniliyordu ama o fonksiyon eslesme olmasa BILE orijinal
+        #    metni fallback olarak dondugu icin bu kapi pratikte HICBIR
+        #    zaman tetiklenmiyordu — has_health_topic() gercekten bos/dolu
+        #    donen dogru sinyal (bkz. search_query.py).
+        if intent.type == IntentType.VERIFY_CLAIM and not has_health_topic(intent.cleaned_query):
             response = self.response_builder._social_identity(intent)
+            if self.llm_provider is not None:
+                from .social_chat import narrate_social
+
+                narrated = await narrate_social(
+                    intent_type="general_chat",
+                    user_message=user_query,
+                    recent_history=self.state.get_history_for_api(),
+                    provider=self.llm_provider,
+                )
+                if narrated is not None:
+                    response.text = narrated
             duration = (time.monotonic() - start) * 1000
             self.state.turns.append(ConversationTurn(
                 user_query=user_query,

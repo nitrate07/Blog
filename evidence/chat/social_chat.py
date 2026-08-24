@@ -30,6 +30,7 @@ _SOCIAL_LABELS: dict[str, str] = {
     "identity": "botun kim oldugunu soran bir soru",
     "thanks": "bir tesekkur",
     "farewell": "bir vedalasma",
+    "general_chat": "gundelik, saglik iddiasi olmayan bir sohbet mesaji (ör. kendini tanitma, gundelik bir yorum)",
 }
 
 
