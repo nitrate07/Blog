@@ -6,7 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 
 from evidence.config import Settings
-from evidence.llm_providers import ClaudeProvider, GeminiProvider, LLMProvider, OpenAIProvider
+from evidence.llm_providers import ClaudeProvider, GeminiProvider, GroqProvider, LLMProvider, OpenAIProvider
 from evidence.models import Verdict
 from evidence.provider_registry import (
     ProviderStatus,
@@ -165,6 +165,29 @@ class TestOpenAIProvider:
         assert result == '{"verdict": "unsupported"}'
 
 
+class TestGroqProvider:
+    """Test Groq-specific provider."""
+
+    @pytest.mark.asyncio
+    async def test_call_llm_returns_response_text(self):
+        provider = GroqProvider(api_key="test-key")
+
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": '{"verdict": "unsupported"}'}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("evidence.llm_providers.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=mock_response)
+
+            result = await provider._call_llm("test prompt")
+
+        assert result == '{"verdict": "unsupported"}'
+
+
 class TestGeminiProvider:
     """Test Gemini-specific provider."""
 
@@ -202,6 +225,7 @@ class TestProviderRegistry:
         assert "claude" in providers
         assert "openai" in providers
         assert "gemini" in providers
+        assert "groq" in providers
 
     def test_create_provider_returns_null_when_no_name(self):
         provider = create_provider(provider_name=None)
@@ -224,6 +248,11 @@ class TestProviderRegistry:
         provider = create_provider(provider_name="openai", api_key="test-key")
         assert isinstance(provider, OpenAIProvider)
         assert provider.model == "gpt-4o-mini"
+
+    def test_create_groq_provider(self):
+        provider = create_provider(provider_name="groq", api_key="test-key")
+        assert isinstance(provider, GroqProvider)
+        assert provider.model == "llama-3.3-70b-versatile"
 
     def test_create_gemini_provider(self):
         provider = create_provider(provider_name="gemini", api_key="test-key")

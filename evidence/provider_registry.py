@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from .config import Settings, settings
-from .llm_providers import ClaudeProvider, GeminiProvider, LLMProvider, OpenAIProvider
+from .llm_providers import ClaudeProvider, GeminiProvider, GroqProvider, LLMProvider, OpenAIProvider
 from .providers import NullProvider, VerificationProvider
 
 logger = logging.getLogger(__name__)
@@ -16,6 +16,7 @@ PROVIDER_MAP: dict[str, type[LLMProvider]] = {
     "claude": ClaudeProvider,
     "openai": OpenAIProvider,
     "gemini": GeminiProvider,
+    "groq": GroqProvider,
 }
 
 

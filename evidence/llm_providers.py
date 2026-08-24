@@ -361,6 +361,55 @@ class OpenAIProvider(LLMProvider):
         return ""
 
 
+class GroqProvider(LLMProvider):
+    """Groq provider (OpenAI-compatible API) for evidence verification and chat."""
+
+    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    API_URL = "https://api.groq.com/openai/v1/chat/completions"
+
+    def __init__(
+        self,
+        api_key: str,
+        model: str | None = None,
+        temperature: float = 0.0,
+        max_tokens: int = 4096,
+        language: str = "en",
+    ) -> None:
+        super().__init__(api_key, model, temperature, max_tokens, language)
+
+    def _get_headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json",
+        }
+
+    async def _call_llm(self, prompt: str) -> str:
+        """Single prompt call (no history)."""
+        messages = [{"role": "user", "content": prompt}]
+        return await self._call_llm_with_messages(messages)
+
+    async def _call_llm_with_messages(self, messages: list[dict[str, str]]) -> str:
+        """Call Groq API with message history."""
+        headers = self._get_headers()
+
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "messages": messages,
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(self.API_URL, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        choices = data.get("choices", [])
+        if choices:
+            return choices[0].get("message", {}).get("content", "")
+        return ""
+
+
 class GeminiProvider(LLMProvider):
     """Google Gemini provider for evidence verification and chat."""
 

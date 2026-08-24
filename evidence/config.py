@@ -35,6 +35,8 @@ class Settings:
     claude_model: str | None = os.getenv("EVIDENCE_CLAUDE_MODEL") or None
     openai_api_key: str | None = os.getenv("EVIDENCE_OPENAI_API_KEY") or None
     openai_model: str | None = os.getenv("EVIDENCE_OPENAI_MODEL") or None
+    groq_api_key: str | None = os.getenv("EVIDENCE_GROQ_API_KEY") or None
+    groq_model: str | None = os.getenv("EVIDENCE_GROQ_MODEL") or None
     gemini_api_key: str | None = os.getenv("EVIDENCE_GEMINI_API_KEY") or None
     gemini_model: str | None = os.getenv("EVIDENCE_GEMINI_MODEL") or None
 
@@ -64,7 +66,7 @@ class Settings:
         """Return the first configured provider name, or None."""
         if self.llm_provider:
             return self.llm_provider.lower()
-        for name in ("claude", "openai", "gemini"):
+        for name in ("claude", "openai", "gemini", "groq"):
             if getattr(self, f"{name}_api_key", None):
                 return name
         return None
