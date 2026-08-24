@@ -100,7 +100,19 @@ TURKISH_TO_ENGLISH_QUERIES: dict[str, str] = {
     "böbrek": "kidney health chronic kidney disease",
     "tiroid": "thyroid health hypothyroidism",
     "prostat": "prostate health cancer screening",
-    "göz": "eye health vision macular degeneration",
+    # NOT: bare "göz" (eye) kasıtlı olarak yok. Bu fonksiyonun eşleştirmesi
+    # alt-dize + oran tabanlı (bkz. translate_query_to_english: bir anahtarın
+    # kelimelerinden en az yarısı sorguda GEÇİYORSA eşleşir) — tek kelimelik
+    # bir anahtar için bu, "göz" kelimesinin "gözlük" gibi alakasız
+    # kelimelerin İÇİNDE bile eşleşmesi anlamına gelir. İki-kelimelik bir
+    # bileşik (ör. "göz sağlığı") eklemek de YETMEZ: skor = eşleşen kelime /
+    # toplam kelime olduğu için "göz" tek başına yine 0.5 skor alır ve
+    # >=0.5 eşiğini geçer (bkz. search_query.py'deki farklı, tam-eşleşmeli
+    # algoritma orada işe yarıyordu ama burada yaramaz). Bu yüzden burada
+    # TAMAMEN kaldırıldı, telafi edici bir bileşik eklenmedi. Aynı sınıf
+    # düzeltme evidence/chat/search_query.py'de de yapıldı — iki sözlüğün
+    # tam birleştirilmesi docs/ai-infrastructure-roadmap.md'de ayrı bir iş
+    # olarak not edildi.
     "cilt": "skin health aging collagen",
     "saç": "hair loss treatment",
     "yaşlanma": "aging longevity anti-aging",
