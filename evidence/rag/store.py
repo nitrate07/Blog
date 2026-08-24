@@ -54,6 +54,14 @@ class ArticleVectorStore:
             self._chunks = [ArticleChunk(**c) for c in raw_chunks]
             self._documents = [c.to_embedding_text() for c in self._chunks]
             self._matrix = np.load(matrix_file)
+            if self._documents:
+                # matrix.npy sadece onceden hesaplanmis TF-IDF matrisini
+                # persist eder, TfidfVectorizer'in ogrenilmis vocabulary/idf
+                # durumunu degil. O durum olmadan .transform() (query sirasinda)
+                # "not fitted" hatasi verir. Ayni dokuman listesiyle yeniden
+                # fit ederek (fit_transform degil, sadece fit) matrix.npy ile
+                # tutarli bir vocabulary/idf durumu geri kazanilir.
+                self._vectorizer.fit(self._documents)
             self._fitted = True
             logger.info(f"Loaded {len(self._ids)} chunks from disk")
         except Exception as e:

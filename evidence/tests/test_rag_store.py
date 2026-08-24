@@ -85,6 +85,25 @@ class TestArticleVectorStore:
         result = store.upsert_chunks([])
         assert result == 0
 
+    def test_query_works_after_reload_from_disk(self, tmp_path):
+        """Regresyon: process yeniden baslatilip store sadece diskten
+        yuklendiginde (upsert_chunks tekrar cagrilmadan) query() 'vectorizer
+        is not fitted' ile patlamamali. matrix.npy sadece hesaplanmis matrisi
+        persist eder, TfidfVectorizer'in ogrenilmis vocabulary/idf durumunu
+        degil — _load_from_disk bunu yeniden fit etmelidir."""
+        persist_dir = str(tmp_path / "store")
+        store = ArticleVectorStore(persist_dir)
+        store.upsert_chunks(_make_chunks())
+
+        # Ayni sureçte degil, YENI bir ArticleVectorStore ornegi olustur —
+        # gercek bir process restart'ini simule eder (upsert_chunks bir daha
+        # cagrilmaz, sadece _load_from_disk calisir).
+        reloaded = ArticleVectorStore(persist_dir)
+        assert reloaded.count == 3
+
+        results = reloaded.query("exercise heart health", n_results=2)
+        assert len(results["ids"][0]) == 2
+
 
 class TestArticleRetriever:
     def test_retrieve_returns_results(self):
