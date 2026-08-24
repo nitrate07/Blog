@@ -49,7 +49,7 @@ SOCIAL_PATTERNS: list[tuple[IntentType, list[str]]] = [
         r"^selam([uü]n\s?aleyk[uü]m)?$",
         r"^merhaba(lar)?$",
         r"^s[aə]lam$",
-        r"^(g[uü]nayd[iı]n|i[yi] ak[sş]amlar|i[yi] geceler|h[oö][sş] geldin)$",
+        r"^(g[uü]nayd[iı]n|i[yi]i\s+ak[sş]amlar|i[yi]i\s+geceler|i[yi]i\s+g[uü]nler|h[oö][sş]\s+geldin)$",
         r"^(naber|ne\s+haber|nas[iı]lsin)$",
         r"^(hello|hi|hey|yo|good\s+(morning|afternoon|evening)|howdy)\b",
         r"^selam\s+(arkada[sş]lar|hocam|abi|usta)$",
@@ -67,10 +67,13 @@ SOCIAL_PATTERNS: list[tuple[IntentType, list[str]]] = [
         r"(sen\s+)?kim(sin|dir|se)?\s*$",
         r"^(ad[iı]n\s+ne|ismin\s+ne|sen\s+nesin|ne\s+sin)\b",
         r"^(who|what)\s+are\s+you\b",
+        r"^are\s+you\s+(a\s+|an\s+)?(real\s+)?(doctor|bot|robot|ai|human|person|alive)\b",
         r"bot\s+mu(sun)?\b",
         r"insan\s+m[iı]s[iı]n\b",
         r"ger[cç]ek\s+mi(sin)?\b",
         r"^kendini\s+tan[iı]t",
+        r"yard[iı]m\s+ed(er|ebilir)\s+misin",
+        r"^(can\s+you\s+help|help\s+me)\b",
     ]),
     (IntentType.THANKS, [
         r"te[sş]ekk[uü]r",
@@ -81,7 +84,7 @@ SOCIAL_PATTERNS: list[tuple[IntentType, list[str]]] = [
         r"^(s[uü]per|m[uü]kemmel|g[uü]zel)\s*oldu\s*$",
     ]),
     (IntentType.FAREWELL, [
-        r"^(h[oö][sş][cç]a\s+kal|g[oö]r[uü][sş][uü]r[uü]z|kendine\s+i[yi]i\s+bak)$",
+        r"(h[oö][sş][cç]a\s+kal|g[oö]r[uü][sş][uü]r[uü]z|kendine\s+i[yi]i\s+bak)",
         r"^(bye|goodbye|see\s+you|later|cya)\b",
         r"^(i[yi]i\s+g[uü]nler|i[yi]i\s+ak[sş]amlar)\s*$",
         r"^kapat$",
@@ -89,8 +92,13 @@ SOCIAL_PATTERNS: list[tuple[IntentType, list[str]]] = [
 ]
 
 # Sosyal sayilmayacak durumlar: icinde gercek soru/iddia tasiyan karisik mesajlar
-# ("selam, kahve kolesterolu yukseltir mi?") normal akisa girmeli.
-_SOCIAL_MAX_WORDS = 5
+# ("selam, kahve kolesterolu yukseltir mi?") normal akisa girmeli — bu, kelime
+# sayisi sinirindan BAGIMSIZ olarak asagidaki _detect_social()'daki konu-veto
+# kontroluyle (Topic.GENERAL disinda bir konu varsa sosyal sayilmaz) saglanir.
+# Sinir, "cok tesekkur ederim, cok yardimci oldun" gibi hala safca sosyal olan
+# ama birden fazla nazik ifade iceren, biraz daha uzun mesajlari da kapsayacak
+# sekilde genis tutulur.
+_SOCIAL_MAX_WORDS = 8
 
 
 class Topic(str, Enum):
