@@ -46,6 +46,14 @@ class Settings:
     rag_tr_dir: str = os.getenv("EVIDENCE_RAG_TR_DIR", "tr/makaleler")
     rag_max_results: int = int(os.getenv("EVIDENCE_RAG_MAX_RESULTS", "10"))
     rag_max_context_length: int = int(os.getenv("EVIDENCE_RAG_MAX_CONTEXT_LENGTH", "4000"))
+    # "tfidf" (varsayılan, mevcut davranış) veya "chroma" (gerçek embedding
+    # tabanlı — evidence/requirements-rag-chroma.txt gerektirir, bkz.
+    # evidence/rag/chroma_store.py). Ayrı bir dizin kullanır (aşağıda) —
+    # rag_persist_directory'deki mevcut TF-IDF dosyalarıyla ASLA karışmaz.
+    rag_backend: str = os.getenv("EVIDENCE_RAG_BACKEND", "tfidf")
+    rag_chroma_persist_directory: str = os.getenv(
+        "EVIDENCE_RAG_CHROMA_PERSIST_DIRECTORY", "evidence/data/chroma_embeddings"
+    )
 
     def get_provider_config(self, provider_name: str) -> dict[str, Any]:
         """Get config for a specific provider. Provider-specific vars override generic."""

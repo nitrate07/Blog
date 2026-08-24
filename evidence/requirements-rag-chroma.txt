@@ -1,0 +1,5 @@
+# İsteğe bağlı — gerçek embedding tabanlı RAG için (EVIDENCE_RAG_BACKEND=chroma).
+# Varsayılan TF-IDF backend (requirements.txt) bunlara ihtiyaç duymaz.
+# Ağır bağımlılıklar (torch dahil, ~1GB+) — bkz. docs/ai-infrastructure-roadmap.md.
+chromadb>=1.5,<2.0
+sentence-transformers>=6.0,<7.0
