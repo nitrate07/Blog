@@ -53,7 +53,11 @@ _TERM_MAP: dict[str, str] = {
     "probiyotik": "probiotic", "prebiyotik": "prebiotic",
     "mikrobiyom": "gut microbiome", "bağırsak": "gut",
     # vitamin/takviye
-    "vitamin": "vitamin", "d3": "d3", "c": "c",
+    # NOT: bare "c" kasitli olarak yok — tek harf her yerde eslesme riski
+    # tasir ("c harfi ile...", listeler vb.). "vitamin c"/"c vitamini" iki-
+    # kelimelik kaliplarla, ya da tek basina "vitamin" ile hala yakalanir.
+    "vitamin": "vitamin", "d3": "d3",
+    "vitamin c": "vitamin c", "c vitamini": "vitamin c",
     "omega": "omega-3", "balıkyağı": "fish oil", "balikyagi": "fish oil",
     "magnesium": "magnesium", "magnezyum": "magnesium", "çinko": "zinc",
     "cinko": "zinc", "demir": "iron", "kalsiyum": "calcium",
@@ -63,7 +67,11 @@ _TERM_MAP: dict[str, str] = {
     "karaciğer": "liver", "karaciger": "liver", "mide": "stomach gastric",
     "beyin": "brain", "akciğer": "lung", "akciger": "lung",
     "kemik": "bone skeletal", "eklem": "joint", "cilt": "skin dermal",
-    "diş": "dental teeth", "dis": "dental teeth", "göz": "eye vision",
+    "diş": "dental teeth", "dis": "dental teeth",
+    # NOT: bare "göz" kasitli olarak yok — "göz atmak" (bir seye bakmak)
+    # gunluk konusmada cok yaygin, saglikla alakasiz. "göz sağlığı"/"göz
+    # tembelliği" gibi belirgin kaliplar hala yakalanir.
+    "göz sağlığı": "eye health vision", "göz tembelliği": "lazy eye amblyopia",
     "hipertansiyon": "hypertension blood pressure",
     "tansiyon": "blood pressure hypertension",
     "diyabet": "diabetes", "insülin": "insulin", "insulin": "insulin",
@@ -110,6 +118,11 @@ def _normalize(text: str) -> str:
 _MAX_SUFFIX_LEN = 3
 
 
+# Tek basina token olarak eslesirse asiri genis/belirsiz oldugu icin izin
+# listesinden kasitli olarak cikarilan parcalar (ör. "vitamin c" degerinin
+# "c" parcasi — herhangi bir yalniz "c" harfini saglik konusu sanar).
+_ALLOWED_EN_EXCLUDE: frozenset[str] = frozenset({"c"})
+
 # Sozluk degerlerinden turetilen Ingilizce izin listesi: yalnizca bilinen
 # kavram kelimeleri harici API'ye tasinir ("krizinden", "atmak" gibi ASCII
 # yazilmis Turkce sozcukler boylece elenir).
@@ -118,6 +131,7 @@ _ALLOWED_EN: frozenset[str] = frozenset(
     for value in _TERM_MAP.values()
     if value
     for piece in value.split()
+    if piece not in _ALLOWED_EN_EXCLUDE
 )
 
 
