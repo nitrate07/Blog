@@ -221,3 +221,96 @@ class TestArchiveFirstResponse:
         r = self.builder.build(intent, suff, results, None)
         assert "Doğrulanamadı" in r.text
         assert "📁" not in r.text
+
+
+class FakeNarratorProvider:
+    """narrate_verdict icin sahte LLM saglayicisi — gercek API cagrisi yapmaz."""
+
+    def __init__(self, response: str | None = None, raises: bool = False):
+        self.response = response
+        self.raises = raises
+
+    async def generate(self, prompt: str) -> str:
+        if self.raises:
+            raise RuntimeError("provider down")
+        return self.response
+
+
+class TestNarrationWiring:
+    """ConversationManager._narrate_response — aciklayici + duzenleyici entegrasyonu."""
+
+    def _results_dict(self):
+        return {
+            "archive_results": [],
+            "external_results": [
+                {"title": "Coffee Study", "url": "https://pubmed.ncbi.nlm.nih.gov/999/", "source": "pubmed", "source_type": "academic", "passage": "..."}
+            ],
+            "health_org_results": [],
+        }
+
+    @pytest.mark.asyncio
+    async def test_no_llm_provider_returns_rule_based_text_unchanged(self):
+        m = ConversationManager()
+        assert m.llm_provider is None
+        text = await m._narrate_response(
+            claim="kahve kolesterolü yükseltir mi?",
+            verdict_info={"verdict": "supported", "confidence": 0.8},
+            results_dict=self._results_dict(),
+            rule_based_text="KURAL TABANLI METIN",
+        )
+        assert text == "KURAL TABANLI METIN"
+
+    @pytest.mark.asyncio
+    async def test_no_verdict_returns_rule_based_text_even_with_provider(self):
+        m = ConversationManager(llm_provider=FakeNarratorProvider(response="LLM metni (https://pubmed.ncbi.nlm.nih.gov/999/)"))
+        text = await m._narrate_response(
+            claim="kahve kolesterolü yükseltir mi?",
+            verdict_info={"verdict": None, "confidence": 0.0},
+            results_dict=self._results_dict(),
+            rule_based_text="KURAL TABANLI METIN",
+        )
+        assert text == "KURAL TABANLI METIN"
+
+    @pytest.mark.asyncio
+    async def test_valid_llm_narration_replaces_rule_based_text(self):
+        m = ConversationManager(llm_provider=FakeNarratorProvider(
+            response="Kanıt destekliyor (https://pubmed.ncbi.nlm.nih.gov/999/)."
+        ))
+        text = await m._narrate_response(
+            claim="kahve kolesterolü yükseltir mi?",
+            verdict_info={"verdict": "supported", "confidence": 0.8},
+            results_dict=self._results_dict(),
+            rule_based_text="KURAL TABANLI METIN",
+        )
+        assert text == "Kanıt destekliyor (https://pubmed.ncbi.nlm.nih.gov/999/)."
+
+    @pytest.mark.asyncio
+    async def test_hallucinated_citation_falls_back_to_rule_based_text(self):
+        m = ConversationManager(llm_provider=FakeNarratorProvider(
+            response="Kanıt destekliyor (https://uydurma-kaynak.example/x)."
+        ))
+        text = await m._narrate_response(
+            claim="kahve kolesterolü yükseltir mi?",
+            verdict_info={"verdict": "supported", "confidence": 0.8},
+            results_dict=self._results_dict(),
+            rule_based_text="KURAL TABANLI METIN",
+        )
+        assert text == "KURAL TABANLI METIN"
+
+    @pytest.mark.asyncio
+    async def test_provider_failure_falls_back_to_rule_based_text(self):
+        m = ConversationManager(llm_provider=FakeNarratorProvider(raises=True))
+        text = await m._narrate_response(
+            claim="kahve kolesterolü yükseltir mi?",
+            verdict_info={"verdict": "supported", "confidence": 0.8},
+            results_dict=self._results_dict(),
+            rule_based_text="KURAL TABANLI METIN",
+        )
+        assert text == "KURAL TABANLI METIN"
+
+    @pytest.mark.asyncio
+    async def test_full_flow_with_llm_provider_stays_unbroken(self):
+        """llm_provider ayarliyken bile tam handle_message akisi kirilmamali."""
+        m = ConversationManager(llm_provider=FakeNarratorProvider(response="LLM yaniti."))
+        r = await m.handle_message("selam")
+        assert "None" not in r.text

@@ -530,3 +530,47 @@ a.index-item:hover{ background:var(--paper-card); }
   font-family:var(--font-mono); font-size:10px; letter-spacing:.08em; text-transform:uppercase;
   color:var(--ink-faint);
 }
+
+/* ---------- Floating "Ask the Investigator" button ----------
+   Always-visible shortcut to the Investigator page, pinned to
+   the lower-right corner. Styled as a verified-stamp chip:
+   --verified ground, mono label, hairline catalog border. */
+.fab{
+  position:fixed;
+  right:20px;
+  bottom:calc(20px + env(safe-area-inset-bottom, 0px));
+  z-index:9000;
+  display:inline-flex;
+  align-items:center;
+  gap:9px;
+  padding:12px 17px;
+  background:var(--verified);
+  color:#fff;
+  font-family:var(--font-mono);
+  font-size:13px;
+  font-weight:600;
+  letter-spacing:.05em;
+  text-decoration:none;
+  border:1px solid var(--line-strong);
+  border-radius:2px;
+  box-shadow:0 3px 14px rgba(28,38,31,.30);
+  transition:background .15s ease, transform .15s ease;
+}
+.fab:hover{ background:var(--ink); }
+.fab:focus-visible{ outline:2px solid var(--ink); outline-offset:3px; }
+.fab:active{ transform:translateY(1px); }
+.fab .fab-icon{ font-size:15px; line-height:1; }
+
+@media (max-width:640px){
+  .fab{
+    right:14px;
+    bottom:calc(14px + env(safe-area-inset-bottom, 0px));
+    padding:0;
+    width:52px;
+    height:52px;
+    justify-content:center;
+    border-radius:50%;
+  }
+  .fab .fab-label{ display:none; }
+  .fab .fab-icon{ font-size:21px; }
+}
