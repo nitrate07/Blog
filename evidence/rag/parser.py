@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from html.parser import HTMLParser
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -114,8 +117,8 @@ class _ArticleHTMLParser(HTMLParser):
             try:
                 data = json.loads(" ".join(self._ld_json_buffer))
                 self._ld_json_scripts.append(data)
-            except (json.JSONDecodeError, ValueError):
-                pass
+            except (json.JSONDecodeError, ValueError) as exc:
+                logger.debug("Skipping malformed ld+json block: %s", exc)
             return
         if tag in {"script", "style", "noscript", "svg"} and self._ignored_depth:
             self._ignored_depth -= 1

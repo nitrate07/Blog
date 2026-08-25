@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from .parser import ArticleChunk, parse_all_articles
+from .parser import parse_all_articles
 from .store import ArticleVectorStore
 
 logger = logging.getLogger(__name__)

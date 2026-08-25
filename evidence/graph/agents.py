@@ -18,8 +18,7 @@ from typing import Any, Protocol
 import httpx
 
 from ..config import Settings, settings
-from ..models import EvidenceSearchResult, SourceQuality
-from ..rag.retriever import ArticleRetriever, RetrievalResult
+from ..rag.retriever import ArticleRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -126,8 +125,8 @@ class PubMedAgent:
             if pub_date:
                 try:
                     year = int(pub_date.split()[0])
-                except (ValueError, IndexError):
-                    pass
+                except (ValueError, IndexError) as exc:
+                    logger.debug("Could not parse PubMed pub_date %r: %s", pub_date, exc)
             results.append({
                 "source": "pubmed",
                 "pmid": pmid,

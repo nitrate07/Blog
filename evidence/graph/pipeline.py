@@ -16,7 +16,7 @@ from typing import Any
 from ..connectors import EvidenceCatalog
 from ..config import Settings, settings
 from ..llm_providers import LLMProvider
-from ..models import EvidenceSearchResult, SourceQuality
+from ..models import SourceQuality
 from ..providers import NullProvider
 from ..rag.retriever import ArticleRetriever, RetrievalResult
 from .builder import GraphBuilder

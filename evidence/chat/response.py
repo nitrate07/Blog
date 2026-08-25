@@ -13,7 +13,7 @@ import re
 from dataclasses import dataclass, field
 from typing import Any
 
-from .intent import Intent, IntentType, Topic
+from .intent import Intent
 from .sufficiency import SufficiencyLevel, SufficiencyResult
 
 # Arama/ortusme kontrolunde anlamsiz genel kelimeler.

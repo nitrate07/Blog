@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import logging
 import re
+from datetime import datetime, timezone
 
 from .models import EvidenceItem, SourceQuality, Verdict, VerificationRequest, VerificationResponse
 from .providers import VerificationProvider, default_provider
@@ -12,6 +13,8 @@ from .sources import RetrievedSource, SourceFetcher
 _STOPWORDS = {"a", "an", "and", "are", "as", "at", "be", "by", "for", "from", "in", "is", "it", "of", "on", "or", "that", "the", "this", "to", "was", "were", "with"}
 _NEGATIONS = {"not", "no", "never", "neither", "none", "without", "doesn't", "doesnt", "didn't", "didnt"}
 _QUALIFIERS = {"may", "might", "possible", "possibly", "associated", "association", "limited", "uncertain", "preliminary", "suggests", "suggest"}
+
+logger = logging.getLogger(__name__)
 
 
 def _tokens(value: str) -> set[str]:
@@ -56,7 +59,8 @@ class EvidenceVerifier:
         for source_input in request.sources:
             try:
                 source: RetrievedSource = await self.fetcher.fetch(str(source_input.url))
-            except Exception:
+            except Exception as exc:
+                logger.warning("Failed to fetch source %s: %s", source_input.url, exc)
                 continue
             deterministic, passage, relevance = compare_claim_evidence(request.claim, source.text)
             provider_verdict = await self.provider.compare(request.claim, passage, request.context)

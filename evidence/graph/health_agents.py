@@ -12,7 +12,6 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
-import xml.etree.ElementTree as ET
 from typing import Any
 
 import httpx
@@ -78,8 +77,8 @@ class WHOAgent:
                                         if content_resp.status_code == 200:
                                             passage = content_resp.text[:2000]
                                             break
-                            except Exception:
-                                pass
+                            except Exception as exc:
+                                logger.warning("WHO bitstream fetch failed for %s: %s", handle, exc)
                         results.append({
                             "source": "who",
                             "organization": "World Health Organization",
@@ -180,8 +179,8 @@ class ECDCAgent:
                             abstract_match = re.search(r'<div[^>]*class="[^"]*abstract[^"]*"[^>]*>(.*?)</div>', detail_text, re.DOTALL)
                             if abstract_match:
                                 passage = re.sub(r'<[^>]+>', '', abstract_match.group(1)).strip()[:2000]
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("ECDC detail page fetch failed for %s: %s", href, exc)
                     results.append({
                         "source": "ecdc",
                         "organization": "European Centre for Disease Prevention and Control",
@@ -382,8 +381,8 @@ class EMAAgent:
                             summary_match = re.search(r'<div[^>]*class="[^"]*field--name-body[^"]*"[^>]*>(.*?)</div>', detail_text, re.DOTALL)
                             if summary_match:
                                 passage = re.sub(r'<[^>]+>', '', summary_match.group(1)).strip()[:2000]
-                    except Exception:
-                        pass
+                    except Exception as exc:
+                        logger.warning("EMA detail page fetch failed for %s: %s", href, exc)
                     results.append({
                         "source": "ema",
                         "organization": "European Medicines Agency",

@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-from .intent import Intent, IntentType, Topic
+from .intent import Intent
 from .search_query import build_search_query
 
 
