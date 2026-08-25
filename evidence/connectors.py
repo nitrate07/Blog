@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Protocol
 import httpx
 
 from .config import Settings, settings
 from .models import EvidenceSearchResult, SourceQuality
+
+logger = logging.getLogger(__name__)
 
 
 class EvidenceSearchProvider(Protocol):
@@ -102,7 +105,8 @@ class EvidenceCatalog:
         for provider in self.providers:
             try:
                 results.extend(await provider.search(query, limit))
-            except (httpx.HTTPError, ValueError):
+            except (httpx.HTTPError, ValueError) as exc:
+                logger.warning("Provider %s search failed: %s", type(provider).__name__, exc)
                 continue
         unique: dict[str, EvidenceSearchResult] = {}
         for result in results:

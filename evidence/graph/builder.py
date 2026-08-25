@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from ..connectors import EvidenceCatalog
-from ..rag.parser import ArticleChunk, parse_all_articles
+from ..rag.parser import parse_all_articles
 from .model import (
     Claim, Evidence, Passage, Source, SourceType, VerificationChain, Verdict,
 )

@@ -1,6 +1,6 @@
 """Safe defaults for retrieval, persistence, and public API access."""
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import os
 from typing import Any
 

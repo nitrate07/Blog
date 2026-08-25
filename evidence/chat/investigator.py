@@ -17,7 +17,7 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Any
 
-from .planner import InvestigationPlan, PlanStep, StepType
+from .planner import InvestigationPlan, PlanStep
 
 logger = logging.getLogger(__name__)
 

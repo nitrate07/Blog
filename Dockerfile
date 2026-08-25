@@ -5,8 +5,14 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
+ARG INSTALL_CHROMA_RAG=false
+
 COPY evidence/requirements.txt evidence/requirements.txt
-RUN pip install --no-cache-dir -r evidence/requirements.txt
+COPY evidence/requirements-rag-chroma.txt evidence/requirements-rag-chroma.txt
+RUN pip install --no-cache-dir -r evidence/requirements.txt \
+    && if [ "$INSTALL_CHROMA_RAG" = "true" ]; then \
+         pip install --no-cache-dir -r evidence/requirements-rag-chroma.txt; \
+       fi
 
 COPY evidence/ evidence/
 COPY articles/ articles/
@@ -18,7 +24,8 @@ RUN useradd --create-home appuser \
 USER appuser
 
 ENV EVIDENCE_DATABASE_PATH=/app/data/evidence.db \
-    EVIDENCE_RAG_PERSIST_DIRECTORY=/app/data/chroma
+    EVIDENCE_RAG_PERSIST_DIRECTORY=/app/data/chroma \
+    EVIDENCE_RAG_CHROMA_PERSIST_DIRECTORY=/app/data/chroma_embeddings
 VOLUME ["/app/data"]
 
 EXPOSE 8000

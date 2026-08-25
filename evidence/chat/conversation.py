@@ -32,7 +32,7 @@ from .planner import InvestigationPlan, Planner
 from .response import ChatResponse, ResponseBuilder
 from .search_query import build_search_query, has_health_topic
 from .sufficiency import SufficiencyChecker, SufficiencyResult
-from .answer import AnswerPlanner, AnswerPlan
+from .answer import AnswerPlanner
 
 logger = logging.getLogger(__name__)
 

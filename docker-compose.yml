@@ -1,6 +1,12 @@
 services:
   api:
-    build: .
+    build:
+      context: .
+      args:
+        # true → installs chromadb/sentence-transformers (~1GB+) so
+        # EVIDENCE_RAG_BACKEND=chroma works. Leave false for the default
+        # TF-IDF backend.
+        INSTALL_CHROMA_RAG: "false"
     ports:
       - "8000:8000"
     env_file:
