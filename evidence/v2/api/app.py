@@ -277,7 +277,9 @@ def create_app(
             _resolved_provider = create_provider_from_config(_ProviderSettings())
             if not isinstance(_resolved_provider, NullProvider):
                 llm_provider = _resolved_provider
-                logger.info(f"LLM provider auto-detected from environment: {type(llm_provider).__name__}")
+                logger.warning(f"LLM provider auto-detected from environment: {type(llm_provider).__name__}, model={getattr(llm_provider, 'model', None)}")
+            else:
+                logger.warning("LLM provider auto-detection: no provider configured (NullProvider)")
         except Exception as e:
             logger.warning(f"LLM provider auto-detection atlandi: {e}")
 
