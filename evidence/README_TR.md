@@ -89,9 +89,9 @@ Sistem, gelişmiş kanıt doğrulama için isteğe bağlı LLM sağlayıcıları
 
 | Sağlayıcı | Varsayılan Model | API Anahtarı Env Değişkeni | Model Env Değişkeni |
 |-----------|-----------------|---------------------------|---------------------|
-| Claude | claude-sonnet-4-20250514 | `EVIDENCE_CLAUDE_API_KEY` | `EVIDENCE_CLAUDE_MODEL` |
-| OpenAI | gpt-4o-mini | `EVIDENCE_OPENAI_API_KEY` | `EVIDENCE_OPENAI_MODEL` |
-| Gemini | gemini-1.5-flash | `EVIDENCE_GEMINI_API_KEY` | `EVIDENCE_GEMINI_MODEL` |
+| Claude | claude-sonnet-5 | `EVIDENCE_CLAUDE_API_KEY` | `EVIDENCE_CLAUDE_MODEL` |
+| OpenAI | gpt-5.6-terra | `EVIDENCE_OPENAI_API_KEY` | `EVIDENCE_OPENAI_MODEL` |
+| Gemini | gemini-3.7-flash | `EVIDENCE_GEMINI_API_KEY` | `EVIDENCE_GEMINI_MODEL` |
 
 ### Yapılandırma
 
@@ -100,7 +100,7 @@ Sistem, gelişmiş kanıt doğrulama için isteğe bağlı LLM sağlayıcıları
 ```bash
 # Sağlayıcıya özgü (aynı anda birden fazla sağlayıcı yapılandırılmasına izin verir)
 export EVIDENCE_CLAUDE_API_KEY=your-anthropic-key
-export EVIDENCE_CLAUDE_MODEL=claude-sonnet-4-20250514  # isteğe bağlı
+export EVIDENCE_CLAUDE_MODEL=claude-sonnet-5  # isteğe bağlı
 
 export EVIDENCE_OPENAI_API_KEY=your-openai-key
 export EVIDENCE_GEMINI_API_KEY=your-google-key
@@ -108,7 +108,7 @@ export EVIDENCE_GEMINI_API_KEY=your-google-key
 # Genel geri dönüş (sağlayıcıya özgü ayarlanmadığında kullanılır)
 # export EVIDENCE_LLM_PROVIDER=claude
 # export EVIDENCE_LLM_API_KEY=your-key
-# export EVIDENCE_LLM_MODEL=claude-sonnet-4-20250514
+# export EVIDENCE_LLM_MODEL=claude-sonnet-5
 # export EVIDENCE_LLM_TEMPERATURE=0.0
 # export EVIDENCE_LLM_MAX_TOKENS=256
 ```
@@ -144,12 +144,12 @@ provider = create_provider_from_config()
 provider = create_provider(
     provider_name="claude",
     api_key="your-key",
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-5",
 )
 
 # Sağlık kontrolü
 status = await provider.health_check()
-# {"status": "ok", "provider": "ClaudeProvider", "model": "claude-sonnet-4-20250514", ...}
+# {"status": "ok", "provider": "ClaudeProvider", "model": "claude-sonnet-5", ...}
 
 # Veya doğrudan kullanın
 from evidence.llm_providers import ClaudeProvider

@@ -46,6 +46,10 @@ async def narrate_social(
         intent_type: Intent.type.value (ör. "greeting", "smalltalk", ...).
         user_message: Kullanicinin o anki mesaji (ham).
         recent_history: get_history_for_api() ciktisi — [{"role", "content"}, ...].
+            Provider generate_with_history() destekliyorsa gercek rol-etiketli
+            mesaj olarak da gecirilir (bkz. LLMProvider.generate_with_history);
+            desteklemiyorsa (ör. testlerdeki FakeProvider) sessizce eski
+            generate(prompt) yoluna doner, davranis degismez.
         provider: LLMProvider.generate(prompt) uygulayan nesne, ya da None.
 
     Returns:
@@ -89,7 +93,10 @@ Kullanicinin su anki mesaji: {user_message}
 Kisa, dostane bir yanit yaz."""
 
     try:
-        text = await provider.generate(prompt)
+        if recent_history and hasattr(provider, "generate_with_history"):
+            text = await provider.generate_with_history(prompt, recent_history)
+        else:
+            text = await provider.generate(prompt)
     except Exception as e:  # pragma: no cover - provider'a gore hata tipi degisir
         logger.warning(f"Social narrator LLM call failed: {e}")
         return None

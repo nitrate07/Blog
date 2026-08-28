@@ -371,6 +371,7 @@ class ConversationManager:
             confidence=verdict_info["confidence"],
             matches=matches,
             provider=self.llm_provider,
+            recent_history=self.state.get_history_for_api(),
         )
         if draft is None:
             return rule_based_text

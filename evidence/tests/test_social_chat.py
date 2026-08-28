@@ -77,3 +77,49 @@ class TestNarrateSocial:
         provider = FakeProvider(response="ok")
         result = await narrate_social("some_future_intent", "hey", [], provider=provider)
         assert result == "ok"
+
+
+class HistoryCapableProvider:
+    """Fake provider that also supports real multi-turn history (generate_with_history)."""
+
+    def __init__(self, response: str = "ok"):
+        self.response = response
+        self.last_prompt: str | None = None
+        self.last_history: list | None = None
+        self.generate_called = False
+
+    async def generate(self, prompt: str) -> str:
+        self.generate_called = True
+        self.last_prompt = prompt
+        return self.response
+
+    async def generate_with_history(self, prompt: str, history: list) -> str:
+        self.last_prompt = prompt
+        self.last_history = history
+        return self.response
+
+
+class TestNarrateSocialHistory:
+    @pytest.mark.asyncio
+    async def test_uses_generate_with_history_when_available_and_history_present(self):
+        provider = HistoryCapableProvider()
+        history = [{"role": "user", "content": "önceki soru"}, {"role": "assistant", "content": "önceki cevap"}]
+        result = await narrate_social("thanks", "teşekkürler", history, provider=provider)
+        assert result == "ok"
+        assert provider.last_history == history
+        assert provider.generate_called is False
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_generate_when_no_history(self):
+        provider = HistoryCapableProvider()
+        result = await narrate_social("greeting", "selam", [], provider=provider)
+        assert result == "ok"
+        assert provider.generate_called is True
+
+    @pytest.mark.asyncio
+    async def test_plain_fake_provider_without_generate_with_history_still_works(self):
+        """Backward-compat: FakeProvider (no generate_with_history) always uses generate()."""
+        provider = FakeProvider(response="ok")
+        history = [{"role": "user", "content": "x"}]
+        result = await narrate_social("thanks", "teşekkürler", history, provider=provider)
+        assert result == "ok"

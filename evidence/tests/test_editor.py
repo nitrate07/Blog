@@ -57,6 +57,104 @@ class TestNarrateVerdict:
         assert result is None
 
 
+class ToolCapableProvider:
+    """FakeProvider that also supports the structured tool-calling path."""
+
+    supports_tools = True
+
+    def __init__(self, tool_result: dict | None = None, raises: bool = False):
+        self.tool_result = tool_result
+        self.raises = raises
+        self.last_tool: dict | None = None
+        self.generate_called = False
+
+    async def generate(self, prompt: str) -> str:
+        self.generate_called = True
+        return "fallback text"
+
+    async def generate_with_tool(self, prompt: str, tool: dict) -> dict | None:
+        self.last_tool = tool
+        if self.raises:
+            raise RuntimeError("provider unavailable")
+        return self.tool_result
+
+
+class TestNarrateVerdictStructuredPath:
+    @pytest.mark.asyncio
+    async def test_uses_structured_result_when_valid(self):
+        provider = ToolCapableProvider(tool_result={
+            "explanation": "WHO raporuna göre destekleniyor.",
+            "source_urls_used": ["https://who.int/report-1"],
+        })
+        result = await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider)
+        assert result == "WHO raporuna göre destekleniyor."
+        assert provider.generate_called is False
+        assert provider.last_tool["input_schema"]["properties"]["source_urls_used"]["items"]["enum"] == [
+            m["url"] for m in MATCHES
+        ]
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_free_text_when_out_of_list_url_returned(self):
+        provider = ToolCapableProvider(tool_result={
+            "explanation": "uydurma",
+            "source_urls_used": ["https://example.com/made-up"],
+        })
+        result = await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider)
+        assert result == "fallback text"
+        assert provider.generate_called is True
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_free_text_when_tool_call_fails(self):
+        provider = ToolCapableProvider(raises=True)
+        result = await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider)
+        assert result == "fallback text"
+        assert provider.generate_called is True
+
+    @pytest.mark.asyncio
+    async def test_falls_back_to_free_text_when_empty_explanation(self):
+        provider = ToolCapableProvider(tool_result={"explanation": "  ", "source_urls_used": []})
+        result = await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider)
+        assert result == "fallback text"
+
+    @pytest.mark.asyncio
+    async def test_plain_fake_provider_without_supports_tools_uses_free_text(self):
+        """Backward-compat: FakeProvider (no supports_tools attr) never enters the tool path."""
+        provider = FakeProvider(response="Kanıt WHO raporunu destekliyor (https://who.int/report-1).")
+        result = await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider)
+        assert result == "Kanıt WHO raporunu destekliyor (https://who.int/report-1)."
+
+
+class TestNarrateVerdictHistory:
+    class HistoryCapableProvider:
+        def __init__(self, response: str = "ok"):
+            self.response = response
+            self.last_history: list | None = None
+            self.last_prompt: str | None = None
+
+        async def generate_with_history(self, prompt: str, history: list) -> str:
+            self.last_prompt = prompt
+            self.last_history = history
+            return self.response
+
+    @pytest.mark.asyncio
+    async def test_passes_recent_history_when_provider_supports_it(self):
+        provider = self.HistoryCapableProvider()
+        history = [{"role": "user", "content": "önceki soru"}]
+        result = await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider, recent_history=history)
+        assert result == "ok"
+        assert provider.last_history == history
+
+    @pytest.mark.asyncio
+    async def test_plain_fake_provider_ignores_history_param(self):
+        """FakeProvider has no generate_with_history — passing recent_history must not break it."""
+        provider = FakeProvider(response="Kanıt WHO raporunu destekliyor (https://who.int/report-1).")
+        result = await narrate_verdict(
+            "claim", "supported", 0.8, MATCHES, provider=provider,
+            recent_history=[{"role": "user", "content": "x"}],
+        )
+        assert result == "Kanıt WHO raporunu destekliyor (https://who.int/report-1)."
+
+
 class TestEditAndValidate:
     def test_accepts_text_citing_only_provided_urls(self):
         draft = "Kanıt destekliyor (https://who.int/report-1) ve (https://pubmed.ncbi.nlm.nih.gov/12345/)."
