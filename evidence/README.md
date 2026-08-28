@@ -89,9 +89,9 @@ The system supports optional LLM providers for enhanced evidence verification. W
 
 | Provider | Default Model | API Key Env Var | Model Env Var |
 |----------|---------------|-----------------|---------------|
-| Claude | claude-sonnet-4-20250514 | `EVIDENCE_CLAUDE_API_KEY` | `EVIDENCE_CLAUDE_MODEL` |
-| OpenAI | gpt-4o-mini | `EVIDENCE_OPENAI_API_KEY` | `EVIDENCE_OPENAI_MODEL` |
-| Gemini | gemini-1.5-flash | `EVIDENCE_GEMINI_API_KEY` | `EVIDENCE_GEMINI_MODEL` |
+| Claude | claude-sonnet-5 | `EVIDENCE_CLAUDE_API_KEY` | `EVIDENCE_CLAUDE_MODEL` |
+| OpenAI | gpt-5.6-terra | `EVIDENCE_OPENAI_API_KEY` | `EVIDENCE_OPENAI_MODEL` |
+| Gemini | gemini-3.7-flash | `EVIDENCE_GEMINI_API_KEY` | `EVIDENCE_GEMINI_MODEL` |
 
 ### Configuration
 
@@ -100,7 +100,7 @@ Two approaches — provider-specific (recommended) or generic:
 ```bash
 # Provider-specific (allows multiple providers configured at once)
 export EVIDENCE_CLAUDE_API_KEY=your-anthropic-key
-export EVIDENCE_CLAUDE_MODEL=claude-sonnet-4-20250514  # optional
+export EVIDENCE_CLAUDE_MODEL=claude-sonnet-5  # optional
 
 export EVIDENCE_OPENAI_API_KEY=your-openai-key
 export EVIDENCE_GEMINI_API_KEY=your-google-key
@@ -108,7 +108,7 @@ export EVIDENCE_GEMINI_API_KEY=your-google-key
 # Generic fallback (used when provider-specific not set)
 # export EVIDENCE_LLM_PROVIDER=claude
 # export EVIDENCE_LLM_API_KEY=your-key
-# export EVIDENCE_LLM_MODEL=claude-sonnet-4-20250514
+# export EVIDENCE_LLM_MODEL=claude-sonnet-5
 # export EVIDENCE_LLM_TEMPERATURE=0.0
 # export EVIDENCE_LLM_MAX_TOKENS=256
 ```
@@ -148,12 +148,12 @@ provider = create_provider_from_config()
 provider = create_provider(
     provider_name="claude",
     api_key="your-key",
-    model="claude-sonnet-4-20250514",
+    model="claude-sonnet-5",
 )
 
 # Health check
 status = await provider.health_check()
-# {"status": "ok", "provider": "ClaudeProvider", "model": "claude-sonnet-4-20250514", ...}
+# {"status": "ok", "provider": "ClaudeProvider", "model": "claude-sonnet-5", ...}
 
 # Or use directly
 from evidence.llm_providers import ClaudeProvider

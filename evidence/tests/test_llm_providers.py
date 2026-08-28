@@ -107,7 +107,7 @@ class TestHealthCheck:
         result = await provider.health_check()
         assert result["status"] == "ok"
         assert result["provider"] == "ClaudeProvider"
-        assert result["model"] == "claude-sonnet-4-20250514"
+        assert result["model"] == "claude-sonnet-5"
 
     @pytest.mark.asyncio
     async def test_health_check_error(self):
@@ -217,6 +217,154 @@ class TestGeminiProvider:
         assert result == '{"verdict": "unverified"}'
 
 
+class TestGenerateWithHistory:
+    """generate_with_history() sends real role-tagged messages via _call_llm_with_messages."""
+
+    @pytest.mark.asyncio
+    async def test_prepends_history_before_prompt(self):
+        provider = ClaudeProvider(api_key="test-key")
+        provider._call_llm_with_messages = AsyncMock(return_value="ok")
+        history = [{"role": "user", "content": "Kahve zararlı mı?"}, {"role": "assistant", "content": "Kanıtlar karışık."}]
+
+        result = await provider.generate_with_history("peki çocuklarda?", history)
+
+        assert result == "ok"
+        sent = provider._call_llm_with_messages.call_args[0][0]
+        assert sent == history + [{"role": "user", "content": "peki çocuklarda?"}]
+
+    @pytest.mark.asyncio
+    async def test_empty_history_still_includes_prompt(self):
+        provider = ClaudeProvider(api_key="test-key")
+        provider._call_llm_with_messages = AsyncMock(return_value="ok")
+
+        await provider.generate_with_history("selam", [])
+
+        sent = provider._call_llm_with_messages.call_args[0][0]
+        assert sent == [{"role": "user", "content": "selam"}]
+
+
+class TestGenerateWithTool:
+    """generate_with_tool() — fail-closed like compare()/generate()."""
+
+    @pytest.mark.asyncio
+    async def test_returns_none_when_provider_does_not_support_tools(self):
+        provider = GroqProvider(api_key="test-key")
+        provider.supports_tools = False  # simulate a future provider without tool support
+        result = await provider.generate_with_tool("prompt", {"name": "x", "input_schema": {}})
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_none_on_exception(self):
+        provider = ClaudeProvider(api_key="test-key")
+        provider._call_llm_with_tool = AsyncMock(side_effect=RuntimeError("boom"))
+        result = await provider.generate_with_tool("prompt", {"name": "x", "input_schema": {}})
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_returns_parsed_input_on_success(self):
+        provider = ClaudeProvider(api_key="test-key")
+        provider._call_llm_with_tool = AsyncMock(return_value={"explanation": "ok", "source_urls_used": []})
+        result = await provider.generate_with_tool("prompt", {"name": "x", "input_schema": {}})
+        assert result == {"explanation": "ok", "source_urls_used": []}
+
+
+class TestCallLlmWithToolPerProvider:
+    """Verify the actual request/response shape per provider's tool-forcing API."""
+
+    TOOL = {
+        "name": "report_explanation",
+        "description": "desc",
+        "input_schema": {
+            "type": "object",
+            "properties": {"explanation": {"type": "string"}, "source_urls_used": {"type": "array", "items": {"type": "string"}}},
+            "required": ["explanation", "source_urls_used"],
+        },
+    }
+
+    @pytest.mark.asyncio
+    async def test_claude_parses_tool_use_block(self):
+        provider = ClaudeProvider(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "content": [{"type": "tool_use", "name": "report_explanation", "input": {"explanation": "hi", "source_urls_used": ["https://who.int/x"]}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("evidence.llm_providers.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=mock_response)
+            result = await provider._call_llm_with_tool("prompt", self.TOOL)
+
+        assert result == {"explanation": "hi", "source_urls_used": ["https://who.int/x"]}
+
+    @pytest.mark.asyncio
+    async def test_claude_returns_none_when_tool_not_called(self):
+        provider = ClaudeProvider(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {"content": [{"type": "text", "text": "no tool call"}]}
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("evidence.llm_providers.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=mock_response)
+            result = await provider._call_llm_with_tool("prompt", self.TOOL)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_openai_parses_tool_call_arguments(self):
+        provider = OpenAIProvider(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [{"message": {"tool_calls": [{"function": {"name": "report_explanation", "arguments": json.dumps({"explanation": "hi", "source_urls_used": []})}}]}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("evidence.llm_providers.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=mock_response)
+            result = await provider._call_llm_with_tool("prompt", self.TOOL)
+
+        assert result == {"explanation": "hi", "source_urls_used": []}
+
+    @pytest.mark.asyncio
+    async def test_openai_returns_none_on_malformed_arguments(self):
+        provider = OpenAIProvider(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "choices": [{"message": {"tool_calls": [{"function": {"name": "report_explanation", "arguments": "not json"}}]}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("evidence.llm_providers.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=mock_response)
+            result = await provider._call_llm_with_tool("prompt", self.TOOL)
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_gemini_parses_function_call_args(self):
+        provider = GeminiProvider(api_key="test-key")
+        mock_response = MagicMock()
+        mock_response.json.return_value = {
+            "candidates": [{"content": {"parts": [{"functionCall": {"name": "report_explanation", "args": {"explanation": "hi", "source_urls_used": []}}}]}}]
+        }
+        mock_response.raise_for_status = MagicMock()
+
+        with patch("evidence.llm_providers.httpx.AsyncClient") as mock_client:
+            mock_client.return_value.__aenter__ = AsyncMock(return_value=mock_client)
+            mock_client.return_value.__aexit__ = AsyncMock(return_value=False)
+            mock_client.post = AsyncMock(return_value=mock_response)
+            result = await provider._call_llm_with_tool("prompt", self.TOOL)
+
+        assert result == {"explanation": "hi", "source_urls_used": []}
+
+
 class TestProviderRegistry:
     """Test provider registry and factory."""
 
@@ -242,12 +390,12 @@ class TestProviderRegistry:
     def test_create_claude_provider(self):
         provider = create_provider(provider_name="claude", api_key="test-key")
         assert isinstance(provider, ClaudeProvider)
-        assert provider.model == "claude-sonnet-4-20250514"
+        assert provider.model == "claude-sonnet-5"
 
     def test_create_openai_provider(self):
         provider = create_provider(provider_name="openai", api_key="test-key")
         assert isinstance(provider, OpenAIProvider)
-        assert provider.model == "gpt-4o-mini"
+        assert provider.model == "gpt-5.6-terra"
 
     def test_create_groq_provider(self):
         provider = create_provider(provider_name="groq", api_key="test-key")
@@ -257,7 +405,7 @@ class TestProviderRegistry:
     def test_create_gemini_provider(self):
         provider = create_provider(provider_name="gemini", api_key="test-key")
         assert isinstance(provider, GeminiProvider)
-        assert provider.model == "gemini-1.5-flash"
+        assert provider.model == "gemini-3.7-flash"
 
     def test_create_provider_with_custom_model(self):
         provider = create_provider(

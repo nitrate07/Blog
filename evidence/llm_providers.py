@@ -129,6 +129,7 @@ class LLMProvider(VerificationProvider, ABC):
     """Base class for LLM-based verification providers."""
 
     DEFAULT_MODEL: str = ""
+    supports_tools: bool = False
 
     def __init__(
         self,
@@ -193,6 +194,36 @@ class LLMProvider(VerificationProvider, ABC):
         """Generate a response for a given prompt (interpreter mode)."""
         return await self._call_llm(prompt)
 
+    async def generate_with_history(self, prompt: str, history: list[dict[str, str]]) -> str:
+        """Generate a response for a prompt, preceded by real multi-turn message history.
+
+        Unlike generate(), this sends prior turns as actual role-tagged messages
+        (via _call_llm_with_messages) instead of relying on the caller to flatten
+        history into the prompt text — gives follow-up questions real conversational
+        continuity instead of a single isolated prompt.
+        """
+        messages = list(history) + [{"role": "user", "content": prompt}]
+        return await self._call_llm_with_messages(messages)
+
+    async def generate_with_tool(self, prompt: str, tool: dict[str, Any]) -> dict[str, Any] | None:
+        """Force a single structured tool call and return its parsed input, or None.
+
+        Fail-closed like compare()/generate(): any error, unsupported provider,
+        or malformed response returns None rather than raising — callers always
+        have a plain-text fallback path available.
+        """
+        if not self.supports_tools:
+            return None
+        try:
+            return await self._call_llm_with_tool(prompt, tool)
+        except Exception as e:
+            logger.warning(f"Tool-call request failed ({self.__class__.__name__}): {e}")
+            return None
+
+    async def _call_llm_with_tool(self, prompt: str, tool: dict[str, Any]) -> dict[str, Any] | None:
+        """Override in subclasses that set supports_tools = True."""
+        return None
+
     async def health_check(self) -> dict[str, object]:
         """Send a minimal request to verify the provider is reachable."""
         try:
@@ -252,9 +283,10 @@ class LLMProvider(VerificationProvider, ABC):
 class ClaudeProvider(LLMProvider):
     """Anthropic Claude provider for evidence verification and chat."""
 
-    DEFAULT_MODEL = "claude-sonnet-4-20250514"
+    DEFAULT_MODEL = "claude-sonnet-5"
     API_URL = "https://api.anthropic.com/v1/messages"
     API_VERSION = "2023-06-01"
+    supports_tools = True
 
     def __init__(
         self,
@@ -311,12 +343,36 @@ class ClaudeProvider(LLMProvider):
             return content[0].get("text", "")
         return ""
 
+    async def _call_llm_with_tool(self, prompt: str, tool: dict[str, Any]) -> dict[str, Any] | None:
+        """Force a single tool call via Anthropic's tool_choice — same forcing pattern
+        already proven in evidence/providers.py's AnthropicVerificationProvider."""
+        headers = self._get_headers()
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "max_tokens": self.max_tokens,
+            "temperature": self.temperature,
+            "messages": [{"role": "user", "content": prompt}],
+            "tools": [tool],
+            "tool_choice": {"type": "tool", "name": tool["name"]},
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(self.API_URL, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        for block in data.get("content", []):
+            if block.get("type") == "tool_use" and block.get("name") == tool["name"]:
+                return block.get("input")
+        return None
+
 
 class OpenAIProvider(LLMProvider):
     """OpenAI provider for evidence verification and chat."""
 
-    DEFAULT_MODEL = "gpt-4o-mini"
+    DEFAULT_MODEL = "gpt-5.6-terra"
     API_URL = "https://api.openai.com/v1/chat/completions"
+    supports_tools = True
 
     def __init__(
         self,
@@ -360,12 +416,51 @@ class OpenAIProvider(LLMProvider):
             return choices[0].get("message", {}).get("content", "")
         return ""
 
+    async def _call_llm_with_tool(self, prompt: str, tool: dict[str, Any]) -> dict[str, Any] | None:
+        """Force a single tool call via OpenAI's function-calling tool_choice."""
+        headers = self._get_headers()
+        openai_tool = {
+            "type": "function",
+            "function": {
+                "name": tool["name"],
+                "description": tool.get("description", ""),
+                "parameters": tool["input_schema"],
+            },
+        }
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+            "tools": [openai_tool],
+            "tool_choice": {"type": "function", "function": {"name": tool["name"]}},
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(self.API_URL, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        choices = data.get("choices", [])
+        if not choices:
+            return None
+        tool_calls = choices[0].get("message", {}).get("tool_calls") or []
+        for call in tool_calls:
+            if call.get("function", {}).get("name") != tool["name"]:
+                continue
+            try:
+                return json.loads(call["function"]["arguments"])
+            except (json.JSONDecodeError, KeyError):
+                return None
+        return None
+
 
 class GroqProvider(LLMProvider):
     """Groq provider (OpenAI-compatible API) for evidence verification and chat."""
 
     DEFAULT_MODEL = "llama-3.3-70b-versatile"
     API_URL = "https://api.groq.com/openai/v1/chat/completions"
+    supports_tools = True
 
     def __init__(
         self,
@@ -409,12 +504,51 @@ class GroqProvider(LLMProvider):
             return choices[0].get("message", {}).get("content", "")
         return ""
 
+    async def _call_llm_with_tool(self, prompt: str, tool: dict[str, Any]) -> dict[str, Any] | None:
+        """Force a single tool call via Groq's OpenAI-compatible function-calling tool_choice."""
+        headers = self._get_headers()
+        openai_tool = {
+            "type": "function",
+            "function": {
+                "name": tool["name"],
+                "description": tool.get("description", ""),
+                "parameters": tool["input_schema"],
+            },
+        }
+        payload: dict[str, Any] = {
+            "model": self.model,
+            "temperature": self.temperature,
+            "max_tokens": self.max_tokens,
+            "messages": [{"role": "user", "content": prompt}],
+            "tools": [openai_tool],
+            "tool_choice": {"type": "function", "function": {"name": tool["name"]}},
+        }
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(self.API_URL, json=payload, headers=headers)
+            response.raise_for_status()
+            data = response.json()
+
+        choices = data.get("choices", [])
+        if not choices:
+            return None
+        tool_calls = choices[0].get("message", {}).get("tool_calls") or []
+        for call in tool_calls:
+            if call.get("function", {}).get("name") != tool["name"]:
+                continue
+            try:
+                return json.loads(call["function"]["arguments"])
+            except (json.JSONDecodeError, KeyError):
+                return None
+        return None
+
 
 class GeminiProvider(LLMProvider):
     """Google Gemini provider for evidence verification and chat."""
 
-    DEFAULT_MODEL = "gemini-1.5-flash"
+    DEFAULT_MODEL = "gemini-3.7-flash"
     API_URL_TEMPLATE = "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+    supports_tools = True
 
     def __init__(
         self,
@@ -465,3 +599,44 @@ class GeminiProvider(LLMProvider):
             if parts:
                 return parts[0].get("text", "")
         return ""
+
+    async def _call_llm_with_tool(self, prompt: str, tool: dict[str, Any]) -> dict[str, Any] | None:
+        """Force a single tool call via Gemini's functionDeclarations + ANY function_calling_config."""
+        url = self.API_URL_TEMPLATE.format(model=self.model)
+        gemini_tool = {
+            "functionDeclarations": [{
+                "name": tool["name"],
+                "description": tool.get("description", ""),
+                "parameters": tool["input_schema"],
+            }]
+        }
+        payload: dict[str, Any] = {
+            "contents": [{"role": "user", "parts": [{"text": prompt}]}],
+            "tools": [gemini_tool],
+            "tool_config": {
+                "function_calling_config": {
+                    "mode": "ANY",
+                    "allowed_function_names": [tool["name"]],
+                }
+            },
+            "generationConfig": {
+                "temperature": self.temperature,
+                "maxOutputTokens": self.max_tokens,
+            },
+        }
+        params = {"key": self.api_key}
+
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(url, json=payload, params=params)
+            response.raise_for_status()
+            data = response.json()
+
+        candidates = data.get("candidates", [])
+        if not candidates:
+            return None
+        parts = candidates[0].get("content", {}).get("parts", [])
+        for part in parts:
+            fc = part.get("functionCall")
+            if fc and fc.get("name") == tool["name"]:
+                return fc.get("args")
+        return None

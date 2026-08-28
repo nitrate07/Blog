@@ -58,7 +58,7 @@ _SYSTEM_PROMPT = (
     "report_verdict tool exactly once with your answer."
 )
 
-DEFAULT_VERIFIER_MODEL = "claude-haiku-4-5-20251001"
+DEFAULT_VERIFIER_MODEL = "claude-haiku-4-5"
 
 
 class AnthropicVerificationProvider:
