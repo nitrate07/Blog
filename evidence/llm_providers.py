@@ -458,7 +458,7 @@ class OpenAIProvider(LLMProvider):
 class GroqProvider(LLMProvider):
     """Groq provider (OpenAI-compatible API) for evidence verification and chat."""
 
-    DEFAULT_MODEL = "llama-3.3-70b-versatile"
+    DEFAULT_MODEL = "openai/gpt-oss-120b"
     API_URL = "https://api.groq.com/openai/v1/chat/completions"
     supports_tools = True
 

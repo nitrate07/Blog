@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: ari-kaynak-evidence-api
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: EVIDENCE_LLM_PROVIDER
+        value: groq
+      - key: EVIDENCE_GROQ_API_KEY
+        sync: false
+      - key: EVIDENCE_LANGUAGE
+        value: tr
