@@ -400,7 +400,7 @@ class TestProviderRegistry:
     def test_create_groq_provider(self):
         provider = create_provider(provider_name="groq", api_key="test-key")
         assert isinstance(provider, GroqProvider)
-        assert provider.model == "llama-3.3-70b-versatile"
+        assert provider.model == "openai/gpt-oss-120b"
 
     def test_create_gemini_provider(self):
         provider = create_provider(provider_name="gemini", api_key="test-key")
