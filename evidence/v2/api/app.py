@@ -261,7 +261,26 @@ def create_app(
     
     # Initialize rate limiter
     rate_limiter = RateLimiter(max_requests=100, window_seconds=3600)
-    
+
+    # LLM provider otomatik tespiti: llm_provider acikca verilmediyse ortam
+    # degiskenlerinden (EVIDENCE_GROQ_API_KEY vb.) coz. Hicbir key ayarli
+    # degilse create_provider_from_config NullProvider doner ve burada None'a
+    # cevrilir — test/CI varsayilaniyla (key yok) davranis birebir ayni kalir.
+    # Bu satir olmadan, gercek bir deploy'da .env'e key konsa bile bu modulun
+    # dogrudan calistirdigi `app = create_app()` hicbir zaman LLM'i kullanmazdi.
+    if llm_provider is None:
+        try:
+            from ...config import Settings as _ProviderSettings
+            from ...provider_registry import create_provider_from_config
+            from ...providers import NullProvider
+
+            _resolved_provider = create_provider_from_config(_ProviderSettings())
+            if not isinstance(_resolved_provider, NullProvider):
+                llm_provider = _resolved_provider
+                logger.info(f"LLM provider auto-detected from environment: {type(llm_provider).__name__}")
+        except Exception as e:
+            logger.warning(f"LLM provider auto-detection atlandi: {e}")
+
     # Otomatik RAG kurulumu: retriever verilmediyse yerel arsivi endeksle.
     # Bot boylece kendi dogrulanmis makale arsivini gorebilir.
     # EVIDENCE_AUTO_INDEX=0 ile kapatilabilir (testler/hizli baslangic).
