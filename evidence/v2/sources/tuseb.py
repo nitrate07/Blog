@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 import httpx
@@ -32,18 +31,15 @@ class TUSEBAgent(HealthOrgAgent):
         resp = await self._get_with_retry(client, self.SEARCH_URL, params={
             "q": query,
         })
-        text = resp.text
-        
-        pattern = r'href="(/[^"]+)"[^>]*>(.*?)</a>'
-        matches = re.findall(pattern, text, re.DOTALL)
+
+        # min_title_len=10: TÜSEB sitesindeki cok kisa/menu baglantilarini
+        # (ör. "Ana Sayfa", "İletişim") gercek yayin basliklarindan ayirt
+        # etmek icin — bu ozel kural regex donemindeydi de vardi, korundu.
+        matches = self._extract_links(resp.text, "/", limit, min_title_len=10)
         self._warn_if_zero_matches(matches, query)
-        
+
         results = []
-        for href, title in matches[:limit]:
-            clean_title = re.sub(r'<[^>]+>', '', title).strip()
-            if not clean_title or len(clean_title) < 10:
-                continue
-            
+        for href, clean_title in matches:
             passage = await self._fetch_passage(client, href)
             results.append({
                 "source": self.name,
@@ -58,9 +54,7 @@ class TUSEBAgent(HealthOrgAgent):
     async def _fetch_passage(self, client: httpx.AsyncClient, href: str) -> str:
         try:
             resp = await self._get_with_retry(client, f"https://www.tuseb.gov.tr{href}")
-            match = re.search(r'<div[^>]*class="[^"]*content[^"]*"[^>]*>(.*?)</div>', resp.text, re.DOTALL)
-            if match:
-                return re.sub(r'<[^>]+>', '', match.group(1)).strip()[:2000]
+            return self._extract_passage(resp.text, "content")
         except Exception as e:
             logger.debug(f"{self.name}: passage fetch failed for {href!r}: {e}")
         return ""

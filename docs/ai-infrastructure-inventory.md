@@ -320,6 +320,25 @@ Objektif gözlemler; çözüm içermez.
    > edilebilir hale geldi (önceki oturum), ama otomatik olarak
    > düzelmiyor; regex'lerin kendisini sağlamlaştırmak (ör. BeautifulSoup'a
    > geçiş) ayrı bir iş olarak açık kalıyor.
+
+   > **BeautifulSoup geçişi tamamlandı (2026-08-29):** Yukarıdaki "açık
+   > kalıyor" notu artık geçerli değil. 6 ajan (nice, ecdc, ema, esc,
+   > tuseb, google_scholar) ham regex yerine BeautifulSoup kullanıyor —
+   > `HealthOrgAgent._extract_links()`/`_extract_passage()` paylaşılan
+   > yardımcıları (health_base.py) 5 ajanda ortak, Google Scholar'ın
+   > başlık+snippet'i ayrı elementlerden indeks bazlı eşleştirmesi
+   > gerektiği için kendi mantığını korudu. Somut, doğrulanmış fark: eski
+   > regex kapanmamış/geçersiz HTML'de tamamen boş liste dönüyordu (test
+   > edildi), BeautifulSoup'un `html.parser`'ı geçersiz HTML'i de makul
+   > şekilde ağaca çevirip doğru linki çıkarabiliyor. Diğer bazı
+   > senaryolarda (attribute sırası, iç içe span) eski regex + ayrı bir
+   > temizlik regex'i ikilisi de aslında doğru çalışıyordu — bu
+   > abartılmadı; BeautifulSoup'un asıl kazancı buralarda fonksiyonel
+   > eşitlikten çok mimari: tek adımda çıkarma+temizlik, ayrı bir
+   > "iki regex'i senkron tutma" bakım yükü ortadan kalktı. 17 yeni test
+   > (`test_beautifulsoup_migration.py`) — üçü daha önce hiç test edilmemiş
+   > ajanlar (EMA, ESC, TUSEB) için temel doğruluk, geri kalanı paylaşılan
+   > yardımcıların gerçek dayanıklılık senaryoları için.
 6. ~~**"Chroma" adlandırması yanıltıcıdır:**~~ **(2026-08-29 itibarıyla düzeltildi:**
    `evidence/rag/chroma_store.py` artık gerçek ChromaDB + sentence-transformers
    embedding kullanan, opt-in (`EVIDENCE_RAG_BACKEND=chroma`) bir backend olarak
