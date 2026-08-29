@@ -178,8 +178,25 @@
 
 <script>
 (function(){
-  // Canlı API adresi — deploy sonrası burayı güncelle (örn. https://api.arikaynak.org)
-  var API_BASE = window.ARI_API_BASE || 'http://localhost:8000';
+  // Canli API adresi. window.ARI_API_BASE bu script'ten once tanimlanmis bir
+  // sey varsa onu kullanir; yoksa asagidaki varsayilana duser.
+  //
+  // NOT (2026-08-29): Bu satir eskiden 'http://localhost:8000' idi ve yanindaki
+  // "deploy sonrasi burayi guncelle" yorumu hic uygulanmamisti — yani canli
+  // sitedeki (nitrate07.github.io/Blog) sohbet kutusu, ziyaretcinin kendi
+  // tarayicisinda hicbir zaman calisan bir sunucu olmayan localhost:8000'e
+  // istek atmaya calisiyordu; backend'de Groq anahtari dogru ayarlansa bile
+  // sohbet asla calismazdi. Asagidaki adres, render.yaml'daki servis adindan
+  // ("ari-kaynak-evidence-api") turetildi — Render'in varsayilan URL kurali
+  // https://<servis-adi>.onrender.com'dur. DOGRULANMADI (bu oturumda Render
+  // paneline erisim yoktu) — eger yanlissa, asagidaki gibi FAIL-CLOSED
+  // calisir: stream() basarisiz olur -> fallback() dener -> o da basarisiz
+  // olursa kullaniciya zaten var olan nazik hata mesaji gosterilir (bkz.
+  // send() fonksiyonu asagida), sayfa crash etmez.
+  //
+  // Dogrulamak/duzeltmek icin: Render panelinde servisin gercek adresini
+  // kontrol edip asagidaki string'i o adresle degistirin.
+  var API_BASE = window.ARI_API_BASE || 'https://ari-kaynak-evidence-api.onrender.com';
 
   var scroll = document.getElementById('chatScroll');
   var input = document.getElementById('askInput');
