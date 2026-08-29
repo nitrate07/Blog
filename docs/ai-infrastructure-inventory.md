@@ -345,5 +345,26 @@ Objektif gözlemler; çözüm içermez.
    mevcut — bkz. Bölüm 1 güncelleme notu.**)** Varsayılan backend hâlâ TF-IDF'dir;
    bu madde artık yalnızca "varsayılan olarak Chroma kullanılmıyor" anlamına gelir,
    "Chroma hiç kullanılamaz" anlamına gelmez.
-7. **Görsel kanal tamamen boş:** Makale içi görsellerin doğrulanması, OCR ya da
-   çok-modlu sorgulama için ne kod ne bağımlılık mevcut.
+7. ~~**Görsel kanal tamamen boş:**~~ **(2026-08-29 itibarıyla kısmen düzeltildi:**
+   `evidence/vision/ocr.py` (Tesseract OCR) + `evidence/chat/image_claim.py` +
+   `POST /v1/investigator/chat/image` uç noktası ile metin çıkarımı ve
+   doğrulama döngüsü tamamlandı — bkz. Bölüm 5 güncelleme notu.**)** Hâlâ
+   boş: çok-modlu "bu görselde ne var" analizi, ters görsel arama.
+8. **`AnswerPlanner` (`evidence/chat/answer.py`, 292 satır) hesaplanıyor
+   ama hiç kullanılmıyor.** `conversation.py`'de her turda `answer_plan =
+   self.answer_planner.plan(...)` çağrılıyor — format seçimi, bölüm
+   sıralaması, ton/dil kararları içeren dikkatli bir planlama mantığı. Ama
+   sonuç yalnızca `logger.info(f"Answer format: {answer_plan.format.value}")`
+   ile loglanıyor; `self.response_builder.build(...)` çağrısına **hiç
+   geçirilmiyor** — gerçek cevap metni tamamen ayrı, kendi sabit-kodlu
+   mantığıyla (`response.py`) üretiliyor. Doğrulama: `answer_plan`
+   değişkeni `conversation.py`'de log satırından sonra bir daha hiç
+   geçmiyor; `evidence/tests/`'de `answer.py`/`AnswerPlanner` için özel
+   bir test dosyası da yok — kod tabanının geri kalanının neredeyse
+   tamamının test edildiği göz önüne alınırsa, bu muhtemelen inşa edilip
+   hiç bitirilmeden bırakılmış bir entegrasyon noktası. Bilinçli olarak
+   burada **düzeltilmedi**: `response.py` (692 satır) iyi test edilmiş ve
+   stabil, `AnswerPlanner`'ın kararlarını gerçekten uygulayacak şekilde
+   yeniden bağlamak büyük, riskli bir değişiklik olurdu — bu, kullanıcı
+   yönlendirmesiyle ayrıca ele alınmalı (ya gerçekten bağlanmalı ya da
+   `answer_plan` hesaplaması kaldırılmalı, ikisi de makul).

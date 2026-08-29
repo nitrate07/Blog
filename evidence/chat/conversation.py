@@ -30,7 +30,7 @@ from .intent import SOCIAL_INTENTS, Intent, IntentAnalyzer, IntentType, is_inter
 from .investigator import EvidenceInvestigator, InvestigationResult
 from .planner import InvestigationPlan, Planner
 from .response import ChatResponse, ResponseBuilder
-from .search_query import build_search_query, has_health_topic
+from .search_query import build_search_query, has_health_topic, has_substantive_content
 from .sufficiency import SufficiencyChecker, SufficiencyResult
 from .answer import AnswerPlanner
 
@@ -218,10 +218,20 @@ class ConversationManager:
         # UZERINDE DEGIL: _extract_claim VERIFY_CLAIM icin sona her zaman
         # "?" ekledigi icin cleaned_query her zaman interrogative olurdu,
         # bu da kontrolu anlamsizlastirirdi.
+        #
+        # NOT (2026-08-29, ikinci duzeltme): is_interrogative tek basina
+        # yeterli degildi — canli testle bulundu: "Bu doğru mu?" gibi
+        # baglamsiz, isaret-zamiri-tabanli sorular dilbilgisel olarak
+        # "soru" sayilip arastirmaya giriyordu, ama HICBIR gercek konu
+        # icermedikleri icin arsivden rastgele/alakasiz sonuclar toplayip
+        # dusuk-ama-varolan bir "hukum" uretebiliyorlardi (⚠️ uyarisi
+        # gosterilse bile, bu tur bir mesaj HIC bir hukum sekli almamali).
+        # has_substantive_content ek kontrolu, dolgu/isaret-zamiri disinda
+        # en az bir gercek kelime aramasi gerektirir.
         if (
             intent.type == IntentType.VERIFY_CLAIM
             and not has_health_topic(intent.cleaned_query)
-            and not is_interrogative(intent.original_query)
+            and not (is_interrogative(intent.original_query) and has_substantive_content(intent.original_query))
         ):
             response = self.response_builder._unrecognized_claim(intent)
             if self.llm_provider is not None:
