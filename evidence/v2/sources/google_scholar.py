@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 import httpx
+from bs4 import BeautifulSoup
 
 from .health_base import HealthOrgAgent
 
@@ -35,27 +35,36 @@ class GoogleScholarAgent(HealthOrgAgent):
         }, headers={
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
-        text = resp.text
-        
-        # Extract results
-        title_pattern = r'<h3[^>]*class="gs_rt"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
-        title_matches = re.findall(title_pattern, text, re.DOTALL)
-        self._warn_if_zero_matches(title_matches, query)
-        
-        # Extract snippets
-        snippet_pattern = r'<div[^>]*class="gs_rs"[^>]*>(.*?)</div>'
-        snippets = re.findall(snippet_pattern, text, re.DOTALL)
-        
+
+        # NOT (2026-08-29): Diger 5 ajanin aksine burasi paylasilan
+        # _extract_links/_extract_passage'a uymuyor — baslik (h3.gs_rt) ve
+        # snippet (div.gs_rs) AYRI elementler; orijinal regex de bunlari
+        # ayri ayri toplayip indekse gore esliyordu (title_matches[i] <->
+        # snippets[i]) — ayni yaklasim burada BeautifulSoup ile korundu,
+        # yalnizca ayristirma motoru degisti.
+        try:
+            soup = BeautifulSoup(resp.text, "html.parser")
+        except Exception as e:
+            logger.warning(f"{self.name}: HTML ayristirma hatasi: {e}")
+            return []
+
+        title_elements = soup.find_all("h3", class_="gs_rt")
+        self._warn_if_zero_matches(title_elements, query)
+        snippet_elements = soup.find_all("div", class_="gs_rs")
+
         results = []
-        for i, (url, title) in enumerate(title_matches[:limit]):
-            clean_title = re.sub(r'<[^>]+>', '', title).strip()
-            passage = re.sub(r'<[^>]+>', '', snippets[i]).strip()[:2000] if i < len(snippets) else ""
-            
+        for i, title_el in enumerate(title_elements[:limit]):
+            link_el = title_el.find("a", href=True)
+            if link_el is None:
+                continue
+            clean_title = title_el.get_text(separator=" ", strip=True)
+            passage = snippet_elements[i].get_text(separator=" ", strip=True)[:2000] if i < len(snippet_elements) else ""
+
             results.append({
                 "source": self.name,
                 "organization": "Google Scholar",
                 "title": clean_title,
-                "url": url,
+                "url": link_el["href"],
                 "passage": passage,
                 "source_type": self.source_type,
             })

@@ -159,6 +159,6 @@ değerlendirilebilir.
 | 2. Matris her mutasyonda baştan kuruluyor | Chroma'ya geçiş bunu da native olarak çözer (**uygulandı**) |
 | 3. Terim sözlüğü ölçeklenmiyor + iki sapmış kopya var | Bölüm 1 — Zeyrek/spaCy-tr (**hâlâ açık**); iki kopyanın birleştirilmesi (**uygulandı**) |
 | 4. Framework yokluğunun artı/eksisi | Bölüm 6 — şimdilik framework'süz devam, LangGraph rezervde |
-| 5. Scraping kırılganlığı (6 ajan HTML, 8 ajan Crossref'e bağımlı) | Retry/backoff eksikliği **uygulandı** (paylaşılan `get_with_retry`, `journal_base.py`'deki gizli hata dahil düzeltildi); regex'lerin kendisinin kırılganlığı **hâlâ açık** |
+| 5. Scraping kırılganlığı (6 ajan HTML, 8 ajan Crossref'e bağımlı) | Retry/backoff **uygulandı** (paylaşılan `get_with_retry`); regex kırılganlığı da **uygulandı** (6 ajan BeautifulSoup'a taşındı) — **kalem tamamen kapandı** |
 | 6. "Chroma" adlandırması yanıltıcı | Bölüm 3 — gerçek Chroma'ya geçiş adı gerçeğe uydurdu (**uygulandı**) |
 | 7. Görsel kanal tamamen boş | Bölüm 5 — **kısmen uygulandı** (Tesseract OCR metin çıkarımı); vision-LLM analizi ve ters görsel arama hâlâ açık |

@@ -6,6 +6,7 @@ import logging
 from typing import Any
 
 import httpx
+from bs4 import BeautifulSoup
 
 from ..core.interfaces import SourceAgent
 from .http_retry import DEFAULT_BACKOFF_SECONDS, DEFAULT_MAX_RETRIES, get_with_retry
@@ -75,4 +76,66 @@ class HealthOrgAgent(SourceAgent):
                 f"bulundu (query={query!r}) — ya gercekten sonuc yok ya da "
                 f"sitenin HTML yapisi degisti (scraper curumesi olasi)"
             )
+
+    def _extract_links(
+        self, html: str, href_prefix: str, limit: int, min_title_len: int = 1
+    ) -> list[tuple[str, str]]:
+        """href'i verilen onekle baslayan tum <a> etiketlerini (href, temiz
+        baslik) cifti olarak dondurur — BeautifulSoup ile.
+
+        NOT (2026-08-29): Bu 6 ajan (nice, ecdc, ema, esc, tuseb,
+        google_scholar) daha once ham regex ile HTML ayristiriyordu
+        (ör. r'href="(/guidance/[^"]+)"[^>]*>(.*?)</a>'). Regex, HTML
+        yapisinin TAM olarak beklenen sekilde olmasina bagimlidir — ic ice
+        gecmis etiketler, farkli attribute sirasi, kendi kendini kapatmayan
+        etiketler gibi gercek dunyada sik goruelen HTML varyasyonlarinda
+        sessizce 0 sonuc donmeye baslar (bkz. _warn_if_zero_matches — bu
+        durumu en azindan loglarda ayirt edilebilir kilan onceki duzeltme).
+        BeautifulSoup gercek bir HTML parser'i oldugu icin bu varyasyonlarin
+        cogunda calismaya devam eder; site tamamen farkli bir URL yapisina
+        gecmedigi surece (ki bu durumda zaten sadece href_prefix'i
+        guncellemek yeterli olur) daha dayaniklidir.
+        """
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+        except Exception as e:
+            logger.warning(f"{self.name}: HTML ayristirma hatasi: {e}")
+            return []
+
+        results: list[tuple[str, str]] = []
+        seen_hrefs: set[str] = set()
+        for a in soup.find_all("a", href=True):
+            href = a["href"]
+            if not href.startswith(href_prefix) or href in seen_hrefs:
+                continue
+            title = a.get_text(separator=" ", strip=True)
+            if len(title) < min_title_len:
+                continue
+            seen_hrefs.add(href)
+            results.append((href, title))
+            if len(results) >= limit:
+                break
+        return results
+
+    def _extract_passage(self, html: str, class_substring: str, max_len: int = 2000) -> str:
+        """Class attribute'unde verilen alt-diziyi iceren ilk elementin
+        duz metnini dondurur — BeautifulSoup ile (bkz. _extract_links notu,
+        ayni regex-kirilganligi gerekcesi burada da gecerli).
+        """
+        try:
+            soup = BeautifulSoup(html, "html.parser")
+        except Exception as e:
+            logger.debug(f"{self.name}: HTML ayristirma hatasi (pasaj): {e}")
+            return ""
+
+        def _matches(tag: Any) -> bool:
+            if not tag.has_attr("class"):
+                return False
+            joined = " ".join(tag.get("class") or [])
+            return class_substring in joined
+
+        el = soup.find(_matches)
+        if el is None:
+            return ""
+        return el.get_text(separator=" ", strip=True)[:max_len]
 

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import re
 from typing import Any
 
 import httpx
@@ -33,18 +32,12 @@ class NICEAgent(HealthOrgAgent):
             "q": query,
             "type": "guidance,files",
         })
-        text = resp.text
-        
-        pattern = r'href="(/guidance/[^"]+)"[^>]*>(.*?)</a>'
-        matches = re.findall(pattern, text, re.DOTALL)
+
+        matches = self._extract_links(resp.text, "/guidance/", limit)
         self._warn_if_zero_matches(matches, query)
-        
+
         results = []
-        for href, title in matches[:limit]:
-            clean_title = re.sub(r'<[^>]+>', '', title).strip()
-            if not clean_title:
-                continue
-            
+        for href, clean_title in matches:
             passage = await self._fetch_passage(client, href)
             results.append({
                 "source": self.name,
@@ -59,9 +52,7 @@ class NICEAgent(HealthOrgAgent):
     async def _fetch_passage(self, client: httpx.AsyncClient, href: str) -> str:
         try:
             resp = await self._get_with_retry(client, f"https://www.nice.org.uk{href}")
-            match = re.search(r'<div[^>]*class="[^"]*overview[^"]*"[^>]*>(.*?)</div>', resp.text, re.DOTALL)
-            if match:
-                return re.sub(r'<[^>]+>', '', match.group(1)).strip()[:2000]
+            return self._extract_passage(resp.text, "overview")
         except Exception as e:
             logger.debug(f"{self.name}: passage fetch failed for {href!r}: {e}")
         return ""
