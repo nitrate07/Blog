@@ -266,6 +266,23 @@ export EVIDENCE_RAG_MAX_CONTEXT_LENGTH=4000
 
 GPU veya harici gömme hizmeti gerekmez. TF-IDF modeli tamamen süreç içinde çalışır.
 
+İsteğe bağlı gerçek-embedding backend'i (ChromaDB + sentence-transformers) de mevcut — bkz. `evidence/rag/chroma_store.py` ve yukarıdaki `EVIDENCE_RAG_BACKEND=chroma`.
+
+## Görselden İddia Çıkarımı (OCR)
+
+Bir görüntüden (örn. viral bir sağlık iddiası ekran görüntüsü) iddia metnini çıkarır, böylece normal metin-tabanlı doğrulama akışına (`evidence/chat/conversation.py`, `has_health_topic`) beslenebilir.
+
+- `evidence.vision.ocr.extract_text_from_image(image, languages=("tur", "eng"))` — Tesseract kurulu değilse, dil verisi eksikse, dosya bozuksa ya da görüntü çok büyükse crash etmez, `OcrResult(success=False, error=...)` döner.
+- `evidence.chat.image_claim.extract_claim_from_image(image)` — yukarıdakinin üzerine ince bir köprü: ayrıca düşük-güven OCR'ı ve çıkarılan metinde bilinen bir sağlık konusu olup olmadığını işaretler, böylece çağıran taraf tam doğrulamayı mı çalıştıracağına yoksa kullanıcıdan netleştirme mi isteyeceğine karar verebilir.
+
+**Bağımlılıklar (isteğe bağlı — `evidence/requirements-vision.txt`):**
+- `pytesseract`, `Pillow` (Python paketleri)
+- Tesseract'ın kendisi, sistem paketi olarak, artı dil verisi: `apt-get install tesseract-ocr tesseract-ocr-tur` (Ubuntu/Debian) veya `brew install tesseract tesseract-lang` (macOS)
+
+Tesseract veya Türkçe dil paketi kurulu değilse, `is_ocr_available()` `False` döner ve çağıranlar crash yerine net, kullanıcıya gösterilebilir bir hata alır — bu projenin diğer opsiyonel yetenekler için kullandığı `NullProvider` fail-closed deseniyle aynı.
+
+**Bilinçli olarak kapsam dışı bırakılan:** bir HTTP upload endpoint'i (multipart işleme, boyut/oran sınırları, yükleme güvenlik taraması) — bu modül yalnızca görüntü → metin çıkarımı ve metin → doğrulamaya-hazır-mı kısmını kapsıyor; bunu genel API'ye bağlamak ayrı, güvenlik açısından hassas bir iştir. Ayrıca kapsam dışı: tam çok-modlu "bu görselde ne var" analizi (`ClaudeProvider`/`GeminiProvider`'a görsel girdi eklemek gerekir) ve ters görsel arama.
+
 ## Çapraz Doğrulama — Çoklu Kaynak Kanıt Keşfi
 
 Çapraz doğrulama sistemi,birden fazla kanıt kaynağını aynı anda arar ve sonuçları tek bir raporda birleştirir.

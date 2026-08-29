@@ -270,6 +270,23 @@ Call `POST /v1/rag/index` to (re)index all articles. The index is built from the
 
 No GPU or external embedding service required. The TF-IDF model runs entirely in-process.
 
+An optional real-embedding backend (ChromaDB + sentence-transformers) is also available — see `evidence/rag/chroma_store.py` and `EVIDENCE_RAG_BACKEND=chroma` above.
+
+## Image Claim Extraction (OCR)
+
+Extracts claim text from an image (e.g. a screenshot of a viral health claim) so it can be fed into the normal text-based verification flow (`evidence/chat/conversation.py`, `has_health_topic`).
+
+- `evidence.vision.ocr.extract_text_from_image(image, languages=("tur", "eng"))` — fails closed (`OcrResult(success=False, error=...)`) on a missing Tesseract install, missing language data, corrupt file, or oversized image; never raises.
+- `evidence.chat.image_claim.extract_claim_from_image(image)` — thin bridge on top of the above: also flags low-confidence OCR and whether the extracted text contains a recognized health topic, so a caller can decide whether to run full verification or ask the user to clarify.
+
+**Dependencies (optional — `evidence/requirements-vision.txt`):**
+- `pytesseract`, `Pillow` (Python packages)
+- Tesseract itself, as a system package, plus language data: `apt-get install tesseract-ocr tesseract-ocr-tur` (Ubuntu/Debian) or `brew install tesseract tesseract-lang` (macOS)
+
+If Tesseract or the Turkish language pack isn't installed, `is_ocr_available()` returns `False` and callers get a clear, user-facing error instead of a crash — matching this project's `NullProvider` fail-closed convention for optional capabilities elsewhere.
+
+**Explicitly out of scope (not implemented here):** an HTTP upload endpoint (multipart handling, size/rate limits, upload security scanning) — this module only covers image → text extraction and text → claim readiness; wiring it into the public API is a separate, security-sensitive piece of work. Also out of scope: full multimodal "what's in this image" analysis (would extend `ClaudeProvider`/`GeminiProvider` with vision input) and reverse image search.
+
 ## Cross-Verification — Multi-Source Evidence Discovery
 
 The cross-verification system searches multiple evidence sources simultaneously and consolidates results into a single report.

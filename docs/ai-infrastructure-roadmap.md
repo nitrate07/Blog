@@ -108,11 +108,23 @@ bir çözüm). Daha kalıcı, üretime uygun seçenekler:
 **En somut öneri:** Groq — kalıcı ücretsiz katmanı ve mevcut `LLMProvider` mimarisine
 küçük bir eklemeyle uyması nedeniyle.
 
-## 5. Görsel analiz (planlanan, henüz başlanmadı — bkz. inventory Bölüm 6)
+## 5. Görsel analiz (kısmen başlandı — bkz. inventory Bölüm 6 güncelleme notu)
+
+> **Durum güncellemesi (2026-08-29):** İlk satırdaki Tesseract OCR önerisi
+> uygulandı — `evidence/vision/ocr.py` (metin çıkarımı, fail-closed,
+> güven skoru, boyut sınırları) + `evidence/chat/image_claim.py` (OCR
+> çıktısını mevcut `has_health_topic`/dogrulama hattına bağlayan köprü),
+> `evidence/requirements-vision.txt` (opt-in, Chroma ile aynı desen),
+> 20 test (`test_ocr.py`, `test_image_claim.py`, Tesseract kurulu değilse
+> otomatik atlanır). **Kapsam dışı bırakılan, hâlâ açık kısım:** bir HTTP
+> upload endpoint'i (multipart form, boyut/rate-limit, güvenlik taraması)
+> — bu ayrı, kendi PR'ını hak eden bir iş olarak bilinçli olarak
+> yapılmadı. Tablodaki diğer 3 satır (modern OCR alternatifleri, vision
+> LLM analizi, ters görsel arama/sahte-görsel tespiti) hâlâ tamamen açık.
 
 | İhtiyaç | Açık kaynak/ücretsiz seçenek |
 |---|---|
-| Ekran görüntüsündeki metni çıkarma (viral bir haber/iddia görseli) | **Tesseract OCR** — olgun, aktif, Apache 2.0, Türkçe dahil 100+ dil. En basit ve en ucuz kazanım: metni çıkarıp mevcut metin-tabanlı iddia hattına sokmak |
+| Ekran görüntüsündeki metni çıkarma (viral bir haber/iddia görseli) | **Tesseract OCR** — olgun, aktif, Apache 2.0, Türkçe dahil 100+ dil. En basit ve en ucuz kazanım: metni çıkarıp mevcut metin-tabanlı iddia hattına sokmak **(uygulandı — `evidence/vision/ocr.py`)** |
 | Ekran görüntüsü gibi düzensiz görsellerde daha iyi doğruluk | PaddleOCR / EasyOCR / docTR / Surya — Tesseract'a göre modern alternatifler, gerçek ekran görüntüsü örnekleriyle karşılaştırılıp seçilmeli |
 | "Bu görselde ne var" analizi | **Claude/Gemini vision** — `ClaudeProvider`/`GeminiProvider` zaten kodda var, görsel-kodlama desteği eklemek gerekiyor (Bölüm 4'teki ücretsiz katmanlarla da çalışır) |
 | "Bu görsel nereden geldi / ters görsel arama" | Açık kaynak, hazır bir "TinEye alternatifi" yok. En yakın açık desen: CLIP tabanlı embedding + vektör DB (Bölüm 3'teki Chroma ile aynı altyapı) — kendi arşivin içinde benzer görsel arama yapılabilir, gerçek "web'de bu görsel nerede kullanılmış" için ücretsiz/açık bir çözüm bulunamadı |
@@ -149,4 +161,4 @@ değerlendirilebilir.
 | 4. Framework yokluğunun artı/eksisi | Bölüm 6 — şimdilik framework'süz devam, LangGraph rezervde |
 | 5. Scraping kırılganlığı (6 ajan HTML, 8 ajan Crossref'e bağımlı) | Bu notta doğrudan ele alınmadı — ayrı bir "kaynak ajanı sağlamlaştırma" araştırması gerekebilir |
 | 6. "Chroma" adlandırması yanıltıcı | Bölüm 3 — gerçek Chroma'ya geçiş adı gerçeğe uydurdu (**uygulandı**) |
-| 7. Görsel kanal tamamen boş | Bölüm 5 — **hâlâ açık** |
+| 7. Görsel kanal tamamen boş | Bölüm 5 — **kısmen uygulandı** (Tesseract OCR metin çıkarımı); vision-LLM analizi ve ters görsel arama hâlâ açık |
