@@ -18,6 +18,7 @@ evidence/
 ├── rag/                     # Yerel arşiv parser + retriever + store
 ├── llm_providers.py         # Claude / OpenAI / Gemini / Groq provider arayüzü
 ├── mcp.py                   # MCP araç yüzeyi
+├── vision/                  # OCR tabanli goruntu -> metin cikarimi (opsiyonel bagimlilik)
 └── tests/                   # Birim testler
 ```
 

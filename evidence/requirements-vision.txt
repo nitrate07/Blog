@@ -1,0 +1,14 @@
+# İsteğe bağlı — ekran görüntüsü / görsel iddia metni çıkarımı için
+# (evidence.vision.ocr). Varsayılan kurulum (requirements.txt) buna
+# ihtiyaç duymaz; OCR kullanılmıyorsa bu paketleri kurmaya gerek yok.
+#
+# Sistem tarafında da Tesseract'ın kendisi + dil verisi gerekir (Python
+# paketi değildir, apt/brew ile kurulur):
+#   Ubuntu/Debian: apt-get install tesseract-ocr tesseract-ocr-tur
+#   macOS:         brew install tesseract tesseract-lang
+#
+# Tesseract ikili dosyası veya "tur" dil verisi kurulu değilse
+# evidence.vision.ocr.is_ocr_available() False döner ve extract_text_from_image
+# net bir hata mesajıyla (crash etmeden) OcrResult(success=False, ...) döndürür.
+pytesseract>=0.3,<0.4
+Pillow>=10.0,<12.0
