@@ -83,7 +83,30 @@ _TERM_MAP: dict[str, str] = {
     "immün": "immune immunity", "bağışıklık": "immune immunity",
     "enfeksiyon": "infection", "grip": "influenza flu",
     "soğuk algınlığı": "common cold", "aşı": "vaccination vaccine",
+    # NOT (2026-08-29): "aşı" yalnizca 3 karakter oldugu icin genel cekim-eki
+    # toleransindan (bkz. _match_term, len(key)>=4 sarti) kasitli olarak
+    # HARIC tutuluyor — bu sart, "aşırı" (excessive) gibi kelimelerin "aşı"
+    # ile yanlislikla eslesmesini onlemek icin var. Ama bu, Turkce'nin
+    # sondan eklemeli yapisinda "aşı"nin TUM cekimli formlarini (aşılar,
+    # aşıyı, aşının...) da yakalanmaz hale getiriyordu. Canli testle
+    # dogrulandi: "Aşılar otizme neden olur mu?" — saglik yanlis bilgisinin
+    # en unlu tek ornegi — "saglik iddiasi olarak taninamadi" hatasi
+    # veriyordu. Cozum: fuzzy mekanizmayi degistirmek yerine (ki "aşırı"
+    # riskini geri getirir), en yaygin cekimli formlari AYRI, tam-eslesmeli
+    # anahtarlar olarak ekliyoruz — "aşırı" ile hicbir cakisma riski yok
+    # (farkli tam string'ler).
+    "aşılar": "vaccination vaccine", "aşıyı": "vaccination vaccine",
+    "aşının": "vaccination vaccine", "aşıya": "vaccination vaccine",
+    "aşıda": "vaccination vaccine", "aşısı": "vaccination vaccine",
+    "aşılanma": "vaccination", "aşılanmak": "vaccination",
     "antibiyotik": "antibiotic", "ilaç": "medication drug",
+    # NOT (2026-08-29): Canli testle bulunan eksik konular — hepsi
+    # yaygin, gercek saglik iddialarinda ("bebeklerde bal zararli mi?",
+    # "ketojenik diyet epilepsiyi tedavi eder mi?") gecen, ama sozlukte
+    # hic karsiligi olmayan terimlerdi.
+    "bal": "honey infant botulism", "ketojenik": "ketogenic diet",
+    "keto": "ketogenic diet", "epilepsi": "epilepsy seizure",
+    "nöbet": "seizure epilepsy",
     # egzersiz/yaşam
     "egzersiz": "exercise physical activity", "spor": "exercise training",
     "koşu": "running aerobic", "yürüyüş": "walking",

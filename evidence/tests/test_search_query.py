@@ -118,3 +118,49 @@ class TestHasHealthTopic:
     def test_true_for_vitamin_c_compound(self):
         assert has_health_topic("vitamin c bağışıklığa iyi gelir mi?") is True
         assert has_health_topic("c vitamini soğuk algınlığına iyi gelir mi?") is True
+
+
+class TestInflectedVaccineForms:
+    """Regresyon (2026-08-29): canli testle bulundu — "aşı" yalniz 3 karakter
+    oldugu icin genel cekim-eki toleransindan (len(key)>=4 sarti, "aşırı"
+    gibi kelimelerle yanlis eslesmeyi onlemek icin) haric tutuluyordu. Bu,
+    Turkce'nin sondan eklemeli yapisinda TUM cekimli "aşı" formlarini
+    (aşılar, aşıyı, aşının...) yakalanmaz hale getiriyordu — en carpici
+    ornek: "Aşılar otizme neden olur mu?" (saglik yanlis bilgisinin en
+    unlu tek ornegi) "saglik iddiasi olarak taninamadi" hatasi veriyordu."""
+
+    def test_asilar_plural_recognized(self):
+        assert has_health_topic("Aşılar otizme neden olur mu?") is True
+
+    def test_asiyi_accusative_recognized(self):
+        assert has_health_topic("Aşıyı ne zaman yaptırmalıyım?") is True
+
+    def test_asinin_genitive_recognized(self):
+        assert has_health_topic("Aşının yan etkileri nelerdir?") is True
+
+    def test_asiri_not_falsely_matched_via_vaccine_stem(self):
+        """Kritik: "aşı" icin eklenen yeni cekimli formlar, "aşırı"
+        (excessive) kelimesiyle CAKISMAMALI — bu tam olarak len(key)>=4
+        sartinin baslangicta onlemeye calistigi hataydi."""
+        from evidence.chat.search_query import _match_term
+        assert _match_term("aşırı") is None
+
+    def test_asiri_egzersiz_still_matches_via_egzersiz_not_asi(self):
+        """"aşırı egzersiz" saglik konusu olarak taninmali ama bunun nedeni
+        "egzersiz" kelimesi olmali, "aşırı"nin "aşı" ile yanlis eslesmesi
+        degil."""
+        assert has_health_topic("aşırı egzersiz zararlı mı?") is True
+
+
+class TestPreviouslyMissingTopics:
+    """Regresyon (2026-08-29): canli testle bulunan, sozlukte hic karsiligi
+    olmayan yaygin saglik konulari."""
+
+    def test_honey_infant_botulism(self):
+        assert has_health_topic("Bebeklerde bal zararlı mı?") is True
+
+    def test_ketogenic_diet(self):
+        assert has_health_topic("Ketojenik diyet epilepsiyi tedavi eder mi?") is True
+
+    def test_epilepsy_bare(self):
+        assert has_health_topic("Epilepsi hastaları spor yapabilir mi?") is True
