@@ -252,3 +252,34 @@ class TestLabValueTerms:
 
     def test_tsh(self):
         assert has_health_topic("TSH yüksekliği tiroid sorunu mu") is True
+
+
+class TestHasSubstantiveContent:
+    """has_substantive_content — has_health_topic'ten farkli, daha dusuk
+    bir bar: sozlukte olan bir SAGLIK terimi degil, herhangi bir anlamli
+    kelime arar. conversation.py'deki has_health_topic kapisinin
+    is_interrogative ile gevsetilmesi sonrasi bulunan bir regresyonu
+    (baglamsiz isaret-zamiri sorulari) onlemek icin eklendi."""
+
+    def test_demonstrative_pronoun_only_question_has_no_content(self):
+        from evidence.chat.search_query import has_substantive_content
+        assert has_substantive_content("Bu doğru mu?") is False
+        assert has_substantive_content("Öyle mi?") is False
+        assert has_substantive_content("Böyle mi?") is False
+        assert has_substantive_content("Şunu yapar mısın?") is False
+
+    def test_real_topic_word_counts_as_content(self):
+        from evidence.chat.search_query import has_substantive_content
+        assert has_substantive_content("trigliserid nedir?") is True
+        assert has_substantive_content("İlaç zararlı mı?") is True
+        assert has_substantive_content("Kanser") is True
+
+    def test_nonsense_word_with_sufficient_length_counts_as_content(self):
+        """Bilincli tasarim: bu fonksiyon 'gercek bir saglik terimi mi'
+        sormuyor (o has_health_topic'in isi) — yalnizca 'arastirmaya
+        deger, dolgu-disi bir kelime var mi' sorusuna cevap verir.
+        Anlamsiz ama yeterince uzun bir kelime de gecer — arastirma
+        denenir, muhtemelen 'yeterli kanit yok' ile sonuclanir, ki bu
+        'tanıyamadım'dan daha dogru bir sonuçtur."""
+        from evidence.chat.search_query import has_substantive_content
+        assert has_substantive_content("Xyzabc123 tehlikeli mi") is True

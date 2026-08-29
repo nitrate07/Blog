@@ -526,6 +526,27 @@ class TestUnrecognizedTermButRealQuestionStillResearched:
         assert "tanıyamadım" in r.text.lower()
 
     @pytest.mark.asyncio
+    async def test_contentless_demonstrative_question_still_short_circuits(self):
+        """Regresyon (2026-08-29, has_substantive_content eklenmesiyle
+        duzeltildi): 'Bu doğru mu?' gibi baglamsiz, isaret-zamiri-tabanli
+        bir soru dilbilgisel olarak interrogative olsa da (biter '?' ile,
+        icerir 'mu' soru eki) HICBIR gercek konu icermez. Canli testle
+        bulundu: is_interrogative-tabanli gevsetme tek basina bunu
+        arastirmaya sokuyor, arsivden rastgele/alakasiz sonuclarla dusuk
+        ama VAROLAN bir hukum uretebiliyordu — boyle bir mesaj hic hukum
+        almamali, 'tanıyamadım' ile bailout etmeli."""
+        m = ConversationManager()
+        r = await m.handle_message("Bu doğru mu?")
+        assert "tanıyamadım" in r.text.lower()
+        assert r.metadata.get("verdict") is None
+
+    @pytest.mark.asyncio
+    async def test_oyle_mi_still_short_circuits(self):
+        m = ConversationManager()
+        r = await m.handle_message("Öyle mi?")
+        assert "tanıyamadım" in r.text.lower()
+
+    @pytest.mark.asyncio
     async def test_name_introduction_uses_llm_when_available(self):
         provider = FakeNarratorProvider(response="Merhaba Ümit! Nasıl yardımcı olabilirim?")
         m = ConversationManager(llm_provider=provider)

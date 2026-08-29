@@ -23,8 +23,23 @@ _QUESTION_FILLER = {
     "what", "why", "how", "the", "a", "an", "of", "in", "on", "for", "to",
     "it", "true", "really", "actually", "gerçekten", "aslında", "bana",
     "hakkında", "bir", "birşey", "şey", "kadar", "daha", "çok", "az",
-    "etmek", "eder", "ederim", "verir", "misin", "musun", "yap", "yapar",
+    "etmek", "eder", "ederim", "verir", "misin", "musun", "mısın", "müsün", "yap", "yapar",
+    # NOT (2026-08-29): "doğru"/"yanlış"/"gerçek" — bunlar iddianin KONUSU
+    # degil, dogruluk HAKKINDA konusan meta-kelimeler (İngilizce'deki
+    # "true" gibi, ki o zaten listede). Canli testle bulundu: "Bu doğru
+    # mu?" gibi baglamsiz bir soru, bu kelime sozlukte olmadigi icin
+    # "gercek icerik" sayiliyordu — bkz. has_substantive_content.
+    "doğru", "yanlış", "gerçek", "öyle", "böyle", "şöyle",
 }
+
+# Isaret zamirleri — dilbilgisel olarak soru YAPISINDA olsalar bile (bkz.
+# is_interrogative), baglamsiz kullanildiklarinda HICBIR arastirilabilir
+# icerik tasimazlar ("Bu doğru mu?" gibi — bkz. has_substantive_content).
+_DEMONSTRATIVE_PRONOUNS = frozenset({
+    "bu", "şu", "o", "bunu", "şunu", "onu", "bunlar", "şunlar", "onlar",
+    "bunun", "şunun", "onun", "buna", "şuna", "ona", "bunda", "şunda", "onda",
+    "this", "that", "these", "those",
+})
 
 # Yaygin fiil kaliplari — kavram zaten terim sozlugunden gelir; fiil gövdesi gürültü.
 _VERB_SUFFIXES = (
@@ -431,3 +446,30 @@ def has_health_topic(claim: str) -> bool:
     guvenlik kapisi icin dogru fonksiyon budur.
     """
     return bool(_matched_terms(claim))
+
+
+def has_substantive_content(query: str) -> bool:
+    """Sorguda arastirilabilir GERCEK bir icerik kelimesi var mi?
+
+    NOT (2026-08-29): has_health_topic()'ten FARKLI, daha DUSUK bir bar —
+    sozlukte olan bir SAGLIK terimi degil, herhangi bir anlamli kelime
+    arar. conversation.py'deki has_health_topic kapisi, sozlukte
+    taninmayan ama GERCEK bir soru olan mesajlari (ör. "trigliserid
+    nedir?") arastirmaya izin verecek sekilde gevsetildiginde
+    (is_interrogative kontrolu), yeni bir sinif hata ortaya cikti: "Bu
+    doğru mu?" gibi baglamsiz, isaret-zamiri-tabanli sorular da
+    dilbilgisel olarak "soru" sayildigi icin arastirmaya giriyor, ama
+    HICBIR gercek konu icermedikleri icin arsivden rastgele/alakasiz
+    sonuclar toplayip dusuk-ama-varolan bir "hukum" uretebiliyorlardı.
+    Bu fonksiyon, dolgu kelimeleri (_QUESTION_FILLER) VE isaret
+    zamirlerini (_DEMONSTRATIVE_PRONOUNS) cikardiktan sonra en az 3
+    karakterlik bir kelime kalip kalmadigini kontrol eder — "bu",
+    "doğru", "mu" hepsi elenir, geriye hicbir sey kalmaz.
+    """
+    tokens = _normalize(query).split()
+    for t in tokens:
+        if t in _QUESTION_FILLER or t in _DEMONSTRATIVE_PRONOUNS or t in _VERB_SUFFIXES:
+            continue
+        if len(t) >= 3:
+            return True
+    return False
