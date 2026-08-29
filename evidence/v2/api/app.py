@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Depends, Request, Response
+from fastapi import FastAPI, HTTPException, Depends, Request, Response, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -654,7 +654,83 @@ def create_app(
         if session_id in conversation_managers:
             conversation_managers[session_id].reset()
         return {"status": "ok", "message": "Session sifirlandi"}
-    
+
+    # NOT (2026-08-29): evidence/vision/ocr.py + evidence/chat/image_claim.py
+    # (onceki oturumda eklendi) bilerek HTTP katmanina baglanmamisti — "ayri,
+    # guvenlik acisindan hassas bir is" olarak not edilmisti. "Her sey
+    # eksiksiz olsun" talebiyle tamamlaniyor: bu uc nokta, bir ekran
+    # goruntusundeki metni cikarip (OCR) dogrudan mevcut tam arastirma
+    # hattina (ConversationManager.handle_message — ayni /v1/investigator/chat
+    # akisi) besler, boylece "goruntu yukle -> dogrulanmis cevap al" dongusu
+    # tamamlanmis olur.
+    _MAX_UPLOAD_BYTES = 15_000_000  # evidence/vision/ocr.py'deki sinirla ayni
+
+    @app.post("/v1/investigator/chat/image")
+    async def investigator_chat_image(
+        image: UploadFile = File(...),
+        session_id: str = "default",
+    ):
+        """Bir goruntudeki (ekran goruntusu vb.) iddiayi OCR ile cikarip
+        tam arastirma hattina sokar. Basarisizlikta (Tesseract kurulu
+        degil, okunabilir metin yok, dosya cok buyuk/bozuk) 200 doner —
+        crash etmez; `ocr` alanindaki `success=False` + `error` cagiran
+        tarafa neyin basarisiz oldugunu acikca bildirir.
+        """
+        from ...chat.image_claim import extract_claim_from_image
+
+        content_type = (image.content_type or "").lower()
+        if content_type and not content_type.startswith("image/"):
+            raise HTTPException(status_code=415, detail=f"Desteklenmeyen dosya turu: {content_type}")
+
+        # Boyut sinirini, dosyayi tamamen belleğe almadan, parca parca
+        # okuyarak uygula — asiri buyuk bir yuklemenin bellegi bosa
+        # tuketmesini onler.
+        chunks: list[bytes] = []
+        total = 0
+        while True:
+            chunk = await image.read(1_000_000)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > _MAX_UPLOAD_BYTES:
+                raise HTTPException(
+                    status_code=413,
+                    detail=f"Goruntu cok buyuk (sinir: {_MAX_UPLOAD_BYTES} bayt)",
+                )
+            chunks.append(chunk)
+        raw_bytes = b"".join(chunks)
+
+        if not raw_bytes:
+            raise HTTPException(status_code=400, detail="Bos dosya")
+
+        claim_result = extract_claim_from_image(raw_bytes)
+        ocr_payload = {
+            "success": claim_result.success,
+            "claim_text": claim_result.claim_text,
+            "ocr_confidence": claim_result.ocr_confidence,
+            "low_confidence": claim_result.low_confidence,
+            "has_recognized_topic": claim_result.has_recognized_topic,
+            "error": claim_result.error,
+        }
+
+        if not claim_result.ready_for_verification:
+            return {"ocr": ocr_payload, "response": None}
+
+        manager = _get_manager(session_id or "default")
+        response = await manager.handle_message(claim_result.claim_text)
+
+        return {
+            "ocr": ocr_payload,
+            "response": {
+                "response": response.text,
+                "intent": response.intent_type,
+                "confidence": response.confidence,
+                "sources_cited": response.sources_cited,
+                "follow_up_suggestions": response.follow_up_suggestions,
+                "metadata": response.metadata,
+            },
+        }
+
     @app.get("/v1/investigator/stats")
     async def investigator_stats(session_id: str = "default"):
         """Conversation istatistikleri."""

@@ -285,7 +285,7 @@ Extracts claim text from an image (e.g. a screenshot of a viral health claim) so
 
 If Tesseract or the Turkish language pack isn't installed, `is_ocr_available()` returns `False` and callers get a clear, user-facing error instead of a crash — matching this project's `NullProvider` fail-closed convention for optional capabilities elsewhere.
 
-**Explicitly out of scope (not implemented here):** an HTTP upload endpoint (multipart handling, size/rate limits, upload security scanning) — this module only covers image → text extraction and text → claim readiness; wiring it into the public API is a separate, security-sensitive piece of work. Also out of scope: full multimodal "what's in this image" analysis (would extend `ClaudeProvider`/`GeminiProvider` with vision input) and reverse image search.
+**Implemented (2026-08-29):** `POST /v1/investigator/chat/image` (multipart upload, size limit 15MB enforced during streamed read so an oversized upload never fully buffers into memory, content-type check, graceful `{"ocr": {...}, "response": null}` on any OCR failure instead of a crash) — completes the image → text → verification loop by feeding a successful OCR result directly into the same `ConversationManager.handle_message()` used by `/v1/investigator/chat`. Still out of scope: full multimodal "what's in this image" analysis (would extend `ClaudeProvider`/`GeminiProvider` with vision input) and reverse image search.
 
 ## Cross-Verification — Multi-Source Evidence Discovery
 

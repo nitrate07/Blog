@@ -281,7 +281,7 @@ Bir görüntüden (örn. viral bir sağlık iddiası ekran görüntüsü) iddia 
 
 Tesseract veya Türkçe dil paketi kurulu değilse, `is_ocr_available()` `False` döner ve çağıranlar crash yerine net, kullanıcıya gösterilebilir bir hata alır — bu projenin diğer opsiyonel yetenekler için kullandığı `NullProvider` fail-closed deseniyle aynı.
 
-**Bilinçli olarak kapsam dışı bırakılan:** bir HTTP upload endpoint'i (multipart işleme, boyut/oran sınırları, yükleme güvenlik taraması) — bu modül yalnızca görüntü → metin çıkarımı ve metin → doğrulamaya-hazır-mı kısmını kapsıyor; bunu genel API'ye bağlamak ayrı, güvenlik açısından hassas bir iştir. Ayrıca kapsam dışı: tam çok-modlu "bu görselde ne var" analizi (`ClaudeProvider`/`GeminiProvider`'a görsel girdi eklemek gerekir) ve ters görsel arama.
+**Uygulandı (2026-08-29):** `POST /v1/investigator/chat/image` (multipart yükleme, akış halinde okunarak uygulanan 15MB boyut sınırı — aşırı büyük bir yükleme asla tamamen belleğe alınmaz, content-type kontrolü, herhangi bir OCR hatasında crash yerine nazik `{"ocr": {...}, "response": null}` yanıtı) — görüntü → metin → doğrulama döngüsünü tamamlıyor, başarılı bir OCR sonucunu doğrudan `/v1/investigator/chat`'in kullandığı aynı `ConversationManager.handle_message()`'a besliyor. Hâlâ kapsam dışı: tam çok-modlu "bu görselde ne var" analizi (`ClaudeProvider`/`GeminiProvider`'a görsel girdi eklemek gerekir) ve ters görsel arama.
 
 ## Çapraz Doğrulama — Çoklu Kaynak Kanıt Keşfi
 

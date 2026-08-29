@@ -480,6 +480,51 @@ class TestNoFakeVerdictOnNonHealthMessages:
         assert "Ben **Arı Kaynak Soruşturucusu**yum" not in r.text
         assert r.confidence < 0.5
 
+
+class TestUnrecognizedTermButRealQuestionStillResearched:
+    """Kullanici talebi (2026-08-29): sozlukte tanınmayan ama GERCEKTEN
+    soru yapisinda olan bir mesaj ('trigliserid yüksekliği tehlikeli mi?'
+    gibi — 'trigliserid' sozlukte yoktu, kolesterol kadar temel bir kan
+    degeri olmasina ragmen) 'tanıyamadım' ile bailout etmek yerine
+    arastirmayi yine de denemeli; sozluk boslugu = arama yapmama anlamina
+    gelmemeli. Sadece GERCEKTEN soru yapisi TASIMAYAN mesajlar ('benim
+    adım Ümit', 'bugün hava çok güzel') kisa devre yapmaya devam etmeli."""
+
+    @pytest.mark.asyncio
+    async def test_unrecognized_term_with_question_mark_is_researched_not_bailed_out(self):
+        m = ConversationManager()
+        r = await m.handle_message("Xyzabc123 hastalığa iyi gelir mi?")
+        # "tanıyamadım" mesajina DUSMEMELI — arastirma denenmis olmali
+        # (orchestrator=None oldugu icin "yeterli kanıt yok" gibi bir
+        # sonuca varir, ama bu "anlamadım" ile FARKLI, daha dogru bir mesaj).
+        assert "tanıyamadım" not in r.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_unrecognized_term_with_turkish_question_particle_is_researched(self):
+        m = ConversationManager()
+        r = await m.handle_message("Xyzabc123 tehlikeli mi")
+        assert "tanıyamadım" not in r.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_name_introduction_still_short_circuits(self):
+        """Regresyon korumasi: bu degisiklik gercek soru OLMAYAN mesajlarin
+        davranisini bozmamali."""
+        m = ConversationManager()
+        r = await m.handle_message("benim adım Ümit")
+        assert "tanıyamadım" in r.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_unrelated_smalltalk_still_short_circuits(self):
+        m = ConversationManager()
+        r = await m.handle_message("bugün hava çok güzel")
+        assert "tanıyamadım" in r.text.lower()
+
+    @pytest.mark.asyncio
+    async def test_gibberish_without_question_mark_still_short_circuits(self):
+        m = ConversationManager()
+        r = await m.handle_message("asdkfjaslkdfj qwerty zxcvbn")
+        assert "tanıyamadım" in r.text.lower()
+
     @pytest.mark.asyncio
     async def test_name_introduction_uses_llm_when_available(self):
         provider = FakeNarratorProvider(response="Merhaba Ümit! Nasıl yardımcı olabilirim?")

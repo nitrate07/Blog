@@ -236,3 +236,19 @@ class TestGenericMedicalStructureMarkers:
         assert has_health_topic("şu ürüne bir göz atar mısın?") is False
         assert has_health_topic("benim adım Ümit") is False
         assert has_health_topic("aşırı yorgunum bugün ama sağlıkla ilgisi yok") is False
+
+
+class TestLabValueTerms:
+    """Regresyon (2026-08-29): kullanicinin kendisi "trigliserid" hakkinda
+    soru sordu ve sistem taniyamadi — kolesterol kadar temel bir kan
+    tahlili degeri sozlukte hic yoktu. Ek tarama TSH ve HbA1c'yi de
+    eksik buldu."""
+
+    def test_triglyceride(self):
+        assert has_health_topic("trigliserid yüksekliği tehlikeli mi") is True
+
+    def test_hba1c(self):
+        assert has_health_topic("HbA1c testi ne işe yarar") is True
+
+    def test_tsh(self):
+        assert has_health_topic("TSH yüksekliği tiroid sorunu mu") is True
