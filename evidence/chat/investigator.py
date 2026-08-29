@@ -297,7 +297,21 @@ class EvidenceInvestigator:
         return prune_irrelevant(all_results, query)[:step.limit]
 
     async def _execute_search_archive(self, step: PlanStep) -> list[dict[str, Any]]:
-        """Mevcut Arı Kaynak arsivinde ara — yalnizca ArchiveAgent gorev alir."""
+        """Mevcut Arı Kaynak arsivinde ara — yalnizca ArchiveAgent gorev alir.
+
+        NOT (2026-08-29): Bu adim daha once prune_irrelevant suzgecinden GECMIYORDU
+        — search_external/search_health_org zaten geciriyordu, archive icin bu
+        tutarsizlik bir bosluktu. Canli veriyle dogrulandi: TF-IDF tabanli arsiv
+        aramasi, tamamen alakasiz sorgular icin bile (ör. "İstanbul trafiği ne
+        zaman rahatlar") bazen GERCEKTEN ILGILI eslesmelerden DAHA YUKSEK benzerlik
+        skoru veriyor (kisa sorgu + seyrek TF-IDF vektorlerinde beklenen bir
+        sinirlama — bkz. docs/ai-infrastructure-inventory.md, "TF-IDF leksikeldir,
+        semantik degil"). prune_irrelevant bu sinifi (hicbir ortak kavram
+        paylasmayan sonuclar) yakalar; ayni kelimeyi paylasan ama konu olarak
+        alakasiz sonuclari (ör. "vitamin D" sorgusuna "vitamin E" makalesi)
+        yakalayamaz — o, gercek semantik anlama gerektirir (bkz. opt-in Chroma
+        backend, evidence/rag/chroma_store.py).
+        """
         if not self.orchestrator or not hasattr(self.orchestrator, "search"):
             return []
 
@@ -309,7 +323,7 @@ class EvidenceInvestigator:
             r for r in result.get("results", [])
             if r.get("source") == "archive"
         ]
-        return archive[:step.limit]
+        return prune_irrelevant(archive, query)[:step.limit]
 
     async def _execute_search_health_org(self, step: PlanStep) -> list[dict[str, Any]]:
         """Resmi saglik kurumlarinda ara (WHO, CDC, NICE, TUSEB vb.)."""

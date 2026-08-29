@@ -209,6 +209,22 @@ class ResponseBuilder:
         if verdict not in ("unverified", "") and confidence:
             verdict_display = self.VERDICT_TR.get(verdict, verdict.replace("_", " ").title())
             lines.append(f"**Hüküm:** {verdict_display} (güven %{confidence * 100:.0f})")
+            # NOT (2026-08-29): best_archive (yukarida, _best_archive_match ile
+            # hesaplandi) zaten "gercekten ilgili mi" sorusuna dogru cevap
+            # veriyor (>=2 ortak terim + iddianin yarisi kurali) — ama bu bilgi
+            # eskiden yalniz "📁 Arşivimizdeki dosya" bloğunu gösterip
+            # göstermemeyi etkiliyordu, Hüküm satırının kendisini değil. Sonuç:
+            # best_archive=None (yani hiçbir arşiv sonucu iddiayla gerçekten
+            # örtüşmüyor) olsa bile "Hüküm" satırı yine de "Büyük Ölçüde
+            # Destekleniyor" gibi kendinden emin bir ifade + düşük bir yüzde
+            # (ör. %11) gösterebiliyordu — çoğu okuyucu yüzdeyi değil, kelimeyi
+            # görür. Artık bu durumda acik bir uyari ekleniyor.
+            if not best_archive and archive:
+                lines.append(
+                    "⚠️ Bu hüküm arşivdeki hiçbir makaleyle güçlü bir doğrudan "
+                    "örtüşme bulamadı — aşağıdaki kaynaklar yalnızca kısmen "
+                    "ilgili olabilir, düşük güvenle değerlendirin."
+                )
             if results.get("verdict_conflict"):
                 consensus = results.get("consensus") or {}
                 parts = " · ".join(

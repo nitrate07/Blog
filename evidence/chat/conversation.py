@@ -400,7 +400,22 @@ class ConversationManager:
             distance = r.get("distance")
             if isinstance(rating, int) and rating >= 1:
                 verdict = {5: "supported", 4: "mostly_supported", 3: "partly_supported"}.get(rating, "unsupported")
-                relevance = max(0.3, min(1.0, 1.0 - float(distance))) if isinstance(distance, (int, float)) else 0.6
+                # NOT (2026-08-29): Bu satir eskiden `max(0.3, ...)` ile tabanliydi.
+                # Canli veriyle dogrulandi: bu taban, TF-IDF benzerlik skoru ne
+                # kadar dusuk olursa olsun (tamamen alakasiz bir eslesme bile,
+                # ör. "vitamin D" sorgusuna donen "vitamin E asetat/vaping"
+                # makalesi, ham relevance ~0.11) relevance'i 0.3'e cekiyordu —
+                # sonuc: HER arsiv-tabanli hukmun kullaniciya gosterilen guven
+                # yuzdesi, eslesme kalitesinden tamamen bagimsiz olarak SABIT
+                # %30 goruniyordu (bkz. response.py'deki "güven %{confidence*100}"
+                # satiri). Taban kaldirildi: artik zayif eslesmeler dusuk,
+                # guclu eslesmeler nispeten daha yuksek guven olarak dogru
+                # yansitiliyor. Ham TF-IDF benzerlik olceginin kendisi hala
+                # kisa sorgularda gurultuye acik (bkz. docs/ai-infrastructure-
+                # inventory.md, "TF-IDF leksikeldir, semantik degil") — bu
+                # duzeltme skorun DOGRULUGUNU degil, en azindan TUTARLILIGINI
+                # (ayni sabit sayiyi her zaman gostermemesini) saglar.
+                relevance = min(1.0, max(0.0, 1.0 - float(distance))) if isinstance(distance, (int, float)) else 0.6
             else:
                 verdict, _, relevance = compare_claim_evidence(claim, r.get("passage") or "")
                 verdict = verdict.value
