@@ -193,6 +193,7 @@ class ConversationManager:
                     user_message=user_query,
                     recent_history=self.state.get_history_for_api(),
                     provider=self.llm_provider,
+                    language=self.language,
                 )
                 if narrated is not None:
                     response.text = narrated
@@ -256,6 +257,7 @@ class ConversationManager:
                     user_message=user_query,
                     recent_history=self.state.get_history_for_api(),
                     provider=self.llm_provider,
+                    language=self.language,
                 )
                 if narrated is not None:
                     response.text = narrated
@@ -430,6 +432,7 @@ class ConversationManager:
             matches=matches,
             provider=self.llm_provider,
             recent_history=self.state.get_history_for_api(),
+            language=self.language,
         )
         if draft is None:
             return rule_based_text

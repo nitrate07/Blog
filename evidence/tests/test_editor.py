@@ -189,3 +189,31 @@ class TestEditAndValidate:
         draft = "Birinci satır.\n\n\n\nİkinci satır (https://who.int/report-1)."
         result = edit_and_validate(draft, MATCHES)
         assert "\n\n\n" not in result
+
+
+class TestNarrateVerdictLanguage:
+    """Regresyon (2026-08-29): narrate_verdict eskiden dili IDDIA
+    METNINDEN tahmin etmeye calisiyordu ("iddianin dilinde yanit ver") —
+    ConversationManager.language'dan gelen ACIK sinyal yerine. Bu, sayfa
+    Ingilizce oldugu halde LLM'in yanlislikla Turkce cevap vermesine yol
+    acabiliyordu (bkz. bilingual response.py PR'i)."""
+
+    @pytest.mark.asyncio
+    async def test_default_language_instructs_turkish(self):
+        provider = FakeProvider(response="Kanıt destekliyor (https://who.int/report-1).")
+        await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider)
+        assert "Turkce yaz." in provider.last_prompt
+        assert "Write in English." not in provider.last_prompt
+
+    @pytest.mark.asyncio
+    async def test_explicit_english_instructs_english(self):
+        provider = FakeProvider(response="Evidence supports this (https://who.int/report-1).")
+        await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider, language="en")
+        assert "Write in English." in provider.last_prompt
+        assert "Turkce yaz." not in provider.last_prompt
+
+    @pytest.mark.asyncio
+    async def test_unsupported_language_falls_back_to_turkish_instruction(self):
+        provider = FakeProvider(response="Kanıt destekliyor (https://who.int/report-1).")
+        await narrate_verdict("claim", "supported", 0.8, MATCHES, provider=provider, language="fr")
+        assert "Turkce yaz." in provider.last_prompt

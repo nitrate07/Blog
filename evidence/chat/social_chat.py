@@ -39,6 +39,7 @@ async def narrate_social(
     user_message: str,
     recent_history: list[dict[str, str]],
     provider: Any | None,
+    language: str = "tr",
 ) -> str | None:
     """Sosyal bir mesaja LLM ile dogal, kisa bir yanit uretmeyi dener.
 
@@ -51,6 +52,14 @@ async def narrate_social(
             desteklemiyorsa (ör. testlerdeki FakeProvider) sessizce eski
             generate(prompt) yoluna doner, davranis degismez.
         provider: LLMProvider.generate(prompt) uygulayan nesne, ya da None.
+        language: "tr" veya "en" — hangi dilde yanit istendigi (bkz. i18n.py).
+            NOT (2026-08-29): Bu parametre eklenmeden once prompt, dili
+            KULLANICI MESAJINDAN tahmin etmeye calisiyordu ("mesajin dilinde
+            yanit ver") — bu, sayfanin kendisi (ask.html EN / tr/ask.html TR)
+            hangi dili bekledigini DEGIL, mesajin kendi diline dayaniyordu;
+            kisa/belirsiz mesajlarda (ör. "hi", tek kelime) yanlis dilde
+            cevap riski vardi. Artik ConversationManager.language'dan gelen
+            acik, guvenilir sinyal kullaniliyor.
 
     Returns:
         LLM'in ham yanit metni, ya da basarisizlik/provider yoksa None.
@@ -61,6 +70,7 @@ async def narrate_social(
         return None
 
     label = _SOCIAL_LABELS.get(intent_type, "gundelik bir mesaj")
+    language_instruction = "Turkce yaz." if language != "en" else "Write in English."
 
     history_lines = []
     for turn in recent_history[-4:]:
@@ -76,7 +86,8 @@ takip eden, dostane ama profesyonel bir yapay zeka arastirmaci karakterisin.
 Kullanicinin su anki mesaji {label} niteliginde, bir saglik iddiasi degil.
 
 KURALLAR:
-- Mesajin dilinde yanit ver (Turkce ise Turkce, Ingilizce ise Ingilizce).
+- {language_instruction} (mesajin kendi dili ne olursa olsun, kullanici hangi
+  sayfada oldugunu bu dille belirtmis oldu — buna sadik kal.)
 - Kisa ol: en fazla 2-3 cumle.
 - Dostane ve dogal ol, ama karakterinden (saglik iddialarini kanita dayali
   arastiran bir uzman) kopma.

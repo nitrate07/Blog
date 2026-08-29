@@ -123,3 +123,29 @@ class TestNarrateSocialHistory:
         history = [{"role": "user", "content": "x"}]
         result = await narrate_social("thanks", "teşekkürler", history, provider=provider)
         assert result == "ok"
+
+
+class TestNarrateSocialLanguage:
+    """Regresyon (2026-08-29): narrate_social eskiden dili KULLANICI
+    MESAJINDAN tahmin etmeye calisiyordu ("mesajin dilinde yanit ver") —
+    ConversationManager.language'dan gelen ACIK sinyal yerine. Kisa/
+    belirsiz mesajlarda (ör. "hi") yanlis dilde cevap riski vardi."""
+
+    @pytest.mark.asyncio
+    async def test_default_language_instructs_turkish(self):
+        provider = FakeProvider(response="Merhaba!")
+        await narrate_social("greeting", "hi", [], provider=provider)
+        assert "Turkce yaz." in provider.last_prompt
+
+    @pytest.mark.asyncio
+    async def test_explicit_english_instructs_english(self):
+        provider = FakeProvider(response="Hello!")
+        await narrate_social("greeting", "hi", [], provider=provider, language="en")
+        assert "Write in English." in provider.last_prompt
+        assert "Turkce yaz." not in provider.last_prompt
+
+    @pytest.mark.asyncio
+    async def test_unsupported_language_falls_back_to_turkish_instruction(self):
+        provider = FakeProvider(response="Merhaba!")
+        await narrate_social("greeting", "bonjour", [], provider=provider, language="fr")
+        assert "Turkce yaz." in provider.last_prompt
