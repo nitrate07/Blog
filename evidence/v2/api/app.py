@@ -674,24 +674,25 @@ def create_app(
             started = time.time()
             yield await event({"type": "start", "query": request.query})
             
-            steps = [
-                ("intent", "İddia çözümleniyor"),
-                ("archive", "Arşiv makaleleri taranıyor"),
-                ("external", "Harici kaynaklar kontrol ediliyor"),
-                ("contradiction", "Çelişkiler inceleniyor"),
-                ("synthesis", "Hüküm yazılıyor"),
-            ]
+            # NOT (2026-08-29): Eskiden burada 5 ayri asama etiketi sirayla
+            # gosteriliyordu ("İddia çözümleniyor" -> "Arşiv makaleleri
+            # taranıyor" -> "Harici kaynaklar kontrol ediliyor" -> "Çelişkiler
+            # inceleniyor" -> "Hüküm yazılıyor"). Kullanici tek, sabit bir
+            # durum metni istedi. Arka plandaki gercek arastirma/sentez akisi
+            # (manager.handle_message: intent -> plan -> investigate ->
+            # sufficiency dongusu -> hukum sentezi -> LLM aciklama) burada
+            # HICBIR SEKILDE degismedi — degisen SADECE kullaniciya gosterilen
+            # metin. Tek bir "step" olayi gonderilir (frontend her step
+            # olayinda yeni bir satir olusturuyor — bkz. ask.html/tr/ask.html,
+            # bu yuzden birden fazla event = birden fazla satir; burada
+            # bilerek tek event gonderiliyor).
+            yield await event({
+                "type": "step",
+                "name": "researching",
+                "label": "Kaynaklar araştırılıyor",
+            })
             
             task = asyncio.create_task(manager.handle_message(request.query))
-            for name, label in steps:
-                if task.done():
-                    break
-                yield await event({"type": "step", "name": name, "label": label})
-                try:
-                    await asyncio.wait_for(asyncio.shield(task), timeout=0.45)
-                except asyncio.TimeoutError:
-                    continue
-            
             response = await task
             yield await event({"type": "steps_done"})
             

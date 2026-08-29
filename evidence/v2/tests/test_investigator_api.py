@@ -136,6 +136,29 @@ class TestInvestigatorAPI:
             assert done["duration_ms"] >= 0
 
     @pytest.mark.asyncio
+    async def test_stream_shows_single_status_message_not_multiple_steps(self):
+        """Kullanici talebi (2026-08-29): eskiden 5 ayri asama etiketi
+        ("İddia çözümleniyor" -> ... -> "Hüküm yazılıyor") sirayla
+        gosteriliyordu; arka plandaki gercek arastirma/sentez akisi ayni
+        kalirken, kullaniciya TEK, sabit bir durum metni gosterilmeli
+        ("Kaynaklar araştırılıyor"). Frontend (ask.html/tr/ask.html) her
+        'step' olayi icin ayri bir satir olusturuyor, bu yuzden tam olarak
+        BIR step event'i gonderilmesi onemli — birden fazla gonderilirse
+        kullanici yine birden fazla satir gorur."""
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/v1/investigator/chat/stream",
+                json={"query": "Aspirin kalp krizinden korur mu?", "session_id": "single-status"},
+            )
+            events = _parse_sse(resp.text)
+            step_events = [e for e in events if e["type"] == "step"]
+
+            assert len(step_events) == 1
+            assert step_events[0]["label"] == "Kaynaklar araştırılıyor"
+
+    @pytest.mark.asyncio
     async def test_stream_uses_session_manager(self):
         app = create_app()
         transport = ASGITransport(app=app)
