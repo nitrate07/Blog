@@ -223,6 +223,24 @@ class Intent:
     raw_signals: list[str] = field(default_factory=list)
 
 
+def is_interrogative(query: str) -> bool:
+    """Soru cumlesi mi? — TR soru eki (mi/mi/mu/mu) veya EN yardimci fiili.
+
+    Modul-seviyesinde bagimsiz fonksiyon (IntentAnalyzer disindan da
+    kullanilabilir — bkz. conversation.py'deki has_health_topic kapisi).
+    """
+    q = query.lower().strip()
+    if q.endswith("?"):
+        return True
+    # TR soru eki: ayri yazilan "mi/mi/mu/mu/mI" + ekleri
+    if re.search(r"\b(m[iıì]|m[uü])[nmuü]?\b", q):
+        return True
+    # EN soru yapisi
+    if re.search(r"^(is|are|does|do|did|can|should|will|would|could)\b", q):
+        return True
+    return False
+
+
 class IntentAnalyzer:
     """Kullanici niyetini analiz eden motor.
 
@@ -318,17 +336,10 @@ class IntentAnalyzer:
         """Soru cumlesi mi? — TR soru eki (mi/mi/mu/mu) veya EN yardimci fiili.
 
         Soru cumleleri yeni iddiadir; ayni topic olsa bile follow-up degil.
+        Bkz. modul-seviyesindeki is_interrogative() — bu, ona ince bir
+        sarmalayici.
         """
-        q = query.lower().strip()
-        if q.endswith("?"):
-            return True
-        # TR soru eki: ayri yazilan "mi/mi/mu/mu/mI" + ekleri
-        if re.search(r"\b(m[iıì]|m[uü])[nmuü]?\b", q):
-            return True
-        # EN soru yapisi
-        if re.search(r"^(is|are|does|do|did|can|should|will|would|could)\b", q):
-            return True
-        return False
+        return is_interrogative(query)
 
     def _detect_social(self, query: str) -> IntentType | None:
         """Kisa, saf sosyal mesajlari tespit et.

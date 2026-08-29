@@ -137,6 +137,11 @@ _TERM_MAP: dict[str, str] = {
     "şizofreni": "schizophrenia", "otizm": "autism",
     "down sendromu": "down syndrome", "romatoid artrit": "rheumatoid arthritis",
     "safra kesesi": "gallbladder gallstone",
+    # NOT (2026-08-29): Kullanicinin bizzat bulduğu bir örnek üzerine
+    # (kullanici "trigliserid" hakkinda bir soru sordu, sistem taniyamadi)
+    # temel kan tahlili degerleri icin ek tarama yapildi.
+    "trigliserid": "triglyceride", "hba1c": "hba1c hemoglobin a1c",
+    "tsh": "tsh thyroid stimulating hormone",
     # egzersiz/yaşam
     "egzersiz": "exercise physical activity", "spor": "exercise training",
     "koşu": "running aerobic", "yürüyüş": "walking",

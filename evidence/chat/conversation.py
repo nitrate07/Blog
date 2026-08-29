@@ -26,7 +26,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
-from .intent import SOCIAL_INTENTS, Intent, IntentAnalyzer, IntentType
+from .intent import SOCIAL_INTENTS, Intent, IntentAnalyzer, IntentType, is_interrogative
 from .investigator import EvidenceInvestigator, InvestigationResult
 from .planner import InvestigationPlan, Planner
 from .response import ChatResponse, ResponseBuilder
@@ -200,7 +200,29 @@ class ConversationManager:
         #    metni fallback olarak dondugu icin bu kapi pratikte HICBIR
         #    zaman tetiklenmiyordu — has_health_topic() gercekten bos/dolu
         #    donen dogru sinyal (bkz. search_query.py).
-        if intent.type == IntentType.VERIFY_CLAIM and not has_health_topic(intent.cleaned_query):
+        #
+        # NOT (2026-08-29): Canli taramalarla has_health_topic()'in el
+        # yapimi sozlugunde onemli bosluklar oldugu defalarca dogrulandi
+        # (ör. "trigliserid" — kolesterol kadar temel bir kan degeri —
+        # sozlukte hic yoktu). Sozluk her zaman eksik kalacak (binlerce
+        # tibbi terim var). Bu yuzden kapi artik "sozlukte tanindi mi"
+        # DEGIL, "bu GERCEKTEN bir soru mu" sorusuna gore calisiyor:
+        # has_health_topic False olsa bile mesaj soru yapisindaysa (bkz.
+        # is_interrogative — "?" ile bitiyor, TR soru eki mi/mı/mu/mü,
+        # ya da EN yardimci fiil ile basliyor) arastirma yine de denenir;
+        # arsiv/TF-IDF katmani sozluk cevirisi olmadan da ham Turkce
+        # metinle calisabilir (bkz. build_search_query docstring'i). Sadece
+        # GERCEKTEN soru YAPISI tasimayan mesajlar ("benim adım Ümit",
+        # "bugün hava çok güzel") kisa devre yapmaya devam eder — is_interrogative
+        # kontrolu intent.original_query uzerinde yapilir, cleaned_query
+        # UZERINDE DEGIL: _extract_claim VERIFY_CLAIM icin sona her zaman
+        # "?" ekledigi icin cleaned_query her zaman interrogative olurdu,
+        # bu da kontrolu anlamsizlastirirdi.
+        if (
+            intent.type == IntentType.VERIFY_CLAIM
+            and not has_health_topic(intent.cleaned_query)
+            and not is_interrogative(intent.original_query)
+        ):
             response = self.response_builder._unrecognized_claim(intent)
             if self.llm_provider is not None:
                 from .social_chat import narrate_social
