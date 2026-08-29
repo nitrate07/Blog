@@ -197,6 +197,32 @@ Objektif gözlemler; çözüm içermez.
    word listesi ve kök bulma (stemming) yoktur; ek zengin Türkçe morfolojisinde
    bu, eşleşmeyi sözlükteki yüzey forma daraltır. Çift dilli corpus (378+378)
    bu yüzden birebir çeviri çiftlerine dayanır.
+
+   > **Canlı doğrulama (2026-08-29):** Bu sınırlama somut olarak test edildi.
+   > Tamamen alakasız sorgular ("İstanbul trafiği ne zaman rahatlar", "En iyi
+   > futbol takımı hangisi") arşivdeki bazı makalelere, GERÇEKTEN İLGİLİ
+   > sorgulardan (ör. "Statinler nocebo etkisiyle mi kas ağrısı yapıyor?")
+   > **daha yüksek** ham TF-IDF benzerlik skoru veriyor — kısa sorgu + seyrek
+   > vektörlerde beklenen ama ciddi bir sınırlama. Bunun somut sonucu olarak
+   > iki gerçek hata bulunup düzeltildi: (1) `evidence/chat/conversation.py`
+   > `_derive_verdict`'te relevance skoru `max(0.3, ...)` ile tabanlıydı — bu,
+   > eşleşme kalitesinden bağımsız olarak HER arşiv-tabanlı hükmün kullanıcıya
+   > her zaman sabit "%30 güven" göstermesine neden oluyordu (taban
+   > kaldırıldı, artık gerçek — hâlâ gürültülü ama en azından tutarlı —
+   > değerler gösteriliyor); (2) `_execute_search_archive`
+   > (`evidence/chat/investigator.py`) diğer arama adımlarının aksine
+   > `prune_irrelevant` süzgecinden geçmiyordu (eklendi — tamamen alakasız
+   > sorguları büyük ölçüde eler, ama "vitamin D" vs "vitamin E" gibi kelime
+   > paylaşımlı-ama-konu-alakasız durumları yakalayamaz, bu gerçek semantik
+   > anlayış gerektirir). Ayrıca `evidence/chat/response.py`'ye, arşivde
+   > gerçekten ilgili tek bir kaynak bulunamadığında (ama yine de zayıf bir
+   > hüküm üretildiğinde) açık bir düşük-güven uyarısı eklendi. **Kalan,
+   > çözülmemiş kök neden:** bu üç düzeltme de belirtileri iyileştiriyor,
+   > temel nedeni (TF-IDF'in kısa metinlerde güvenilir semantik ayırt etme
+   > yapamaması) çözmüyor — bunun gerçek çözümü zaten opt-in olarak mevcut
+   > olan Chroma + gerçek embedding backend'ine geçmektir (bkz. Bölüm 3
+   > güncelleme notu). Production'da `EVIDENCE_RAG_BACKEND=chroma` + gerçek
+   > embedding kurulumu, bu sınıf hatayı yapısal olarak ortadan kaldırır.
 2. **Ölçeklenebilirlik:** Matris her mutasyonda dense'e çevrilip tam dosya
    olarak yazılır ve her upsert/delete'te tüm corpus `fit_transform` ile
    baştan kurulur (`store.py:97-98`, `118-124`); `max_features=10000` üst sınırı
