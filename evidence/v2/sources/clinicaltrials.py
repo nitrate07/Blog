@@ -26,11 +26,10 @@ class ClinicalTrialsAgent(HealthOrgAgent):
     API_URL = "https://clinicaltrials.gov/api/v2/studies"
     
     async def _search(self, client: httpx.AsyncClient, query: str, limit: int) -> list[dict[str, Any]]:
-        resp = await client.get(self.API_URL, params={
+        resp = await self._get_with_retry(client, self.API_URL, params={
             "query.cond": query,
             "pageSize": limit,
         })
-        resp.raise_for_status()
         data = resp.json()
         
         results = []

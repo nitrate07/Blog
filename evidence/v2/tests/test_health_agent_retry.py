@@ -18,6 +18,7 @@ import pytest
 from evidence.v2.sources.ecdc import ECDCAgent
 from evidence.v2.sources.google_scholar import GoogleScholarAgent
 from evidence.v2.sources.health_base import HealthOrgAgent
+from evidence.v2.sources.http_retry import DEFAULT_MAX_RETRIES
 from evidence.v2.sources.nice import NICEAgent
 
 
@@ -105,7 +106,7 @@ class TestGetWithRetry:
         async with _client_with_transport(handler) as client:
             with pytest.raises(httpx.HTTPStatusError):
                 await agent._get_with_retry(client, "https://example.com/x")
-        assert counter.count == agent.MAX_RETRIES + 1  # ilk deneme + tum retry'ler
+        assert counter.count == DEFAULT_MAX_RETRIES + 1  # ilk deneme + tum retry'ler
 
     @pytest.mark.asyncio
     async def test_retries_on_connect_timeout_then_succeeds(self):

@@ -8,6 +8,7 @@ from typing import Any
 import httpx
 
 from ..core.interfaces import SourceAgent
+from .http_retry import get_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -35,12 +36,11 @@ class CrossrefAgent(SourceAgent):
         
         async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
             try:
-                resp = await client.get(self.API_URL, params={
+                resp = await get_with_retry(client, self.API_URL, agent_name=self.name, params={
                     "query": query,
                     "rows": limit,
                     "select": "DOI,title,published,URL,type,author,container-title,abstract",
                 })
-                resp.raise_for_status()
             except Exception as e:
                 logger.warning(f"Crossref search failed: {e}")
                 return []

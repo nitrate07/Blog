@@ -7,7 +7,6 @@ açık meta veri API'si üzerinden arar: JSON, kararlı, DOI'li sonuçlar.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 from typing import Any
@@ -15,6 +14,7 @@ from typing import Any
 import httpx
 
 from ..core.interfaces import SourceAgent
+from .http_retry import get_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +25,15 @@ class CrossrefJournalAgent(SourceAgent):
     Alt sınıflar şunları ayarlar:
     - name / source_type / organization
     - CONTAINER_TITLES: derginin Crossref kayıtlı ad(lar)ı
+
+    NOT (2026-08-29): Bu sinifin ESKI retry dongusu hataliydi — sadece 429
+    icin gercekten tekrar deniyordu ("for attempt in range(3)" gorunumune
+    ragmen); baska HERHANGI bir exception (zaman asimi, baglanti hatasi,
+    5xx durum kodu) dongunun ortasinda bile olsa aninda `return []` ile
+    tum denemeyi birakiyordu, kalan denemeleri hic kullanmadan. Bu, jama,
+    bmj, lancet, nejm, who, cdc, cochrane, aha ajanlarinin HEPSINI
+    etkiliyordu (bu sinifin tum alt siniflari). Artik paylasilan,
+    dogru calisan get_with_retry() kullaniliyor (bkz. .http_retry).
     """
 
     name = "journal"
@@ -52,23 +61,10 @@ class CrossrefJournalAgent(SourceAgent):
             "select": "DOI,title,container-title,published,URL,abstract",
         }
         async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
-            resp = None
-            for attempt in range(3):
-                try:
-                    r = await client.get(self.API_URL, params=params)
-                    if r.status_code == 429:
-                        # Ayni IP'den paralel ajanlar rate-limit'e takilabilir;
-                        # kisa beklemeyle bir-iki kez dene.
-                        await asyncio.sleep(1.5 * (attempt + 1))
-                        continue
-                    r.raise_for_status()
-                    resp = r
-                    break
-                except Exception as e:
-                    logger.warning(f"{self.name} search failed: {e}")
-                    return []
-            if resp is None:
-                logger.info(f"{self.name}: rate-limited, sonuc yok")
+            try:
+                resp = await get_with_retry(client, self.API_URL, agent_name=self.name, params=params)
+            except Exception as e:
+                logger.warning(f"{self.name} search failed: {e}")
                 return []
 
         items = resp.json().get("message", {}).get("items", [])
