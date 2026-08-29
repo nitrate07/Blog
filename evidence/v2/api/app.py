@@ -626,11 +626,22 @@ def create_app(
         if session_id not in conversation_managers:
             while len(conversation_managers) >= MAX_SESSIONS:
                 conversation_managers.pop(next(iter(conversation_managers)))
-            conversation_managers[session_id] = ConversationManager(
+            manager = ConversationManager(
                 orchestrator=orchestrator,
                 llm_provider=llm_provider,
                 db=db,
             )
+            # NOT (2026-08-29): ConversationState.session_id varsayilan olarak
+            # "" (bos) — ConversationManager'in kendisi bunu hicbir yerde
+            # doldurmuyor, session_id yalnizca burada dict anahtari olarak
+            # kullaniliyordu. Canli testle dogrulandi: /v1/investigator/stats
+            # her zaman session_id: "" donduruyordu, cagiranin gecirdigi
+            # gercek deger ne olursa olsun — coklu-oturumlu bir arayuzde
+            # "hangi oturumun istatistiklerine bakiyorum" sorusunu cevapsiz
+            # birakiyordu. State nesnesi uzerinde dogrudan ayarlanarak
+            # duzeltildi.
+            manager.state.session_id = session_id
+            conversation_managers[session_id] = manager
         return conversation_managers[session_id]
 
     @app.post("/v1/investigator/chat")
