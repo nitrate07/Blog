@@ -171,6 +171,37 @@ devre dışı kalır, hiçbir şeyi bozmaz.
 sağlayıcıyla planın 4 adımdan 6 adıma çıktığı, 2 yeni adımın farklı araştırma açılarını
 (mekanizma, karşılaştırmalı deneme) hedeflediği doğrulandı.
 
+## 8. Sayısal-tutarlılık güvenlik ağı + Türkçe tokenizer hatası — humanchaos/factcheck'ten uyarlandı (2026-08-29)
+
+**Uygulandı.** Aynı GitHub taramasında incelenen `humanchaos/factcheck` projesinde
+somut bir güvenlik mekanizması bulundu: iddia edilen bir sayısal değer (yüzde/kat)
+kanıttaki değerden ≥10x farklıysa, hüküm otomatik olarak geçersiz kılınıyor
+("math_outlier") — LLM'lerin büyük sayılarda halüsinasyon görme eğilimine karşı.
+Bizim `evidence/engine.py`'deki `compare_claim_evidence` (hem `/v1/verify` hem
+`evidence/chat/conversation.py`'nin kullandığı çekirdek karşılaştırma motoru) bu
+kontrolü **hiç yapmıyordu** — yalnızca kelime örtüşmesine bakıyordu. Yani "kahve
+kanseri %500 artırır" gibi bir iddia, kanıt yalnızca "%15 artış" gösterse bile kelime
+örtüşmesi yeterliyse "Destekleniyor" diyebiliyordu.
+
+Eklenen: `check_numeric_consistency()` — iddia ve en alakalı pasajdaki AYNI BİRİMLİ
+(yüzde-yüzde, kat-kat — birimler arası dönüşüm bilerek yapılmıyor, kendi
+varsayım hatamızı güvenlik kontrolüne sokmamak için) sayısal büyüklükleri
+karşılaştırır; oran ≥5x ise (humanchaos/factcheck'in 10x'inden biraz daha temkinli)
+hüküm `UNSUPPORTED`'a düşürülür — kelime örtüşmesi ne kadar yüksek olursa olsun.
+
+**Ek bulgu (bu çalışma sırasında tesadüfen bulundu):** `_tokens()` fonksiyonunun
+regex'i (`[a-z0-9]+`) yalnızca ASCII karakter yakalıyordu — Türkçe özel karakterler
+(ç, ğ, ı, ö, ş, ü) kelime sınırı sayılıp kelimeleri parçalıyordu (`"sağlığına"` tamamen
+kayboluyor, `"gösteriyor"` → `"steriyor"` oluyordu). Bu, fonksiyonun TÜM Türkçe
+metin karşılaştırmasını sessizce bozan sistemik bir hataydı. Regex'e Türkçe karakterler
+eklendi, `_NEGATIONS`/`_QUALIFIERS` setlerine de yaygın Türkçe kelimeler
+(`"değil"`, `"yok"`, `"olabilir"` vb.) eklendi. **Kalan, çözülmemiş kısım:** fiil-eki-
+tabanlı Türkçe olumsuzlama (`"gelmediğini"` gibi) hâlâ yakalanamıyor — bu, tam Türkçe
+morfoloji gerektirir (bkz. Bölüm 1'deki Zeyrek sınırlaması, aynı kök sorun).
+
+16 yeni test (`test_numeric_consistency.py`). Doğrudan `compare_claim_evidence`
+üzerinde kapsamlı doğrulama yapıldı (bu fonksiyonun daha önce hiç testi yoktu).
+
 ---
 
 ## Özet — inventory'deki 7 sınırlamaya karşılık gelen seçenekler
