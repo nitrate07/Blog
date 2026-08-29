@@ -9,6 +9,13 @@
 
 ## Ek bulgu (bu notu hazırlarken doğrulandı): sözlük tekrarı hâlâ canlı
 
+> **Çözüldü (2026-08-29):** İki sözlük birleştirildi —
+> `evidence/v2/pipeline/pipeline.py`'deki `TURKISH_TO_ENGLISH_QUERIES` ve
+> alt-dize/oran tabanlı eşleştirme tamamen kaldırıldı;
+> `translate_query_to_english()` artık `evidence/chat/search_query.py`'deki
+> tek, tokenize edilmiş `_TERM_MAP`'e delege ediyor. Aşağıdaki bulgu artık
+> tarihsel — güncel kod tabanını yansıtmıyor.
+
 `evidence/chat/search_query.py`'deki `_TERM_MAP`'ten bugün `"adım"`/`"göz"`/`"c"` bare
 girdileri kaldırıldı (PR #26/#27). Ama **aynı kavramın ikinci, bağımsız bir kopyası**
 `evidence/v2/pipeline/pipeline.py`'deki `TURKISH_TO_ENGLISH_QUERIES` sözlüğünde duruyor
@@ -50,6 +57,19 @@ ayrı bir proje.
 
 ## 3. Gerçek embedding tabanlı RAG (82 makale / 756 chunk ölçeğinde)
 
+> **Durum güncellemesi (2026-08-29):** Bu bölümdeki `ChromaDB` önerisi artık
+> uygulandı — `evidence/rag/chroma_store.py` (`ChromaArticleVectorStore`),
+> `evidence/requirements-rag-chroma.txt`, `EVIDENCE_RAG_BACKEND=chroma`
+> config anahtari (`evidence/config.py`), `evidence/v2/api/app.py`'de
+> secim mantigi, ve `evidence/tests/test_chroma_store.py` (agir
+> bagimliliklar kurulu degilse otomatik atlanan, kurulunca gercek
+> ChromaDB + `paraphrase-multilingual-MiniLM-L12-v2` embedding ile calisan
+> testler) hepsi mevcut. Varsayilan hala `tfidf` — Chroma opt-in
+> (`EVIDENCE_RAG_BACKEND=chroma`), davranis degisikligi yok. Asagidaki
+> Turkce embedding modeli onerileri (emrecan/... , TurkEmbed) henuz
+> degerlendirilmedi/entegre edilmedi — varsayilan hala genel-amacli
+> `paraphrase-multilingual-MiniLM-L12-v2`.
+
 - **ChromaDB** — pip ile kurulur, Apache 2.0, aktif. <100K vektörde "3 satır kodla" yeterli
   bulunuyor. Envanterdeki `evidence/data/chroma/` klasör adı zaten Chroma'yı çağrıştırıyor
   ama şu an gerçek Chroma kullanılmıyor (bkz. inventory Bölüm 2, 6) — isim ile gerçeklik
@@ -60,8 +80,13 @@ ayrı bir proje.
   - `emrecan/bert-base-turkish-cased-mean-nli-stsb-tr` — köklü, sentence-transformers uyumlu, güvenli başlangıç noktası.
   - **TurkEmbed** (2026, arXiv 2511.08376) — Türkçe morfolojisine özel fine-tune, daha yeni/araştırma aşamasında, kullanmadan önce HF'de gerçekten yayınlanmış mı kontrol edilmeli.
   - Tümü `sentence-transformers` ile yerelde, ücretsiz, API anahtarı gerektirmeden çalışır — RAG tarafı için "API anahtarı yok" kısıtını tamamen ortadan kaldırır.
+  - **Not:** Uygulanan `ChromaArticleVectorStore` şu an bu Türkçe'ye özel
+    modellerden birini değil, çok dilli genel-amaçlı
+    `paraphrase-multilingual-MiniLM-L12-v2`'yi kullanıyor — bu üç seçenek
+    hâlâ ayrı, yapılmamış bir değerlendirme/iyileştirme adımı.
 
 ## 4. Ücretsiz/ucuz LLM — üretim için gerçekçi seçenekler
+
 
 > **Durum güncellemesi:** Aşağıdaki `GroqProvider` önerisi artık uygulandı —
 > `evidence/llm_providers.py`, `evidence/provider_registry.py` ve
@@ -107,12 +132,21 @@ değerlendirilebilir.
 
 ## Özet — inventory'deki 7 sınırlamaya karşılık gelen seçenekler
 
+> **Durum (2026-08-29):** Asagidaki tablo bu notun ilk yazildigi tarihteki
+> durumu yansitiyor. O tarihten beri tamamlananlar: satir 1 (Chroma —
+> bkz. Bölüm 3 guncelleme notu), satir 3'un "iki sapmış kopya" kısmı
+> (evidence/chat/search_query.py ve evidence/v2/pipeline/pipeline.py'deki
+> sözlükler birleştirildi), ve Bölüm 4'teki Groq önerisi. Kalan acik
+> kalemler: satir 1'in Turkce-ozel embedding modeli kismi (halen genel-
+> amacli model kullaniliyor), satir 3'un Zeyrek/spaCy-tr morfoloji kismi,
+> satir 5 (kaynak ajani saglamlastirma), satir 7 (gorsel kanal).
+
 | Inventory'deki sınırlama | Bu nottaki karşılığı |
 |---|---|
-| 1. TF-IDF leksikeldir, semantik değil | Bölüm 3 — Chroma + Türkçe embedding modeli |
-| 2. Matris her mutasyonda baştan kuruluyor | Chroma'ya geçiş bunu da native olarak çözer |
-| 3. Terim sözlüğü ölçeklenmiyor + iki sapmış kopya var | Bölüm 1 — Zeyrek/spaCy-tr; + yukarıdaki "ek bulgu" (acil birleştirme) |
+| 1. TF-IDF leksikeldir, semantik değil | Bölüm 3 — Chroma (**uygulandı**, opt-in) + Türkçe embedding modeli (**hâlâ açık**) |
+| 2. Matris her mutasyonda baştan kuruluyor | Chroma'ya geçiş bunu da native olarak çözer (**uygulandı**) |
+| 3. Terim sözlüğü ölçeklenmiyor + iki sapmış kopya var | Bölüm 1 — Zeyrek/spaCy-tr (**hâlâ açık**); iki kopyanın birleştirilmesi (**uygulandı**) |
 | 4. Framework yokluğunun artı/eksisi | Bölüm 6 — şimdilik framework'süz devam, LangGraph rezervde |
 | 5. Scraping kırılganlığı (6 ajan HTML, 8 ajan Crossref'e bağımlı) | Bu notta doğrudan ele alınmadı — ayrı bir "kaynak ajanı sağlamlaştırma" araştırması gerekebilir |
-| 6. "Chroma" adlandırması yanıltıcı | Bölüm 3 — gerçek Chroma'ya geçiş adı gerçeğe uydurur |
-| 7. Görsel kanal tamamen boş | Bölüm 5 |
+| 6. "Chroma" adlandırması yanıltıcı | Bölüm 3 — gerçek Chroma'ya geçiş adı gerçeğe uydurdu (**uygulandı**) |
+| 7. Görsel kanal tamamen boş | Bölüm 5 — **hâlâ açık** |
