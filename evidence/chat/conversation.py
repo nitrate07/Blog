@@ -58,6 +58,13 @@ _SOURCE_QUALITY = {
     "europepmc": 0.85,
     "openalex": 0.75,
     "crossref": 0.7,
+    # NOT (2026-08-29): "google_scholar" bu haritada hic yoktu — sessizce
+    # varsayilan .get(source, 0.7) degerine (crossref ile ayni) dusuyordu.
+    # Google Scholar, PubMed gibi hakemli bir on-filtreleme yapmadan tez/
+    # preprint/gri literaturu de indeksler; bilerek biraz daha temkinli
+    # (0.6) bir deger verildi, boylece gelecekte varsayilan .get() degeri
+    # baska bir nedenle degistirilirse bu kaynak sessizce etkilenmez.
+    "google_scholar": 0.6,
 }
 
 

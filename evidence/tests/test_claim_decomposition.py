@@ -241,3 +241,40 @@ class TestCategorizeResultsDeduplication:
         investigator._categorize_results(result)
 
         assert result.total_sources == 2
+
+
+class TestSourceQualityCompleteness:
+    """Regresyon (2026-08-29): "google_scholar" _SOURCE_QUALITY haritasinda
+    hic yoktu, sessizce .get(source, 0.7) varsayilanina dusuyordu. Bu test,
+    her kayitli kaynak ajaninin acik bir kalite skoruna sahip oldugunu
+    kilitler — gelecekte yeni bir ajan eklenip harita guncellenmezse bu
+    test kirilir (sessiz varsayilana dusme yerine)."""
+
+    def test_all_registered_source_agents_have_explicit_quality_score(self):
+        import importlib
+        import inspect
+        import pkgutil
+
+        from evidence.chat.conversation import _SOURCE_QUALITY
+        import evidence.v2.sources as sources_pkg
+
+        agent_names: set[str] = set()
+        for _, modname, _ in pkgutil.iter_modules(sources_pkg.__path__):
+            module = importlib.import_module(f"evidence.v2.sources.{modname}")
+            for attr in vars(module).values():
+                if not inspect.isclass(attr):
+                    continue
+                name = attr.__dict__.get("name")  # yalnizca SINIFIN KENDI tanimladigi, mirasla gelmeyen
+                # "journal" (CrossrefJournalAgent taban sinifi) her zaman
+                # alt siniflar tarafindan override edilir, canli bir kaynak
+                # adi olarak asla yuzeye cikmaz — kasitli olarak haric.
+                if isinstance(name, str) and name and name != "journal":
+                    agent_names.add(name)
+
+        missing = agent_names - set(_SOURCE_QUALITY.keys())
+        assert missing == set(), f"_SOURCE_QUALITY'de kalite skoru olmayan kaynaklar: {missing}"
+
+    def test_google_scholar_has_explicit_conservative_score(self):
+        from evidence.chat.conversation import _SOURCE_QUALITY
+        assert "google_scholar" in _SOURCE_QUALITY
+        assert _SOURCE_QUALITY["google_scholar"] < _SOURCE_QUALITY["pubmed"]
