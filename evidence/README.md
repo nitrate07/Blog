@@ -272,6 +272,12 @@ No GPU or external embedding service required. The TF-IDF model runs entirely in
 
 An optional real-embedding backend (ChromaDB + sentence-transformers) is also available — see `evidence/rag/chroma_store.py` and `EVIDENCE_RAG_BACKEND=chroma` above.
 
+## Claim Decomposition (parallel multi-angle research)
+
+When an LLM provider is configured, `VERIFY_CLAIM` research is automatically broadened: the claim is split into 2-4 distinct English research angles (mechanism, comparative studies, specific population, meta-analyses) via a schema-constrained tool call, and each angle is researched in parallel alongside the base query — inspired by the planner/execution/publisher architecture of [gpt-researcher](https://github.com/assafelovic/gpt-researcher) (the most-starred open-source deep research agent). Results are deduplicated by URL across all angles. With no LLM provider configured, behavior is unchanged (single query, as before) — this is purely additive.
+
+See `evidence/chat/planner.py` (`augment_with_subquestions`, `_decompose_claim`).
+
 ## Image Claim Extraction (OCR)
 
 Extracts claim text from an image (e.g. a screenshot of a viral health claim) so it can be fed into the normal text-based verification flow (`evidence/chat/conversation.py`, `has_health_topic`).

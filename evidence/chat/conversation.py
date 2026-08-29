@@ -256,6 +256,17 @@ class ConversationManager:
             return response
 
         plan = self.planner.create_plan(intent)
+
+        # NOT (2026-08-29): "gpt-researcher" mimarisinden (bkz. planner.py,
+        # augment_with_subquestions docstring'i) ilham alinan opsiyonel
+        # genisletme — LLM mevcutsa iddiayi birden fazla arastirma acisina
+        # bolup paralel arastirir; yoksa plan degismeden kalir.
+        if intent.type == IntentType.VERIFY_CLAIM and self.llm_provider is not None:
+            en_query = build_search_query(intent.cleaned_query)
+            plan = await self.planner.augment_with_subquestions(
+                plan, intent.cleaned_query, en_query, self.llm_provider,
+            )
+
         logger.info(f"Plan: {len(plan.all_active_steps())} steps")
 
         # 3. Arastirma (loop ile — need_more_evidence durumunda tekrar ara)
