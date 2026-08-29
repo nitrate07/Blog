@@ -259,6 +259,34 @@ Objektif gözlemler; çözüm içermez.
    > gerçek NLP/morfoloji (Zeyrek/spaCy, bu oturumda ağ kısıtı nedeniyle
    > tam entegre edilemedi) veya semantik embedding tabanlı bir kapı
    > (Chroma) — el yapımı sözlük genişletmesi yalnızca belirti tedavisi.
+
+   > **Büyük genişletme + mimari düzeltme (2026-08-29, kullanıcı talebiyle):**
+   > Kullanıcı "trigliserid" (kolesterol kadar temel bir kan değeri)
+   > hakkında soru sorunca sistemin "tanıyamadım" demesi üzerine iki şey
+   > yapıldı. (1) **Sözlük 171 → 388 benzersiz girişe çıkarıldı** —
+   > `icd10-cm` PyPI paketinden (95.622 ICD-10 kodu, 22 bölüm) alınan bölüm
+   > yapısı sistematik kapsam çerçevesi olarak kullanıldı (ICD-10 İngilizce
+   > olduğu için doğrudan kullanılamadı, ama hangi kategorilerin eksik
+   > olduğunu göstermek için değerliydi); Türkçe terimler ve İngilizce
+   > çeviriler elle yazıldı. Genişletme sırasında sözlüğün kendi eşleştirme
+   > mekanizmasında iki gerçek hata bulundu ve düzeltildi: bir tekrarlanan
+   > anahtar (`"tümör"`, Python'da sessizce üzerine yazılıyordu) ve 14 tane
+   > **3+ kelimelik anahtar** (`_matched_terms` yalnızca 2-token pencere
+   > kontrolü yaptığı için yapısal olarak hiçbir zaman eşleşemiyordu, ör.
+   > `"derin ven trombozu"`, `"idrar yolu enfeksiyonu"`) — hepsi çalışan
+   > 2-kelimelik alt dizilere indirildi. Bu iki hata sınıfı artık
+   > `test_term_map_expansion.py`'de otomatik testlerle kilitli, gelecekte
+   > sözlüğe eklenecek girdiler için de geçerli. (2) **Daha önemlisi, mimari
+   > bir düzeltme:** `conversation.py`'deki `has_health_topic` kapısı artık
+   > mesajın gerçekten soru yapısında olup olmadığını da kontrol ediyor
+   > (`is_interrogative` — "?" ile bitme, TR soru eki, EN yardımcı fiil).
+   > Sözlük tanımasa bile mesaj gerçek bir soru ise araştırma yine de
+   > deneniyor (arşiv/TF-IDF katmanı zaten sözlük çevirisi olmadan da ham
+   > Türkçe metinle çalışabiliyor) — bu, sözlüğün "asla tam olamayacağı"
+   > gerçeğini kabul edip etkisini azaltan asıl kalıcı çözüm; sözlük
+   > genişletmesi artık yalnızca *araştırma kalitesini* (doğru İngilizce
+   > çeviri → daha iyi PubMed/Crossref sonuçları) etkiliyor, *araştırma
+   > yapılıp yapılmayacağını* değil.
 4. **Framework yokluğunun iki yüzü:** Artı — minimal bağımlılık (8 paket),
    şeffaf akış, kolay test (359 test). Eksi — sohbet geçmişi, tool-use, retry,
    streaming, sağlayıcı soyutlamaları elle yazıldı ve 4 istemci arasında
