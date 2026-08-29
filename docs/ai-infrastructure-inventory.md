@@ -25,14 +25,22 @@ veya `pyproject.toml` yoktur; kökteki `Dockerfile` yalnızca bu dosyayı kurar
 | pytest | >=8.0, <9.0 | Test |
 | pytest-asyncio | >=0.23, <1.0 | Async test |
 
-**Dikkat çekici eksikler:** Hiçbir resmi LLM SDK'sı yok (`anthropic`, `openai`,
+**Dikkat çekici eksikler (bu envanterin ilk yazıldığı tarihte, 2026-08-24):** Hiçbir resmi LLM SDK'sı yok (`anthropic`, `openai`,
 `google-generativeai` kurulu değil); embedding kütüphanesi yok
 (`sentence-transformers`, `transformers`, `torch` yok); vektör veritabanı yok
 (`chromadb` yok — klasör adı `evidence/data/chroma/` olmasına rağmen ChromaDB
 kullanılmaz); Türkçe NLP kütüphanesi yok; framework yok (LangChain/LlamaIndex:
 tüm repoda `*.py`/`*.txt`/`*.toml` üzerinde grep → **0 eşleşme**, doğrulandı).
 
-## 2. RAG / Arama Altyapısı
+> **Güncelleme notu (2026-08-29):** `chromadb`/`sentence-transformers` artık
+> **opsiyonel** bir bağımlılık olarak mevcut (`evidence/requirements-rag-chroma.txt`,
+> `EVIDENCE_RAG_BACKEND=chroma` ile etkinleşir — bkz. `evidence/rag/chroma_store.py`).
+> Varsayılan kurulum (bu bölümdeki `requirements.txt` listesi) hâlâ değişmedi;
+> TF-IDF hâlâ varsayılan backend. Aşağıdaki Bölüm 2 açıklaması, varsayılan
+> yapılandırma için hâlâ doğru — yalnızca "ChromaDB hiç yok/kullanılamaz"
+> düzeltmesi gerekiyordu.
+
+## 2. RAG / Arama Altyapısı (varsayılan backend: TF-IDF)
 
 - **Algoritma: TF-IDF + kosinüs benzerliği** — embedding DEĞİL.
   `evidence/rag/store.py:22-27`: `TfidfVectorizer(max_features=10000,
@@ -196,9 +204,12 @@ Objektif gözlemler; çözüm içermez.
    büyüme eğrisinde maliyet artar.
 3. **Terim sözlüğü ölçeklenmez.** 117 girişlik el yapımı sözlük + ≤3 karakterlik
    ek toleransı bağlam farkındalığına sahip değildir; yanlış-pozitiflerle mücadele
-   bugüne dek girdi *silerek* yapıldı (`adım`, `göz`, `c`). Aynı kavramın ikinci,
-   sapmış bir kopyası `v2/pipeline/pipeline.py`'de yaşar (46 giriş, bare `"göz"`
-   dahil) — tek kaynak (single source of truth) yok.
+   bugüne dek girdi *silerek* yapıldı (`adım`, `göz`, `c`).
+   ~~Aynı kavramın ikinci, sapmış bir kopyası `v2/pipeline/pipeline.py`'de yaşar~~
+   **(2026-08-29 itibarıyla düzeltildi: iki sözlük birleştirildi, tek kaynak
+   `evidence/chat/search_query.py`'de yaşıyor — bkz. `docs/ai-infrastructure-roadmap.md`
+   "Ek bulgu".)** Sözlüğün kendisinin bağlam-farkındalığı olmaması (madde başındaki
+   asıl tespit) hâlâ geçerli — çözülen yalnızca ikinci kopyanın varlığıydı.
 4. **Framework yokluğunun iki yüzü:** Artı — minimal bağımlılık (8 paket),
    şeffaf akış, kolay test (359 test). Eksi — sohbet geçmişi, tool-use, retry,
    streaming, sağlayıcı soyutlamaları elle yazıldı ve 4 istemci arasında
@@ -207,8 +218,11 @@ Objektif gözlemler; çözüm içermez.
 5. **Scraping kırılganlığı:** 6 ajan HTML regex'e, 8 ajan tek bir upstream'e
    (Crossref) bağlı; docstring'ler bu yönlendirmelerin birçoğunun zaten birer
    kesinti/403 tepkisi olduğunu gösteriyor (WHO IRIS, Cochrane DNS, CDC HTML).
-6. **"Chroma" adlandırması yanıltıcıdır:** `evidence/data/chroma/` altında özel
-   bir TF-IDF deposu vardır; gerçek bir vektör veritabanı veya embedding
-   altyapısı yoktur.
+6. ~~**"Chroma" adlandırması yanıltıcıdır:**~~ **(2026-08-29 itibarıyla düzeltildi:**
+   `evidence/rag/chroma_store.py` artık gerçek ChromaDB + sentence-transformers
+   embedding kullanan, opt-in (`EVIDENCE_RAG_BACKEND=chroma`) bir backend olarak
+   mevcut — bkz. Bölüm 1 güncelleme notu.**)** Varsayılan backend hâlâ TF-IDF'dir;
+   bu madde artık yalnızca "varsayılan olarak Chroma kullanılmıyor" anlamına gelir,
+   "Chroma hiç kullanılamaz" anlamına gelmez.
 7. **Görsel kanal tamamen boş:** Makale içi görsellerin doğrulanması, OCR ya da
    çok-modlu sorgulama için ne kod ne bağımlılık mevcut.
