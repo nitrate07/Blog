@@ -236,6 +236,29 @@ Objektif gözlemler; çözüm içermez.
    `evidence/chat/search_query.py`'de yaşıyor — bkz. `docs/ai-infrastructure-roadmap.md`
    "Ek bulgu".)** Sözlüğün kendisinin bağlam-farkındalığı olmaması (madde başındaki
    asıl tespit) hâlâ geçerli — çözülen yalnızca ikinci kopyanın varlığıydı.
+
+   > **Canlı doğrulama (2026-08-29, tamamlayıcı):** Bu maddenin ciddiyeti üç
+   > ardışık canlı taramayla somut olarak ölçüldü. İlk tarama (24 çeşitli
+   > iddia) 7/24 eksik çıkardı — en çarpıcısı **"Aşılar otizme neden olur
+   > mu?"** (sağlık yanlış bilgisinin en ünlü tek örneği) `has_health_topic`
+   > kapısından geçemiyordu (kök neden: `"aşı"` 3 karakter olduğu için genel
+   > çekim-eki toleransından — `"aşırı"` ile yanlış eşleşmeyi önlemek için —
+   > kasıtlı olarak hariç tutuluyordu, bu da TÜM çekimli formların
+   > — aşılar/aşıyı/aşının — yakalanamamasına yol açıyordu). İkinci tarama
+   > (20 farklı hastalık/durum) **13/20 eksik** çıkardı (egzama, sedef,
+   > fibromiyalji, otoimmün hastalıklar, bipolar, şizofreni, otizm
+   > spektrumu, Down sendromu...). Bu oranın yüksekliği, tek tek hastalık
+   > ismi eklemenin tek başına yeterli olmadığını kanıtladı — düzeltmenin
+   > bir parçası olarak sözlüğe genel tıbbi bağlam işaretleyicileri
+   > eklendi (`hastalık`, `sendrom`, `bozukluk`, `belirti`, `teşhis`,
+   > `kronik`, `otoimmün`, `kalıtsal`) — bunlar, spesifik bir hastalık ismi
+   > sözlükte hiç olmasa bile "X hastalığı/sendromu/bozukluğu" kalıbını
+   > tıbbi bağlam olarak tanır, tek tek isim eklemekten çok daha
+   > ölçeklenebilir bir yaklaşım. Yine de bu, madde başındaki temel tespiti
+   > çürütmüyor — yalnızca somutlaştırıyor: gerçek, kalıcı çözüm hâlâ
+   > gerçek NLP/morfoloji (Zeyrek/spaCy, bu oturumda ağ kısıtı nedeniyle
+   > tam entegre edilemedi) veya semantik embedding tabanlı bir kapı
+   > (Chroma) — el yapımı sözlük genişletmesi yalnızca belirti tedavisi.
 4. **Framework yokluğunun iki yüzü:** Artı — minimal bağımlılık (8 paket),
    şeffaf akış, kolay test (359 test). Eksi — sohbet geçmişi, tool-use, retry,
    streaming, sağlayıcı soyutlamaları elle yazıldı ve 4 istemci arasında
