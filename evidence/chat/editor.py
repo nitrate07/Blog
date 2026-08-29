@@ -96,6 +96,7 @@ async def narrate_verdict(
     matches: list[dict[str, Any]],
     provider: Any | None,
     recent_history: list[dict[str, str]] | None = None,
+    language: str = "tr",
 ) -> str | None:
     """LLM'e motorun hukmunu, sadece saglanan kanitlara dayanarak yorumlat.
 
@@ -123,12 +124,17 @@ async def narrate_verdict(
             allowed_urls.append(url)
     sources_text = "\n".join(sources_lines)
 
+    # NOT (2026-08-29): "Iddianin dilinde yanit ver" (mesajdan tahmin)
+    # yerine artik ConversationManager.language'dan gelen acik sinyal
+    # kullaniliyor — bkz. narrate_social'daki ayni degisiklik/gerekce.
+    language_instruction = "Turkce yaz." if language != "en" else "Write in English."
+
     prompt = f"""Sen bir kanit-dogrulama yorumcususun, kanit KAYNAGI degilsin.
 
 KURALLAR:
 - SADECE asagida verilen kaynaklara atif yapabilirsin.
 - Verilmeyen hicbir kanit, calisma veya URL uydurma.
-- Iddianin dilinde yanit ver (iddia Turkce ise Turkce, Ingilizce ise Ingilizce).
+- {language_instruction}
 - Kisa ve acik ol (en fazla 4-5 cumle); her onemli noktada ilgili kaynagin URL'sini belirt.
 - Kanit yetersiz veya celiskiliyse bunu acikca soyle, hukmu abartma.
 
