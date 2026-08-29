@@ -348,7 +348,7 @@
     var resp = await fetch(API_BASE + '/v1/investigator/chat/stream', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: query, session_id: sessionId }),
+      body: JSON.stringify({ query: query, session_id: sessionId, language: 'tr' }),
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
 
@@ -387,7 +387,7 @@
     var resp = await fetch(API_BASE + '/v1/investigator/chat', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query: query, session_id: sessionId }),
+      body: JSON.stringify({ query: query, session_id: sessionId, language: 'tr' }),
     });
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     var data = await resp.json();
