@@ -44,6 +44,39 @@ eşleştirmek. Gerçek bir morfolojik çözümleyici bunu yapısal olarak çöze
 daha acil bir iş; Türkçe NLP kütüphanesi entegrasyonu ise onun yerini alacak daha büyük,
 ayrı bir proje.
 
+> **Kısmen uygulandı (2026-08-29, kullanıcı talebiyle "GitHub'da eksigimize uyan bir
+> şey var mı" — `zemberek-python` bulundu):** Yukarıdaki tablodaki değerlendirme
+> güncellenmeli — `zemberek-python` (PyPI, `Libr-AI` değil ayrı bir proje, Zeyrek'ten
+> FARKLI ve ondan daha köklü bir Python portu) test edildi ve **Zeyrek'ten önemli
+> ölçüde daha iyi** çıktı:
+> - PyPI'dan doğrudan kurulur, **HuggingFace/internet erişimi gerekmez** — Zeyrek/spaCy
+>   entegrasyonunun bu oturumda tıkandığı tam nokta buydu, artık aşıldı.
+> - Karmaşık çekim zincirlerini ("kolesterolünü", "hastalıklarından", "trigliseridin")
+>   doğru köke indirgiyor — bu, sözlüğe her çekimli formu elle eklemek yerine (önceki
+>   PR'larda "aşı" için yapılan gibi) GENEL bir çözüm.
+> - ~1.1ms/çağrı — gerçek zamanlı sohbet için pratik (tek seferlik ~4s başlatma
+>   maliyeti hariç).
+>
+> **Uygulanan (dar, güvenli kapsam):** `evidence/chat/turkish_morphology.py` (opsiyonel,
+> `requirements-turkish-nlp.txt`) — `evidence/chat/search_query.py`'nin `_match_term`
+> fonksiyonuna üçüncü bir katman olarak eklendi: tam eşleşme ve karakter-bazlı çekim-eki
+> toleransı başarısız olursa, Zemberek'in olası köklerinden biri sözlükte varsa kullanılır.
+> Zemberek kurulu değilse (varsayılan kurulum) bu katman sessizce atlanır.
+>
+> **Kasıtlı olarak YAPILMAYAN (bulunan gerçek sınır):** Zemberek'in kendi cümle-bazlı
+> disambiguator'ı da test edildi — "Benim adım Ahmet" örneğinde YANLIŞ kökü seçti
+> (doğrusu "ad"+iyelik eki olmalıydı, "adım" (step) kelimesini seçti). Yani **tam
+> disambiguation sorunu hâlâ çözülmedi** — bu modül bilerek disambiguation yapmıyor,
+> yalnızca "bu kelimenin olası köklerinden biri sözlükte var mı" sorusuna cevap
+> veriyor. Bu, kısa anahtarların (`len(stem)>=4` sınırı) homograf çakışmasına
+> (`"bitmek"` fiil kökü `"bit"`, sözlükteki `"bit"` (parazit) ile yazım olarak
+> çakışıyor — canlı testle bulunup düzeltildi) karşı korunarak güvenli tutuldu.
+> spaCy tabanlı tam pipeline hâlâ ayrı, daha büyük bir proje olarak açık.
+>
+> 10 yeni test (`test_turkish_morphology.py`) — Zemberek kurulu olsun olmasın her
+> ortamda çalışır (mock'lanan "kurulu değil" senaryosu + gerçek Zemberek testleri
+> `skipif` ile korunur).
+
 ## 2. Açık kaynak fact-checking araçları
 
 | Proje | Ne yapar | Neden ilgili |

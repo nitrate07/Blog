@@ -15,6 +15,8 @@ from __future__ import annotations
 
 import re
 
+from .turkish_morphology import get_candidate_stems
+
 # Soru kelime/ekleri — arama terimi olarak degersiz, her zaman dusurulur.
 _QUESTION_FILLER = {
     "mi", "mı", "mu", "mü", "mıdır", "midir", "mudur", "müdür",
@@ -364,7 +366,9 @@ _ALLOWED_EN: frozenset[str] = frozenset(
 
 
 def _match_term(token: str) -> str | None:
-    """Once tam eslesme, sonra Turkce cekim ekini soyan on-eslestirme."""
+    """Once tam eslesme, sonra Turkce cekim ekini soyan on-eslestirme,
+    son olarak (kurulu ise) Zemberek morfolojik kok bulma.
+    """
     if token in _TERM_MAP:
         return _TERM_MAP[token]
     best: tuple[int, str] | None = None
@@ -373,7 +377,31 @@ def _match_term(token: str) -> str | None:
             diff = len(token) - len(key)
             if 0 < diff <= _MAX_SUFFIX_LEN and (best is None or diff < best[0]):
                 best = (diff, value)
-    return best[1] if best else None
+    if best:
+        return best[1]
+
+    # NOT (2026-08-29): Yukaridaki iki katman (tam eslesme, >=4 karakterlik
+    # anahtarlar icin <=3 karakterlik cekim-eki toleransi) her cekimli formu
+    # yakalayamiyordu — ozellikle uzun cekim zincirleri ("kolesterolünü"
+    # gibi, diff=3'u asabilir). Zemberek kurulu ise (opsiyonel bagimlilik,
+    # bkz. turkish_morphology.py), kelimenin olasi morfolojik koklerinden
+    # herhangi biri sozlukte varsa kullanilir — bu, sozluge her cekimli
+    # formu elle eklemek yerine GENEL bir cozum. Zemberek kurulu degilse
+    # (varsayilan kurulum) bu katman sessizce atlanir, davranis DEGISMEZ.
+    #
+    # len(key)>=4 sarti BILEREK korunuyor (ustteki katmanla ayni esik):
+    # canli testle bulundu — Zemberek "bitmek" (fiil, "bitirmek/sona ermek")
+    # icin gecerli bir kok olarak "bit" dondurebiliyor (fiil govdesi olarak
+    # dogru), ama bu sozlukteki "bit" (isim, parazit) ile YAZIM OLARAK
+    # cakisiyor. Zemberek kelime turunu (POS) filtrelemeden ham kok listesi
+    # verdigi icin, kisa anahtarlari (< 4 karakter) bu katmandan haric
+    # tutmak, ust katmanin zaten cozdugu ayni sinif hatayi (kisa
+    # anahtarlarin baska kelimelerin icinde/govdesinde yanlislikla
+    # eslesmesi) burada tekrarlamayi onler.
+    for stem in get_candidate_stems(token):
+        if len(stem) >= 4 and stem in _TERM_MAP:
+            return _TERM_MAP[stem]
+    return None
 
 
 def _matched_terms(claim: str) -> list[str]:

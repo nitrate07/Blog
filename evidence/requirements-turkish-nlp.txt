@@ -1,0 +1,16 @@
+# İsteğe bağlı — gerçek Türkçe morfolojik kök bulma için
+# (evidence.chat.turkish_morphology, evidence/chat/search_query.py'nin
+# _match_term fonksiyonundaki üçüncü katman). Varsayılan kurulum
+# (requirements.txt) buna ihtiyaç duymaz; kurulu değilse bu katman
+# sessizce atlanır, mevcut (karakter-bazlı çekim-eki toleransı) davranış
+# değişmez.
+#
+# ~95MB paket + ~4 saniyelik tek-seferlik başlatma maliyeti (ilk
+# kullanımda, tembel/lazy) olduğu için core requirements.txt'e DAHIL
+# EDİLMEDİ.
+#
+# NOT: zemberek-python, artık kaldırılmış olan pkg_resources API'sine
+# bağımlı — bu yüzden setuptools<81 sabitlenmesi gerekiyor (yeni
+# setuptools sürümleri pkg_resources'ı içermiyor).
+setuptools<81
+zemberek-python>=0.2,<0.3
