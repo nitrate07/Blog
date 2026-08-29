@@ -9,6 +9,7 @@ from typing import Any
 import httpx
 
 from ..core.interfaces import SourceAgent
+from .http_retry import get_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,13 @@ class PubMedAgent(SourceAgent):
     2. Fetch summaries → get metadata (title, authors, DOI)
     3. Fetch abstracts → get passage (full abstract)
     4. Return metadata + passage
+
+    NOT (2026-08-29): Bu ucu ajanin en onemli tekli kaynagi (PubMed) — ama
+    canli veriyle dogrulandi ki 3 ardisik cagrisinin (_search_ids,
+    _fetch_summaries, _fetch_abstracts) hicbirinde retry yoktu; herhangi
+    birinde gecici bir zaman asimi/503 o adimi (ve genelde tum aramayi)
+    tek seferde kaybettiriyordu. Artik hepsi get_with_retry kullaniyor
+    (bkz. .http_retry).
     """
     
     name = "pubmed"
@@ -55,13 +63,12 @@ class PubMedAgent(SourceAgent):
     
     async def _search_ids(self, client: httpx.AsyncClient, query: str, limit: int) -> list[str]:
         try:
-            resp = await client.get(self.SEARCH_URL, params={
+            resp = await get_with_retry(client, self.SEARCH_URL, agent_name=self.name, params={
                 "db": "pubmed",
                 "term": query,
                 "retmax": limit,
                 "retmode": "json",
             })
-            resp.raise_for_status()
             return resp.json().get("esearchresult", {}).get("idlist", [])
         except Exception as e:
             logger.warning(f"PubMed search failed: {e}")
@@ -69,12 +76,11 @@ class PubMedAgent(SourceAgent):
     
     async def _fetch_summaries(self, client: httpx.AsyncClient, ids: list[str]) -> dict[str, dict]:
         try:
-            resp = await client.get(self.SUMMARY_URL, params={
+            resp = await get_with_retry(client, self.SUMMARY_URL, agent_name=self.name, params={
                 "db": "pubmed",
                 "id": ",".join(ids),
                 "retmode": "json",
             })
-            resp.raise_for_status()
             return resp.json().get("result", {})
         except Exception as e:
             logger.warning(f"PubMed summary fetch failed: {e}")
@@ -83,13 +89,12 @@ class PubMedAgent(SourceAgent):
     async def _fetch_abstracts(self, client: httpx.AsyncClient, ids: list[str]) -> dict[str, str]:
         passages: dict[str, str] = {}
         try:
-            resp = await client.get(self.ABSTRACT_URL, params={
+            resp = await get_with_retry(client, self.ABSTRACT_URL, agent_name=self.name, params={
                 "db": "pubmed",
                 "id": ",".join(ids),
                 "rettype": "abstract",
                 "retmode": "xml",
             })
-            resp.raise_for_status()
             root = ET.fromstring(resp.text)
             for article in root.findall(".//PubmedArticle"):
                 pmid_el = article.find(".//PMID")

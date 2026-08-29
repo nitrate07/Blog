@@ -13,6 +13,7 @@ from typing import Any
 import httpx
 
 from ..core.interfaces import SourceAgent
+from .http_retry import get_with_retry
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +41,7 @@ class OpenAlexAgent(SourceAgent):
         }
         async with httpx.AsyncClient(timeout=timeout, headers={"User-Agent": self.user_agent}) as client:
             try:
-                resp = await client.get(self.SEARCH_URL, params=params)
-                resp.raise_for_status()
+                resp = await get_with_retry(client, self.SEARCH_URL, agent_name=self.name, params=params)
             except Exception as e:
                 logger.warning(f"openalex search failed: {e}")
                 return []

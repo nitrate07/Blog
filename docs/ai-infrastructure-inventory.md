@@ -244,6 +244,31 @@ Objektif gözlemler; çözüm içermez.
 5. **Scraping kırılganlığı:** 6 ajan HTML regex'e, 8 ajan tek bir upstream'e
    (Crossref) bağlı; docstring'ler bu yönlendirmelerin birçoğunun zaten birer
    kesinti/403 tepkisi olduğunu gösteriyor (WHO IRIS, Cochrane DNS, CDC HTML).
+
+   > **Güncelleme (2026-08-29):** Retry/backoff eksikliği kısmı **düzeltildi**
+   > — `evidence/v2/sources/http_retry.py` adında paylaşılan, tek bir
+   > `get_with_retry()` fonksiyonu eklendi (gerçekten geçici sayılan hatalarda
+   > — bağlantı zaman aşımı, 429/500/502/503/504 — üstel geri-çekilmeyle
+   > tekrar dener; 403/404 gibi kalıcı hataları tekrar denemez). Bu, 6
+   > HTML-scraping ajanına (nice, ecdc, ema, esc, tuseb, google_scholar —
+   > önceki oturumda), ardından **4 en önemli akademik JSON API ajanına**
+   > (PubMed, Crossref, Europe PMC, OpenAlex — bunlar hiç retry yapmıyordu),
+   > `ClinicalTrialsAgent`/`FDAAgent`'a (retry yardımcısına miras yoluyla
+   > erişimleri vardı ama kullanmıyorlardı), ve **journal_base.py**'ye
+   > (jama/bmj/lancet/nejm/who/cdc/cochrane/aha — 8 ajan) uygulandı.
+   > `journal_base.py`'de canlı olarak **gizli bir hata** bulundu: eski
+   > retry döngüsü yalnızca 429 için gerçekten tekrar deniyordu; başka
+   > herhangi bir hata (zaman aşımı, 5xx) döngünün ortasında bile olsa
+   > anında `return []` ile vazgeçiyordu — "3 deneme" görünümüne rağmen
+   > pratikte çoğu hata sınıfı için hiç tekrar denemiyordu. 32 yeni test
+   > (`test_http_retry.py`, `test_core_academic_agents.py`, ve
+   > `test_journal_base.py`'ye eklenen testler) bu davranışı kilitliyor.
+   > **Hâlâ çözülmemiş kalan kısım:** HTML regex'lerinin kendisinin
+   > kırılganlığı (site HTML yapısı değişirse regex'ler yine bozulur) —
+   > bu, `_warn_if_zero_matches` ile artık en azından loglarda ayırt
+   > edilebilir hale geldi (önceki oturum), ama otomatik olarak
+   > düzelmiyor; regex'lerin kendisini sağlamlaştırmak (ör. BeautifulSoup'a
+   > geçiş) ayrı bir iş olarak açık kalıyor.
 6. ~~**"Chroma" adlandırması yanıltıcıdır:**~~ **(2026-08-29 itibarıyla düzeltildi:**
    `evidence/rag/chroma_store.py` artık gerçek ChromaDB + sentence-transformers
    embedding kullanan, opt-in (`EVIDENCE_RAG_BACKEND=chroma`) bir backend olarak

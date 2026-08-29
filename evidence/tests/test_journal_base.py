@@ -165,16 +165,46 @@ class TestEmptyAndErrorResponses:
 
     @pytest.mark.asyncio
     async def test_connection_error_returns_empty(self, monkeypatch):
+        """NOT (2026-08-29): Bu test eskiden 'ilk denemede exception -> aninda
+        return []' hatali davranisini SESSIZCE dogruluyordu — yalnizca son
+        sonucu (`== []`) kontrol ediyordu, kac deneme yapildigini degil. Artik
+        gercekten 3 kez denendigi acikca kilitleniyor (get_with_retry duzeltmesi)."""
+        calls = []
+
         def handler(request):
+            calls.append(request.url)
             raise httpx.ConnectError("boom")
 
+        monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
         _install_transport(monkeypatch, handler)
         assert await _FakeJournalAgent().search("kahve") == []
+        assert len(calls) == 3  # eskiden 1 olurdu (retry hic calismiyordu)
 
     @pytest.mark.asyncio
     async def test_http_error_status_returns_empty(self, monkeypatch):
-        _install_transport(
-            monkeypatch,
-            lambda request: httpx.Response(500),
-        )
+        """500 gecici sayilan bir durum kodu — artik gercekten tekrar denenir
+        (eskiden 429 disindaki her hata aninda vazgeciyordu)."""
+        calls = []
+
+        def handler(request):
+            calls.append(request.url)
+            return httpx.Response(500)
+
+        monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+        _install_transport(monkeypatch, handler)
         assert await _FakeJournalAgent().search("kahve") == []
+        assert len(calls) == 3
+
+    @pytest.mark.asyncio
+    async def test_permanent_403_not_retried(self, monkeypatch):
+        """403 (bot-engelleme) kalici bir hata — tekrar denenmemeli."""
+        calls = []
+
+        def handler(request):
+            calls.append(request.url)
+            return httpx.Response(403)
+
+        monkeypatch.setattr(asyncio, "sleep", _fast_sleep)
+        _install_transport(monkeypatch, handler)
+        assert await _FakeJournalAgent().search("kahve") == []
+        assert len(calls) == 1  # kalici hata — tekrar denenmez

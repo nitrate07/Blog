@@ -26,11 +26,10 @@ class FDAAgent(HealthOrgAgent):
     DRUG_URL = "https://api.fda.gov/drug/label.json"
     
     async def _search(self, client: httpx.AsyncClient, query: str, limit: int) -> list[dict[str, Any]]:
-        resp = await client.get(self.DRUG_URL, params={
+        resp = await self._get_with_retry(client, self.DRUG_URL, params={
             "search": f"openfda.brand_name:{query}+OR+openfda.generic_name:{query}",
             "limit": limit,
         })
-        resp.raise_for_status()
         data = resp.json()
         
         results = []
