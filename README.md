@@ -16,7 +16,7 @@ evidence/
 ├── chat/                    # Konuşmacı Soruşturucu katmanı (intent → plan → araştır → hüküm)
 ├── graph/                   # Ajan grafiği (sağlık ajanları, pipeline)
 ├── rag/                     # Yerel arşiv parser + retriever + store
-├── llm_providers.py         # Claude / OpenAI / Gemini provider arayüzü
+├── llm_providers.py         # Claude / OpenAI / Gemini / Groq provider arayüzü
 ├── mcp.py                   # MCP araç yüzeyi
 └── tests/                   # Birim testler
 ```

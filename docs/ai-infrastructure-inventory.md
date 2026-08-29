@@ -128,9 +128,17 @@ HTTP POST kullanır.** Framework (LangChain/LlamaIndex vb.) kullanılmaz
 
 | Sınıf | Varsayılan model | Endpoint | SDK? |
 |---|---|---|---|
-| `ClaudeProvider` (satır 252) | `claude-sonnet-4-20250514` | `https://api.anthropic.com/v1/messages` | Hayır — ham httpx, manuel `anthropic-version` başlığı |
-| `OpenAIProvider` (satır 315) | `gpt-4o-mini` | `https://api.openai.com/v1/chat/completions` | Hayır — ham httpx, Bearer başlığı |
-| `GeminiProvider` (satır 364) | `gemini-1.5-flash` | `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` | Hayır — ham httpx, `?key=` parametresi |
+| `ClaudeProvider` (satır 283) | `claude-sonnet-5` | `https://api.anthropic.com/v1/messages` | Hayır — ham httpx, manuel `anthropic-version` başlığı |
+| `OpenAIProvider` (satır 370) | `gpt-5.6-terra` | `https://api.openai.com/v1/chat/completions` | Hayır — ham httpx, Bearer başlığı |
+| `GroqProvider` (satır 458) | `openai/gpt-oss-120b` | `https://api.groq.com/openai/v1/chat/completions` | Hayır — ham httpx, OpenAI-uyumlu Bearer başlığı |
+| `GeminiProvider` (satır 546) | `gemini-3.7-flash` | `generativelanguage.googleapis.com/v1beta/models/{model}:generateContent` | Hayır — ham httpx, `?key=` parametresi |
+
+> **Güncelleme notu:** Bu envanterin ilk yazıldığı tarihte yalnızca 3
+> sağlayıcı vardı; `GroqProvider` o zamandan beri eklendi ve
+> `ai-infrastructure-roadmap.md`'de "yapılmadı" olarak listelenen Groq
+> önerisi artık uygulanmış durumda (bkz. `evidence/tests/test_llm_providers.py::TestGroqProvider`,
+> 50/50 test geçiyor). Model adları da güncel varsayılanlarla eşleşecek
+> şekilde yukarıda düzeltildi.
 
 Ortak temel `LLMProvider`, sohbet geçmişini kendisi yönetir (`Conversation`,
 son 20 mesaj çifti), kararları JSON'dan `Verdict` enum'una ayrıştırır.
@@ -140,11 +148,12 @@ son 20 mesaj çifti), kararları JSON'dan `Verdict` enum'una ayrıştırır.
 (`report_verdict` zorunlu araç çağrısı) ile kısıtlı karar üretir, varsayılan
 model `claude-haiku-4-5-20251001` (satır 61). Anahtar yoksa `NullProvider`
 döner (deterministik yol). Seçim `evidence/provider_registry.py` üzerinden
-`claude` / `openai` / `gemini` isimleriyle yapılır; anahtarlar ortam
-değişkenlerinden okunur (`evidence/config.py:36-37`).
+`claude` / `openai` / `gemini` / `groq` isimleriyle yapılır; anahtarlar ortam
+değişkenlerinden okunur (`evidence/config.py`).
 
-Sonuç: 3 sağlayıcı × 2 katman = 4 farklı elle yazılmış HTTP istemcisi;
-streaming, yeniden deneme, rate-limit gibi SDK özelliklerinin hiçbiri yok.
+Sonuç: 4 sağlayıcı (bunlardan biri, Groq, kalıcı ücretsiz katmana sahip) ×
+1-2 katman = 4-5 farklı elle yazılmış HTTP istemcisi; streaming, yeniden
+deneme, rate-limit gibi SDK özelliklerinin hiçbiri yok.
 
 ## 6. Görsel / Vision Desteği
 
