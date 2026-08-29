@@ -392,8 +392,17 @@ class EvidenceInvestigator:
         return []
 
     def _categorize_results(self, result: InvestigationResult) -> None:
-        """Sonuclari kategorilere ayir ve toplam sayiyi hesapla."""
+        """Sonuclari kategorilere ayir, URL bazinda tekillestir, toplam sayiyi hesapla.
+
+        NOT (2026-08-29): Birden fazla adim (ör. coklu alt-soru arastirmasi,
+        bkz. Planner.augment_with_subquestions) ayni makaleyi farkli
+        sorgularla bulup birden fazla kez dondurebilir. URL bazinda
+        tekillestirme olmadan bu, kullaniciya gosterilen "X kaynak
+        incelendi" sayisini sisirir ve hukum sentezinde ayni kanit
+        birden fazla kez sayilabilir.
+        """
         all_results = []
+        seen_urls: set[str] = set()
 
         for sr in result.step_results:
             if not sr.success:
@@ -402,6 +411,12 @@ class EvidenceInvestigator:
                 continue
 
             for r in sr.results:
+                url = (r.get("url") or "").rstrip("/").lower()
+                if url:
+                    if url in seen_urls:
+                        continue
+                    seen_urls.add(url)
+
                 r["_step_type"] = sr.step.step_type.value
                 r["_priority"] = sr.step.priority.value
                 all_results.append(r)

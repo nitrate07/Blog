@@ -140,6 +140,37 @@ testle iyi kapsanmış durumda (bkz. inventory Bölüm 7). Bir framework'ün as�
 gözlenmiyor. Görsel analiz gerçekten farklı bir dallanma eklerse (Bölüm 5) o zaman tekrar
 değerlendirilebilir.
 
+## 7. İddia bölme (claim decomposition) — GPT-Researcher'dan uyarlandı (2026-08-29)
+
+**Uygulandı.** Kullanıcı talebi üzerine ("araştırma butonu çok sağlam ve ileri düzeyde
+olmalı, GitHub'daki açık kaynaklara bak") en popüler açık kaynak "deep research" ajanı
+incelendi: `assafelovic/gpt-researcher` (GitHub, 28k+ yıldız, Apache-2.0). Mimarisi:
+**Planner** iddiayı birden fazla alt-soruya böler → **Execution** ajanları her birini
+PARALEL araştırır → **Publisher** bulguları birleştirir. Bizim sistemde tek bir dar
+İngilizce sorgu tüm dış kaynaklara gidiyordu — bu, iddianın farklı yönlerini (mekanizma,
+karşılaştırmalı çalışma, hedef popülasyon, meta-analizler) kaçırabilirdi.
+
+Eklenenler:
+- `evidence/chat/planner.py`: `_decompose_claim()` (LLM'e tool-calling ile 2-4 farklı
+  İngilizce arama açısı ürettirir, `editor.py`'deki aynı yapısal-güvenli desen — şema
+  kısıtlı, doğrulanmış, başarısızlıkta boş liste), `Planner.augment_with_subquestions()`
+  (bu alt-soruları planın zaten paralel çalışan `_run_steps_parallel`'ine ek
+  `SEARCH_EXTERNAL` adımları olarak ekler).
+- `evidence/chat/conversation.py`: LLM sağlayıcı mevcutsa (Groq gibi ücretsiz katman
+  dahil) `VERIFY_CLAIM` niyeti için bu genişletme otomatik devreye giriyor.
+- `evidence/chat/investigator.py`: `_categorize_results`'a URL bazlı tekilleştirme
+  eklendi — birden fazla alt-soru aynı makaleyi bulursa "X kaynak incelendi" sayısı
+  şişmiyor.
+
+**Fail-closed tasarım:** LLM yoksa (`llm_provider=None`, örn. Groq anahtarı ayarlı
+değilse) plan hiç değişmez — mevcut tek-sorgulu davranış aynen korunur. Bu, projenin
+genel `NullProvider` felsefesiyle tutarlı: özellik LLM'siz kurulumlarda sessizce
+devre dışı kalır, hiçbir şeyi bozmaz.
+
+19 yeni test (`test_claim_decomposition.py`). Canlı doğrulandı: sahte bir tool-calling
+sağlayıcıyla planın 4 adımdan 6 adıma çıktığı, 2 yeni adımın farklı araştırma açılarını
+(mekanizma, karşılaştırmalı deneme) hedeflediği doğrulandı.
+
 ---
 
 ## Özet — inventory'deki 7 sınırlamaya karşılık gelen seçenekler
@@ -148,6 +179,7 @@ değerlendirilebilir.
 > durumu yansitiyor. O tarihten beri tamamlananlar: satir 1 (Chroma —
 > bkz. Bölüm 3 guncelleme notu), satir 3'un "iki sapmış kopya" kısmı
 > (evidence/chat/search_query.py ve evidence/v2/pipeline/pipeline.py'deki
+
 > sözlükler birleştirildi), ve Bölüm 4'teki Groq önerisi. Kalan acik
 > kalemler: satir 1'in Turkce-ozel embedding modeli kismi (halen genel-
 > amacli model kullaniliyor), satir 3'un Zeyrek/spaCy-tr morfoloji kismi,

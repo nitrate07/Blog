@@ -8,12 +8,15 @@ Intent analizinden gelen niyete gore:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field, replace
 from enum import Enum
 from typing import Any
 
 from .intent import Intent
 from .search_query import build_search_query
+
+logger = logging.getLogger(__name__)
 
 
 class StepType(str, Enum):
@@ -381,3 +384,118 @@ class Planner:
         )
         refined.estimated_sources = sum(s.limit for s in refined.all_active_steps())
         return refined
+
+    async def augment_with_subquestions(
+        self,
+        plan: InvestigationPlan,
+        claim: str,
+        en_query: str,
+        provider: Any | None,
+    ) -> InvestigationPlan:
+        """Iddiayi (LLM mevcutsa) birden fazla arastirma acisina bolup
+        planı ek, PARALEL calisan SEARCH_EXTERNAL adimlariyla genisletir.
+
+        NOT (2026-08-29): En populer acik kaynak "deep research" ajaninin
+        (assafelovic/gpt-researcher, GitHub'da 28k+ yildiz) planner ->
+        execution -> publisher mimarisinden ilham alindi: tek bir dar
+        sorgu yerine, iddianin farkli yonlerini (mekanizma, karsilastirmali
+        kanit, hedef populasyon, meta-analizler vb.) kapsayan 2-4 alt-soru
+        uretilip investigator.py'nin zaten paralel calisan
+        _run_steps_parallel'i araciligiyla ES ZAMANLI arastirilir — bu,
+        tek bir dar sorgunun kacirabilecegi kanitlari yakalama olasiligini
+        artirir (bkz. _categorize_results'taki URL-bazli tekillestirme,
+        coklu sorgunun ayni makaleyi birden fazla kez saymasini onler).
+
+        LLM yoksa (provider=None) veya tool-calling desteklemiyorsa,
+        plani DEGISTIRMEDEN aynen doner — bu, mevcut tek-sorgulu davranisi
+        korur (fail-closed/graceful degradation, projenin genel tasarim
+        felsefesiyle tutarli — bkz. NullProvider).
+        """
+        subquestions = await _decompose_claim(claim, en_query, provider)
+        if len(subquestions) < 2:
+            return plan  # LLM yok/basarisiz/tek sonuc — plan degismez
+
+        # Donguesel import onlemek icin fonksiyon icinde (bkz. refine_plan'daki ayni desen).
+        from .investigator import ACADEMIC_SOURCES
+
+        extra_steps = [
+            PlanStep(
+                step_type=StepType.SEARCH_EXTERNAL,
+                priority=StepPriority.HIGH,
+                description=f"Ek arastirma acisi: {sq}",
+                search_query=sq,
+                source_filter=list(ACADEMIC_SOURCES),
+                limit=4,
+            )
+            for sq in subquestions
+        ]
+
+        augmented = InvestigationPlan(
+            intent=plan.intent,
+            steps=plan.steps + extra_steps,
+            priority_reason=plan.priority_reason,
+        )
+        augmented.estimated_sources = plan.estimated_sources + sum(s.limit for s in extra_steps)
+        return augmented
+
+
+_DECOMPOSE_TOOL_NAME = "report_research_angles"
+
+
+def _build_decompose_tool() -> dict[str, Any]:
+    return {
+        "name": _DECOMPOSE_TOOL_NAME,
+        "description": (
+            "Break a health claim into 2-4 distinct, complementary English search "
+            "queries, each targeting a different research angle (underlying mechanism, "
+            "comparative/contradicting studies, specific population or dosage, "
+            "meta-analyses) to enable broader parallel literature search."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "subquestions": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "minItems": 2,
+                    "maxItems": 4,
+                    "description": "2-4 short English search queries (3-8 words each), each a distinct angle on the claim.",
+                },
+            },
+            "required": ["subquestions"],
+        },
+    }
+
+
+async def _decompose_claim(claim: str, en_query: str, provider: Any | None) -> list[str]:
+    """Iddiayi LLM ile 2-4 arastirma acisina boler; basarisizlikta bos liste doner.
+
+    Bos/tek-elemanli liste donusu = "decompose edilemedi, mevcut tek-sorgu
+    davranisini kullan" sinyalidir (bkz. augment_with_subquestions).
+    """
+    if provider is None or not getattr(provider, "supports_tools", False):
+        return []
+
+    tool = _build_decompose_tool()
+    prompt = (
+        f"Health claim to research (English keywords already extracted): {en_query}\n"
+        f"Original claim: {claim}\n\n"
+        "Generate 2-4 distinct, complementary English search queries covering different "
+        "angles of this claim (e.g. underlying mechanism, comparative/contradicting studies, "
+        "specific population or dosage, meta-analyses) to enable broader parallel literature "
+        "search. Each query should be 3-8 words, suitable for PubMed/Crossref search."
+    )
+    try:
+        result = await provider.generate_with_tool(prompt, tool)
+    except Exception as e:  # pragma: no cover - provider'a gore hata tipi degisir
+        logger.warning(f"Claim decomposition failed: {e}")
+        return []
+
+    if not result:
+        return []
+
+    subqs = result.get("subquestions")
+    if not isinstance(subqs, list):
+        return []
+    cleaned = [q.strip() for q in subqs if isinstance(q, str) and q.strip()][:4]
+    return cleaned if len(cleaned) >= 2 else []
