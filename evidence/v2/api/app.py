@@ -65,6 +65,12 @@ class VerifyRequest(BaseModel):
     query: str = Field(min_length=3, max_length=4000)
     stream: bool = False
     session_id: str | None = Field(default=None, max_length=64)
+    # NOT (2026-08-29): Backend'in tum sabit sablon metinleri (hukum
+    # etiketleri, oneri dugmeleri) eskiden hardcoded Turkce'ydi — hangi
+    # sayfadan (ask.html EN / tr/ask.html TR) istek geldigine bakilmiyordu.
+    # Bu alan, frontend'in hangi dilde yanit istedigini acikca belirtmesini
+    # saglar; belirtilmezse "tr" varsayilir (geriye donuk uyumlu).
+    language: str | None = Field(default=None, max_length=8)
 
 
 class VerifyResponse(BaseModel):
@@ -617,12 +623,14 @@ def create_app(
     # --- Conversational Investigator ---
     
     from ...chat import ConversationManager
+    from ...chat.i18n import normalize_language
+    from ...chat.i18n import t as _t
     
     # In-memory conversation managers per session
     conversation_managers: dict[str, ConversationManager] = {}
     MAX_SESSIONS = 64
 
-    def _get_manager(session_id: str) -> ConversationManager:
+    def _get_manager(session_id: str, language: str = "tr") -> ConversationManager:
         if session_id not in conversation_managers:
             while len(conversation_managers) >= MAX_SESSIONS:
                 conversation_managers.pop(next(iter(conversation_managers)))
@@ -630,6 +638,7 @@ def create_app(
                 orchestrator=orchestrator,
                 llm_provider=llm_provider,
                 db=db,
+                language=language,
             )
             # NOT (2026-08-29): ConversationState.session_id varsayilan olarak
             # "" (bos) — ConversationManager'in kendisi bunu hicbir yerde
@@ -642,12 +651,18 @@ def create_app(
             # duzeltildi.
             manager.state.session_id = session_id
             conversation_managers[session_id] = manager
+        else:
+            # NOT (2026-08-29): Ayni session_id farkli bir dilde tekrar
+            # kullanilirsa (nadir ama olasi — ör. paylasilan bir tarayici),
+            # onbellekteki yoneticiyi guncelle; bayat bir dilde takili
+            # kalmasin.
+            conversation_managers[session_id].language = normalize_language(language)
         return conversation_managers[session_id]
 
     @app.post("/v1/investigator/chat")
     async def investigator_chat(request: VerifyRequest):
         """Conversational Investigator endpoint — interaktif kanit arastirma."""
-        manager = _get_manager(request.session_id or "default")
+        manager = _get_manager(request.session_id or "default", normalize_language(request.language))
         response = await manager.handle_message(request.query)
         
         return {
@@ -680,6 +695,7 @@ def create_app(
     async def investigator_chat_image(
         image: UploadFile = File(...),
         session_id: str = "default",
+        language: str = "tr",
     ):
         """Bir goruntudeki (ekran goruntusu vb.) iddiayi OCR ile cikarip
         tam arastirma hattina sokar. Basarisizlikta (Tesseract kurulu
@@ -727,7 +743,7 @@ def create_app(
         if not claim_result.ready_for_verification:
             return {"ocr": ocr_payload, "response": None}
 
-        manager = _get_manager(session_id or "default")
+        manager = _get_manager(session_id or "default", normalize_language(language))
         response = await manager.handle_message(claim_result.claim_text)
 
         return {
@@ -752,7 +768,8 @@ def create_app(
     @app.post("/v1/investigator/chat/stream")
     async def investigator_chat_stream(request: VerifyRequest):
         """Conversational Investigator — adim adim SSE akisi."""
-        manager = _get_manager(request.session_id or "default")
+        language = normalize_language(request.language)
+        manager = _get_manager(request.session_id or "default", language)
         
         async def event(payload: dict) -> str:
             return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
@@ -773,10 +790,16 @@ def create_app(
             # olayinda yeni bir satir olusturuyor — bkz. ask.html/tr/ask.html,
             # bu yuzden birden fazla event = birden fazla satir; burada
             # bilerek tek event gonderiliyor).
+            #
+            # NOT (2026-08-29, ikinci duzeltme): Bu etiket eskiden hep
+            # Turkce'ydi, ask.html (Ingilizce sayfa) uzerinden gelen
+            # isteklerde bile — canli bir ekran goruntusunde fark edilen
+            # karisik-dil deneyiminin bir parcasi. Artik istegin dilini
+            # kullaniyor.
             yield await event({
                 "type": "step",
                 "name": "researching",
-                "label": "Kaynaklar araştırılıyor",
+                "label": _t("stream.researching_sources", language),
             })
             
             task = asyncio.create_task(manager.handle_message(request.query))

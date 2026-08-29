@@ -26,6 +26,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Any
 
+from .i18n import DEFAULT_LANGUAGE, normalize_language
 from .intent import SOCIAL_INTENTS, Intent, IntentAnalyzer, IntentType, is_interrogative
 from .investigator import EvidenceInvestigator, InvestigationResult
 from .planner import InvestigationPlan, Planner
@@ -131,6 +132,7 @@ class ConversationManager:
         llm_provider: Any | None = None,
         db: Any | None = None,
         graph_store: Any | None = None,
+        language: str = DEFAULT_LANGUAGE,
     ) -> None:
         self.intent_analyzer = IntentAnalyzer()
         self.planner = Planner()
@@ -143,6 +145,11 @@ class ConversationManager:
         self.answer_planner = AnswerPlanner()
         self.response_builder = ResponseBuilder()
         self.llm_provider = llm_provider
+        # NOT (2026-08-29): Oturumun cevap dili — bkz. response.py/i18n.py.
+        # Session bazli (bir kullanici tek bir sayfada/dilde kalir), bu
+        # yuzden ConversationManager'in kendisinde saklaniyor, her mesajda
+        # tekrar belirtilmesi gerekmiyor.
+        self.language = normalize_language(language)
         self.db = db
 
         self.state = ConversationState()
@@ -177,7 +184,7 @@ class ConversationManager:
         #     sabit sablona geri doner (fail-closed, sifir davranis degisikligi
         #     garantisi llm_provider=None icin).
         if intent.type in SOCIAL_INTENTS:
-            response = self.response_builder.build_social(intent)
+            response = self.response_builder.build_social(intent, self.language)
             if self.llm_provider is not None:
                 from .social_chat import narrate_social
 
@@ -240,7 +247,7 @@ class ConversationManager:
             and not has_health_topic(intent.cleaned_query)
             and not (is_interrogative(intent.original_query) and has_substantive_content(intent.original_query))
         ):
-            response = self.response_builder._unrecognized_claim(intent)
+            response = self.response_builder._unrecognized_claim(intent, self.language)
             if self.llm_provider is not None:
                 from .social_chat import narrate_social
 
@@ -327,6 +334,7 @@ class ConversationManager:
             sufficiency=sufficiency,
             investigation_results=results_dict,
             previous_context=self.state.last_verification,
+            language=self.language,
         )
         # 6b. Aciklayici (LLM) + Duzenleyici — llm_provider yoksa veya hukum
         #     yoksa metin degismeden kural-tabanli kalir (bkz. _narrate_response).

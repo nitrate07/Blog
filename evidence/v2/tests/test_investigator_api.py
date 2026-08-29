@@ -246,3 +246,43 @@ class TestVerifyRequestModel:
     def test_session_id_accepted(self):
         v = VerifyRequest(query="test sorgu burada", session_id="abc")
         assert v.session_id == "abc"
+
+    @pytest.mark.asyncio
+    async def test_chat_endpoint_english_language_produces_english_response(self):
+        """Regresyon (2026-08-29): backend'in tum sabit metinleri hardcoded
+        Turkce'ydi, hangi sayfadan (EN/TR) istek geldigine bakilmiyordu."""
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/v1/investigator/chat",
+                json={"query": "hello", "session_id": "api-lang-en", "language": "en"},
+            )
+            assert resp.status_code == 200
+            assert "Hello" in resp.json()["response"]
+
+    @pytest.mark.asyncio
+    async def test_chat_endpoint_no_language_defaults_to_turkish(self):
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/v1/investigator/chat",
+                json={"query": "merhaba", "session_id": "api-lang-default"},
+            )
+            assert resp.status_code == 200
+            assert "Merhaba" in resp.json()["response"]
+
+    @pytest.mark.asyncio
+    async def test_stream_status_label_respects_language(self):
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            resp = await client.post(
+                "/v1/investigator/chat/stream",
+                json={"query": "Aspirin kalp krizinden korur mu?", "session_id": "stream-lang-en", "language": "en"},
+            )
+            events = _parse_sse(resp.text)
+            step_events = [e for e in events if e["type"] == "step"]
+            assert len(step_events) == 1
+            assert step_events[0]["label"] == "Researching sources"

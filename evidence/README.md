@@ -272,6 +272,10 @@ No GPU or external embedding service required. The TF-IDF model runs entirely in
 
 An optional real-embedding backend (ChromaDB + sentence-transformers) is also available — see `evidence/rag/chroma_store.py` and `EVIDENCE_RAG_BACKEND=chroma` above.
 
+## Bilingual Responses (TR/EN)
+
+`/v1/investigator/chat`, `/v1/investigator/chat/stream`, and `/v1/investigator/chat/image` accept an optional `language` field (`"tr"` or `"en"`, defaults to `"tr"`). All fixed template text (verdict labels, follow-up suggestion buttons, status messages, error text) is translated via `evidence/chat/i18n.py`; unsupported/missing language codes fail closed to Turkish. Dynamic content (archive articles, evidence passages) is unaffected — it already comes from separate EN/TR article files. `ask.html` sends `language: "en"`, `tr/ask.html` sends `language: "tr"`.
+
 ## Claim Decomposition (parallel multi-angle research)
 
 When an LLM provider is configured, `VERIFY_CLAIM` research is automatically broadened: the claim is split into 2-4 distinct English research angles (mechanism, comparative studies, specific population, meta-analyses) via a schema-constrained tool call, and each angle is researched in parallel alongside the base query — inspired by the planner/execution/publisher architecture of [gpt-researcher](https://github.com/assafelovic/gpt-researcher) (the most-starred open-source deep research agent). Results are deduplicated by URL across all angles. With no LLM provider configured, behavior is unchanged (single query, as before) — this is purely additive.
