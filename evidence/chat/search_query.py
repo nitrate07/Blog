@@ -109,8 +109,16 @@ _TERM_MAP: dict[str, str] = {
 
 
 def _normalize(text: str) -> str:
-    """Türkçe karakterleri eşlenebilir forma indirgeme yapmadan küçültüp temizler."""
-    return re.sub(r"[^\w\sçğıöşüÇĞİÖŞÜ]", " ", text.lower()).strip()
+    """Türkçe karakterleri eşlenebilir forma indirgeme yapmadan küçültüp temizler.
+
+    Tire (-) korunur: "glp-1" gibi sozlukte tire ile anahtarlanmis terimler
+    (_TERM_MAP: "glp-1") tire silinirse iki ayri token'a ("glp", "1")
+    bolunur ve hicbiri eslesmez — bu, konsolidasyon sirasinda (bkz. git
+    gecmisi) fark edilen gercek bir regresyondu. Tek basina kalan bir
+    "-" token'i (ör. cumle ici tire) zararsizdir; _matched_terms dongusu
+    onu hicbir kategoriye sokmaz, sessizce dusurulur.
+    """
+    return re.sub(r"[^\w\s\-çğıöşüÇĞİÖŞÜ]", " ", text.lower()).strip()
 
 
 # Sozlukte uzun terimler icin Turkce cekim eklerini tolera eden on-eslestirme:
