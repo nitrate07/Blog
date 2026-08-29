@@ -479,10 +479,16 @@ class ConversationManager:
         plan: InvestigationPlan,
         intent: Intent,
     ) -> InvestigationResult:
-        """Arastirma dongusu — need_more_evidence durumunda tekrar ara."""
+        """Arastirma dongusu — need_more_evidence durumunda plani gercekten
+        degistirerek (dusuk verimli adimlarin kaynak havuzunu genisletip,
+        zaten yeterli/statik adimlari atlayarak) tekrar arar ve sonuclari
+        onceki turla birlestirir. Onceki surumde bu dongu ayni plani ayni
+        sorguyla tekrar calistiriyordu — bu genelde ayni sonucu geri
+        veriyordu ve sufficiency'yi hicbir zaman iyilestirmiyordu.
+        """
         investigation = await self.investigator.investigate(plan)
+        current_plan = plan
 
-        # Loop kontrolu
         for loop in range(self.MAX_INVESTIGATION_LOOPS):
             # Yeterlilik kontrolu
             metrics = self.sufficiency_checker.extract_metrics(
@@ -503,13 +509,55 @@ class ConversationManager:
                 break
 
             if sufficiency.retry_with_different_sources:
-                logger.info(f"Loop {loop + 1}: Retrying with different sources")
-                investigation = await self.investigator.investigate(plan)
+                current_plan = self.planner.refine_plan(current_plan, investigation, sufficiency)
+                if not current_plan.all_active_steps():
+                    logger.info(f"Loop {loop + 1}: Refine produced no further steps, stopping")
+                    break
+                logger.info(
+                    f"Loop {loop + 1}: Retrying with refined plan "
+                    f"({len(current_plan.all_active_steps())} widened step(s))"
+                )
+                retry_investigation = await self.investigator.investigate(current_plan)
+                investigation = self._merge_investigations(investigation, retry_investigation)
             else:
                 logger.info(f"Loop {loop + 1}: No more retries needed")
                 break
 
         return investigation
+
+    @staticmethod
+    def _merge_investigations(
+        base: InvestigationResult,
+        extra: InvestigationResult,
+    ) -> InvestigationResult:
+        """Iki arastirma turunun sonuclarini (url'e gore tekillestirerek) birlestirir.
+
+        Retry turu ayri bir InvestigationResult dondurur; bunu atmak yerine
+        birinci turun kanit havuzuna eklemek gerekir, yoksa sonraki
+        yeterlilik kontrolu yalnizca retry'nin kendi (genelde daha kucuk)
+        alt kumesini gorur ve dongu hicbir zaman gercekten ilerlemez.
+        """
+        def dedupe(existing: list[dict[str, Any]], new: list[dict[str, Any]]) -> list[dict[str, Any]]:
+            seen = {(r.get("url") or r.get("title") or "").rstrip("/").lower() for r in existing}
+            merged = list(existing)
+            for r in new:
+                key = (r.get("url") or r.get("title") or "").rstrip("/").lower()
+                if key and key not in seen:
+                    seen.add(key)
+                    merged.append(r)
+            return merged
+
+        base.archive_results = dedupe(base.archive_results, extra.archive_results)
+        base.external_results = dedupe(base.external_results, extra.external_results)
+        base.health_org_results = dedupe(base.health_org_results, extra.health_org_results)
+        base.contradictions = dedupe(base.contradictions, extra.contradictions)
+        base.all_results = dedupe(base.all_results, extra.all_results)
+        base.total_sources = len(base.all_results)
+        base.step_results.extend(extra.step_results)
+        base.errors.extend(extra.errors)
+        base.timeline.entries.extend(extra.timeline.entries)
+        base.timeline.completed_at = extra.timeline.completed_at or base.timeline.completed_at
+        return base
 
     def reset(self) -> None:
         """Session'i sifirla."""

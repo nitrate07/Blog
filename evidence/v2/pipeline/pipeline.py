@@ -15,10 +15,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
+from ...chat.search_query import build_search_query, has_health_topic
 from ..core.database import EvidenceDatabase
 from ..core.interfaces import EvidenceEngine, SourceAgent
 from ..core.types import (
@@ -63,108 +65,48 @@ VERDICT_MAP: dict[str, Verdict] = {
 # Step 1: Claim Extraction
 # ---------------------------------------------------------------------------
 
-# Turkish to English query translations for common health queries
-TURKISH_TO_ENGLISH_QUERIES: dict[str, str] = {
-    "glp-1 kilo kaybı": "GLP-1 weight loss semaglutide obesity",
-    "glp-1 obezite": "GLP-1 obesity treatment semaglutide",
-    "egzersiz kalp": "exercise heart health cardiovascular",
-    "egzersiz faydalı": "exercise benefits health",
-    "vitamin d eksikliği": "vitamin D deficiency health effects",
-    "vitamin d osteoporoz": "vitamin D osteoporosis bone health",
-    "probiyotik sindirim": "probiotic gut health digestion",
-    "probiyotik bağırsak": "probiotic microbiome gut health",
-    "aşı otizm": "vaccine autism safety evidence",
-    "aşı yan etki": "vaccine side effects safety",
-    "aspirin kalp": "aspirin cardiovascular heart prevention",
-    "aspirin fayda": "aspirin benefits risks",
-    "ibuprofen ağrı": "ibuprofen pain relief anti-inflammatory",
-    "omega-3 kalp": "omega-3 cardiovascular heart health",
-    "omega-3 iltihap": "omega-3 inflammation anti-inflammatory",
-    "metformin diyabet": "metformin diabetes type 2 treatment",
-    "protein kas": "protein muscle growth exercise",
-    "kolon kanseri": "colon cancer prevention screening",
-    "meme kanseri": "breast cancer screening prevention",
-    "diyabet tip 2": "type 2 diabetes treatment management",
-    "hipertansiyon": "hypertension blood pressure treatment",
-    "kolesterol": "cholesterol heart disease statin",
-    "osteoporoz": "osteoporosis bone density calcium",
-    " depresyon": "depression treatment exercise",
-    "anksiyete": "anxiety treatment management",
-    "uyku": "sleep health effects quality",
-    "stres": "stress health effects management",
-    "bilişsel": "cognitive function brain health memory",
-    "enflamasyon": "inflammation chronic disease health",
-    "bağışıklık": "immune system immunity health",
-    "alerji": "allergy treatment antihistamine",
-    "karaciğer": "liver health fatty liver disease",
-    "böbrek": "kidney health chronic kidney disease",
-    "tiroid": "thyroid health hypothyroidism",
-    "prostat": "prostate health cancer screening",
-    # NOT: bare "göz" (eye) kasıtlı olarak yok. Bu fonksiyonun eşleştirmesi
-    # alt-dize + oran tabanlı (bkz. translate_query_to_english: bir anahtarın
-    # kelimelerinden en az yarısı sorguda GEÇİYORSA eşleşir) — tek kelimelik
-    # bir anahtar için bu, "göz" kelimesinin "gözlük" gibi alakasız
-    # kelimelerin İÇİNDE bile eşleşmesi anlamına gelir. İki-kelimelik bir
-    # bileşik (ör. "göz sağlığı") eklemek de YETMEZ: skor = eşleşen kelime /
-    # toplam kelime olduğu için "göz" tek başına yine 0.5 skor alır ve
-    # >=0.5 eşiğini geçer (bkz. search_query.py'deki farklı, tam-eşleşmeli
-    # algoritma orada işe yarıyordu ama burada yaramaz). Bu yüzden burada
-    # TAMAMEN kaldırıldı, telafi edici bir bileşik eklenmedi. Aynı sınıf
-    # düzeltme evidence/chat/search_query.py'de de yapıldı — iki sözlüğün
-    # tam birleştirilmesi docs/ai-infrastructure-roadmap.md'de ayrı bir iş
-    # olarak not edildi.
-    "cilt": "skin health aging collagen",
-    "saç": "hair loss treatment",
-    "yaşlanma": "aging longevity anti-aging",
-    "kilo vermek": "weight loss obesity diet exercise",
-    "diyet": "diet weight loss nutrition health",
-    "beslenme": "nutrition healthy eating diet",
-    "antibiyotik": "antibiotic resistance bacterial infection",
-    "steroid": "steroid side effects corticosteroid",
-    "ilaç etkileşim": "drug interaction medication safety",
-    "yan etki": "side effects medication safety",
-}
+# NOT (2026-08-29): Bu modulun kendi Turkce->Ingilizce sozlugu vardi
+# (TURKISH_TO_ENGLISH_QUERIES) — evidence/chat/search_query.py'deki
+# sozlukten bagimsiz, farkli bir eslestirme algoritmasi (alt-dize + oran
+# tabanli: bir anahtarin kelimelerinden >=%50'si sorguda GEÇİYORSA eşleşir)
+# kullaniyordu. Bu algoritma tek-kelimelik anahtarlarda ("göz" gibi)
+# yapisal olarak yanlis-pozitif uretiyordu (bkz. eski yorum, git gecmisi) —
+# chat/search_query.py'de PR #26/#27'de duzeltilen ayni hata sinifi, burada
+# ayri bir kopya sozlukte ayri bir API yuzeyinde (bu fonksiyon /v1/verify
+# akisini besliyor) hala mevcuttu. docs/ai-infrastructure-roadmap.md'de
+# "acil, iki sozlugun birlestirilmesi gerekiyor" olarak not edilmisti.
+#
+# Duzeltme: iki ayri sozluk yerine TEK sozluk — chat/search_query.py'deki
+# tokenize edilmis, tam-eslesme + Turkce cekim-eki toleransli _TERM_MAP.
+# translate_query_to_english artik kendi dictionary'sini tutmuyor, build_search_query'ye
+# delege ediyor.
 
 
 def translate_query_to_english(query: str) -> str:
-    """Translate Turkish query to English for PubMed/Crossref searches."""
-    query_lower = query.lower()
-    
-    # Check if query is already mostly in English
+    """Translate Turkish query to English for PubMed/Crossref searches.
+
+    Delegates to evidence.chat.search_query.build_search_query — bkz. yukaridaki
+    NOT. Sozluk artik tek yerde (chat/search_query.py) yasiyor; bu fonksiyon
+    kendi kopyasini tutmuyor.
+    """
     turkish_chars = set("çğıöşüâîûêÇĞIİÖŞÜ")
     turkish_word_count = sum(1 for c in query if c in turkish_chars)
     if turkish_word_count < 3:
+        # Sorgu zaten buyuk oranda Ingilizce — oldugu gibi don.
         return query
-    
-    # Try to find matching Turkish phrases
-    best_match = None
-    best_score = 0
-    
-    for tr_key, en_value in TURKISH_TO_ENGLISH_QUERIES.items():
-        # Count how many words from tr_key appear in query
-        tr_words = tr_key.split()
-        matches = sum(1 for w in tr_words if w in query_lower)
-        score = matches / len(tr_words) if tr_words else 0
-        
-        if score > best_score:
-            best_score = score
-            best_match = en_value
-    
-    if best_match and best_score >= 0.5:
-        return best_match
-    
-    # Fallback: try to extract English terms and create a query
-    import re
-    # Find words that look like English medical terms
+
+    if has_health_topic(query):
+        return build_search_query(query)
+
+    # Fallback: sorguda dogrudan gecen Ingilizce tibbi terimleri cikar.
     english_terms = re.findall(
         r'\b(?:GLP|vitamin|omega|probiotic|aspirin|ibuprofen|metformin|exercise|diabetes|cancer|heart|obesity|weight|diet|supplement|vaccine|antibiotic|steroid)\b',
         query, re.IGNORECASE
     )
-    
     if english_terms:
         return " ".join(english_terms) + " health effects"
-    
-    # Last resort: return original
+
+    # Son care: orijinali don.
     return query
 
 

@@ -8,8 +8,9 @@ Intent analizinden gelen niyete gore:
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from enum import Enum
+from typing import Any
 
 from .intent import Intent
 from .search_query import build_search_query
@@ -305,3 +306,78 @@ class Planner:
     def _plan_default(self, intent: Intent) -> InvestigationPlan:
         """Varsayilan plan — verify_claim gibi davransin."""
         return self._plan_verify_claim(intent)
+
+    def refine_plan(
+        self,
+        plan: InvestigationPlan,
+        investigation: Any,
+        sufficiency: Any,
+    ) -> InvestigationPlan:
+        """Yetersiz kanit sonrasi plani gercekten degistirir (kor tekrar degil).
+
+        Modern arastirma ajanlarinin (Claude/ChatGPT/Gemini deep research,
+        OpenCode'un agentic dongusu) ortak deseni: "yetersiz" sinyali geldiginde
+        ayni sorguyu ayni kaynaklara tekrar atmak degil, nerede az sonuc
+        alindigini teshis edip o noktada kaynak havuzunu/limiti genisletmek,
+        zaten yeterli veya deterministik/statik (ayni girdiyle ayni cikti
+        dondurecek) adimlari tekrar calistirmamaktir.
+
+        Somut kurallar:
+        - SEARCH_ARCHIVE, LOOKUP_PREVIOUS, ASK_CLARIFICATION: statik/yerel,
+          ayni sorguyla tekrar aramanin faydasi yok — retry'de atlanir.
+        - Zaten yeterli sonuc getirmis adimlar (limitin yarisindan fazla):
+          retry'de atlanir — gereksiz API cagrisi yapilmaz.
+        - Az/hic sonuc getirmis SEARCH_EXTERNAL / SEARCH_HEALTH_ORG /
+          CHECK_CONTRADICTIONS adimlari: kaynak havuzu kategorinin
+          tamamina genisletilir, limit artirilir, oncelik HIGH'a cekilir.
+        """
+        # Donguesel import: investigator.py ust seviyede planner.py'den
+        # PlanStep/InvestigationPlan import ediyor; bu yuzden ACADEMIC_SOURCES /
+        # HEALTH_ORG_SOURCES buradan fonksiyon icinde (cagri anindan, her iki
+        # modul de yuklendikten sonra) import edilir — dongusel import hatasi
+        # olusturmaz.
+        from .investigator import ACADEMIC_SOURCES, HEALTH_ORG_SOURCES
+
+        counts_by_step_type: dict[str, int] = {}
+        for sr in getattr(investigation, "step_results", []):
+            counts_by_step_type[sr.step.step_type.value] = (
+                counts_by_step_type.get(sr.step.step_type.value, 0) + sr.count
+            )
+
+        STATIC_STEP_TYPES = {StepType.SEARCH_ARCHIVE, StepType.LOOKUP_PREVIOUS, StepType.ASK_CLARIFICATION}
+        WIDENABLE_STEP_TYPES = {StepType.SEARCH_EXTERNAL, StepType.SEARCH_HEALTH_ORG, StepType.CHECK_CONTRADICTIONS}
+
+        new_steps: list[PlanStep] = []
+        for step in plan.steps:
+            if step.skip or step.step_type in STATIC_STEP_TYPES:
+                new_steps.append(replace(step, skip=True))
+                continue
+
+            count = counts_by_step_type.get(step.step_type.value, 0)
+            low_yield = count < max(2, step.limit // 2)
+
+            if not low_yield:
+                # Zaten yeterli getirdi — retry'de tekrar cagirma.
+                new_steps.append(replace(step, skip=True))
+                continue
+
+            if step.step_type in WIDENABLE_STEP_TYPES:
+                full_pool = HEALTH_ORG_SOURCES if step.step_type == StepType.SEARCH_HEALTH_ORG else ACADEMIC_SOURCES
+                widened = sorted(set(full_pool) | set(step.source_filter or []))
+                new_steps.append(replace(
+                    step,
+                    source_filter=widened,
+                    limit=min(step.limit + 4, 10),
+                    priority=StepPriority.HIGH,
+                    description=f"{step.description} (genisletilmis kaynak havuzu, retry)",
+                ))
+            else:
+                new_steps.append(step)
+
+        refined = InvestigationPlan(
+            intent=plan.intent,
+            steps=new_steps,
+            priority_reason=f"Retry — teshis: {sufficiency.suggested_action}",
+        )
+        refined.estimated_sources = sum(s.limit for s in refined.all_active_steps())
+        return refined
