@@ -135,6 +135,77 @@ class TestNewClaimSameTopicNotFollowUp:
         }
 
 
+class TestBareWhyFollowUp:
+    """Regresyon (2026-08-29): "neden?" tek basina hicbir pattern'e uymuyordu
+    (regex'ler "neden boyle/ozle" gibi uzun bir devam gerektiriyordu) ve
+    kelime-sayisi tabanli baglam kontrolu >=3 kelime sartiyla tek kelimelik
+    "neden?"yi hep atliyordu. Sonuc: canli testte bir hukum sonrasi "neden?"
+    sorusu follow_up_why yerine verify_claim'e dusup alakasiz bir "ben nasil
+    calisiyorum" metni donduruyordu."""
+
+    def setup_method(self):
+        self.analyzer = IntentAnalyzer()
+        self.history = [
+            {"role": "user", "content": "kahve kolesterolü yükseltir mi?"},
+            {"role": "assistant", "content": "Hüküm: mostly supported..."},
+        ]
+
+    def test_bare_neden_with_question_mark(self):
+        intent = self.analyzer.analyze(
+            "neden?",
+            conversation_history=self.history,
+            last_claim="kahve kolesterolü yükseltir mi?",
+            last_verdict="mostly_supported",
+        )
+        assert intent.type == IntentType.FOLLOW_UP_WHY
+
+    def test_bare_neden_without_question_mark(self):
+        intent = self.analyzer.analyze(
+            "neden",
+            conversation_history=self.history,
+            last_claim="kahve kolesterolü yükseltir mi?",
+            last_verdict="mostly_supported",
+        )
+        assert intent.type == IntentType.FOLLOW_UP_WHY
+
+    def test_bare_niye(self):
+        intent = self.analyzer.analyze(
+            "niye",
+            conversation_history=self.history,
+            last_claim="kahve kolesterolü yükseltir mi?",
+            last_verdict="mostly_supported",
+        )
+        assert intent.type == IntentType.FOLLOW_UP_WHY
+
+    def test_bare_why_english(self):
+        intent = self.analyzer.analyze(
+            "why?",
+            conversation_history=self.history,
+            last_claim="does coffee raise cholesterol?",
+            last_verdict="mostly_supported",
+        )
+        assert intent.type == IntentType.FOLLOW_UP_WHY
+
+    def test_new_long_claim_starting_with_neden_not_misclassified(self):
+        """Regresyonu onlerken yeni bir iddiayi yanlislikla yakalamamali —
+        "neden bu ilaç zararlı" gibi uzun, gercek bir soru VERIFY_CLAIM
+        kalmali."""
+        intent = self.analyzer.analyze(
+            "Neden bu ilaç zararlı olabilir?",
+            conversation_history=self.history,
+            last_claim="kahve kolesterolü yükseltir mi?",
+            last_verdict="mostly_supported",
+        )
+        assert intent.type == IntentType.VERIFY_CLAIM
+
+    def test_bare_neden_works_even_without_history(self):
+        """Baglam (history/last_claim) olmasa bile niyet dogru siniflandirilmali
+        — yaniti olusturan katman ('onceki dogrulama bulunamadi' gibi) ayri
+        bir sorumluluk, ama niyet tespiti context'ten bagimsiz dogru olmali."""
+        intent = self.analyzer.analyze("neden?", conversation_history=None, last_claim=None)
+        assert intent.type == IntentType.FOLLOW_UP_WHY
+
+
 class TestSocialResponses:
     def setup_method(self):
         self.builder = ResponseBuilder()
@@ -395,6 +466,19 @@ class TestNoFakeVerdictOnNonHealthMessages:
         # Orchestrator=None oldugu icin gercek arastirma yapilamaz ama en
         # azindan _social_identity kisa devresine DUSMEMELI (farkli metin).
         assert "Nasıl yardımcı olabilirim" not in r.text
+
+    @pytest.mark.asyncio
+    async def test_gibberish_gets_distinct_unrecognized_response_not_identity_text(self):
+        """Regresyon (2026-08-29): anlamsiz girdi (has_health_topic False
+        donen bir VERIFY_CLAIM) eskiden gercek 'sen kimsin?' sorularinin
+        AYNI yanitini (kendini tanitan genel aciklama) aliyordu — kullaniciya
+        mesajinin anlasilmadigina dair hicbir sinyal vermeden. Artik ayri,
+        acik bir 'taniyamadim' yaniti var."""
+        m = ConversationManager()
+        r = await m.handle_message("asdkfjaslkdfj qwerty zxcvbn")
+        assert "tanıyamadım" in r.text.lower()
+        assert "Ben **Arı Kaynak Soruşturucusu**yum" not in r.text
+        assert r.confidence < 0.5
 
     @pytest.mark.asyncio
     async def test_name_introduction_uses_llm_when_available(self):

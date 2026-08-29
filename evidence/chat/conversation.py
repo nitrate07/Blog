@@ -201,7 +201,7 @@ class ConversationManager:
         #    zaman tetiklenmiyordu — has_health_topic() gercekten bos/dolu
         #    donen dogru sinyal (bkz. search_query.py).
         if intent.type == IntentType.VERIFY_CLAIM and not has_health_topic(intent.cleaned_query):
-            response = self.response_builder._social_identity(intent)
+            response = self.response_builder._unrecognized_claim(intent)
             if self.llm_provider is not None:
                 from .social_chat import narrate_social
 
