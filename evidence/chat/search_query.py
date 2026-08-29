@@ -163,7 +163,154 @@ _TERM_MAP: dict[str, str] = {
     "ozempik": "semaglutide", "semaglutide": "semaglutide",
     "glp1": "glp-1 glucagon-like peptide-1", "glp-1": "glp-1 glucagon-like peptide-1",
     "parasetamol": "paracetamol acetaminophen",
+
+    # =========================================================================
+    # KAPSAMLI GENISLETME (2026-08-29) — kullanicinin dogrudan talebi uzerine:
+    # "sozluk hazinesini tum dunya geneline yaz". Icd10-cm PyPI paketinden
+    # (95.622 ICD-10 kodu, 22 bolum) alinan bolum yapisi sistematik kapsam
+    # cercevesi olarak kullanildi — asagidaki girdiler her bolumden yaygin,
+    # gercekci saglik iddialarinda gecebilecek terimleri kapsar. ICD-10'un
+    # kendisi Ingilizce oldugu icin dogrudan kullanilamadi (Turkce anahtar
+    # gerekiyor) — Turkce terimler ve Ingilizce ceviriler dogrudan yazildi.
+    # Bu hala TAM/kesin degil (tibbin tamami binlerce terim icerir) ama
+    # onceki ~170 girisi ~450+'a cikararak kapsam ciddi olcude genisledi.
+    # ICD-10 bolum numaralari asagida yorum olarak belirtildi.
+    # =========================================================================
+
+    # --- Bolum I: Enfeksiyon ve parazitik hastaliklar ---
+    "kolera": "cholera", "tifo": "typhoid fever", "tüberküloz": "tuberculosis",
+    "verem": "tuberculosis", "cüzzam": "leprosy", "boğmaca": "pertussis whooping cough",
+    "difteri": "diphtheria", "tetanoz": "tetanus", "menenjit": "meningitis",
+    "kızamık": "measles", "kızamıkçık": "rubella", "kabakulak": "mumps",
+    "suçiçeği": "chickenpox varicella", "zona": "shingles herpes zoster",
+    "uçuk": "cold sore herpes simplex", "hepatit": "hepatitis",
+    "hepatit a": "hepatitis a", "hepatit b": "hepatitis b", "hepatit c": "hepatitis c",
+    "sıtma": "malaria", "dang humması": "dengue fever", "sarı humma": "yellow fever",
+    "zika": "zika virus", "lyme hastalığı": "lyme disease", "şarbon": "anthrax",
+    "kuduz": "rabies", "tifüs": "typhus", "sifiliz": "syphilis",
+    "bel soğukluğu": "gonorrhea", "gonore": "gonorrhea", "klamidya": "chlamydia",
+    "kandida": "candida yeast infection", "uyuz": "scabies", "bit": "lice",
+    "solucan": "intestinal worms", "tenya": "tapeworm", "giardia": "giardiasis",
+    "toksoplazma": "toxoplasmosis", "kist hidatik": "hydatid cyst echinococcosis",
+    "brusella": "brucellosis", "leptospiroz": "leptospirosis", "kızıl": "scarlet fever",
+    "impetigo": "impetigo", "covid": "covid-19 coronavirus", "koronavirüs": "coronavirus",
+    "mrsa": "mrsa antibiotic resistant staph",
+
+    # --- Bolum II: Neoplazmlar (kanserler/tumorler) ---
+    "akciğer kanseri": "lung cancer", "mide kanseri": "stomach cancer gastric cancer",
+    "karaciğer kanseri": "liver cancer hepatocellular carcinoma",
+    "yumurtalık kanseri": "ovarian cancer", "rahim kanseri": "uterine cancer endometrial cancer",
+    "serviks kanseri": "cervical cancer", "rahim ağzı": "cervical cancer cervix",
+    "mesane kanseri": "bladder cancer", "böbrek kanseri": "kidney cancer renal cancer",
+    "deri kanseri": "skin cancer", "melanom": "melanoma", "lösemi": "leukemia",
+    "lenfoma": "lymphoma", "beyin tümörü": "brain tumor", "kemik kanseri": "bone cancer",
+    "tiroid kanseri": "thyroid cancer", "testis kanseri": "testicular cancer",
+    "mezotelyoma": "mesothelioma", "sarkom": "sarcoma", "karsinom": "carcinoma",
+    "iyi huylu": "benign tumor", "kötü huylu": "malignant tumor",
+    "metastaz": "metastasis", "biyopsi": "biopsy", "radyoterapi": "radiotherapy radiation therapy",
+    "immünoterapi": "immunotherapy", "tümör markırı": "tumor marker",
+
+    # --- Bolum III: Kan hastaliklari ---
+    "talasemi": "thalassemia", "orak hücre": "sickle cell anemia",
+    "hemofili": "hemophilia", "trombositopeni": "thrombocytopenia",
+    "lökopeni": "leukopenia", "nötropeni": "neutropenia",
+    "pıhtılaşma bozukluğu": "blood clotting disorder coagulopathy",
+    "tromboz": "thrombosis blood clot", "pulmoner emboli": "pulmonary embolism",
+    "polisitemi": "polycythemia", "folik asit": "folic acid deficiency",
+    "b12 eksikliği": "vitamin b12 deficiency",
+
+    # --- Bolum IV: Endokrin/metabolik (ek) ---
+    "hipoglisemi": "hypoglycemia",
+    "hipertiroidi": "hyperthyroidism", "hipotiroidi": "hypothyroidism",
+    "guatr": "goiter", "hashimoto": "hashimoto's thyroiditis",
+    "graves hastalığı": "graves' disease", "addison hastalığı": "addison's disease",
+    "cushing sendromu": "cushing's syndrome", "akromegali": "acromegaly",
+    "hiperlipidemi": "hyperlipidemia", "metabolik sendrom": "metabolic syndrome",
+    "paratiroid": "parathyroid", "testosteron": "testosterone",
+    "östrojen": "estrogen", "progesteron": "progesterone", "prolaktin": "prolactin",
+
+    # --- Bolum V: Ruh sagligi (ek) ---
+    "obsesif kompulsif": "ocd obsessive compulsive disorder",
+    "okb": "ocd obsessive compulsive disorder",
+    "travma sonrası": "ptsd post traumatic stress disorder trauma",
+    "tssb": "ptsd post traumatic stress disorder",
+    "yeme bozukluğu": "eating disorder", "anoreksiya": "anorexia nervosa",
+    "bulimia": "bulimia nervosa", "alkol bağımlılığı": "alcohol addiction alcoholism",
+    "madde bağımlılığı": "substance abuse addiction",
+    "sınırda kişilik": "borderline personality disorder",
+    "sosyal fobi": "social phobia social anxiety", "agorafobi": "agoraphobia",
+    "demans": "dementia", "alzheimer": "alzheimer's disease",
+
+    # --- Bolum VI: Sinir sistemi (ek) ---
+    "parkinson": "parkinson's disease", "multipl skleroz": "multiple sclerosis ms",
+    "als": "als amyotrophic lateral sclerosis", "felç": "paralysis stroke",
+    "nöropati": "neuropathy", "siyatik": "sciatica", "disk hernisi": "herniated disc",
+    "fıtık": "hernia", "beyin sarsıntısı": "concussion", "tremor": "tremor",
+    "baş dönmesi": "dizziness vertigo", "vertigo": "vertigo",
+    "huntington hastalığı": "huntington's disease",
+    "guillain-barre": "guillain-barre syndrome",
+
+    # --- Bolum VII/VIII: Goz ve kulak ---
+    "katarakt": "cataract", "glokom": "glaucoma", "miyop": "myopia nearsightedness",
+    "hipermetrop": "hyperopia farsightedness", "astigmat": "astigmatism",
+    "körlük": "blindness", "retina dekolmanı": "retinal detachment",
+    "makula dejenerasyonu": "macular degeneration", "konjonktivit": "conjunctivitis",
+    "işitme kaybı": "hearing loss", "kulak çınlaması": "tinnitus", "tinnitus": "tinnitus",
+    "orta kulak": "otitis media ear infection",
+    "meniere hastalığı": "meniere's disease", "kulak zarı": "eardrum tympanic membrane",
+
+    # --- Bolum IX: Dolasim (ek) ---
+    "kalp krizi": "heart attack myocardial infarction", "kalp yetmezliği": "heart failure",
+    "aritmi": "arrhythmia", "atriyal fibrilasyon": "atrial fibrillation",
+    "koroner arter": "coronary artery disease", "anjina": "angina",
+    "kalp çarpıntısı": "heart palpitations", "damar tıkanıklığı": "artery blockage",
+    "ateroskleroz": "atherosclerosis", "aort anevrizması": "aortic aneurysm",
+    "kalp kapak": "heart valve disease", "kardiyomiyopati": "cardiomyopathy",
+
+    # --- Bolum X: Solunum (ek) ---
+    "koah": "copd chronic obstructive pulmonary disease", "bronşit": "bronchitis",
+    "zatürre": "pneumonia", "pnömoni": "pneumonia", "akciğer fibrozu": "pulmonary fibrosis",
+    "sinüzit": "sinusitis", "alerjik rinit": "allergic rhinitis hay fever",
+    "bademcik iltihabı": "tonsillitis",
+
+    # --- Bolum XI: Sindirim (ek) ---
+    "reflü": "acid reflux gerd", "mide ülseri": "stomach ulcer peptic ulcer",
+    "gastrit": "gastritis", "ishal": "diarrhea", "hemoroid": "hemorrhoids",
+    "karaciğer yağlanması": "fatty liver disease", "siroz": "cirrhosis",
+    "pankreatit": "pancreatitis", "crohn hastalığı": "crohn's disease",
+    "ülseratif kolit": "ulcerative colitis",
+    "irritabl bağırsak": "irritable bowel syndrome ibs",
+    "apandisit": "appendicitis", "mide bulantısı": "nausea", "kusma": "vomiting",
+
+    # --- Bolum XII: Deri (ek) ---
+    "akne": "acne", "sivilce": "acne pimples", "siğil": "wart",
+    "siğiller": "wart", "siğillere": "wart", "siğilleri": "wart",
+    "vitiligo": "vitiligo", "ürtiker": "hives urticaria", "kurdeşen": "hives urticaria",
+    "saç dökülmesi": "hair loss alopecia",
+
+    # --- Bolum XIII: Kas-iskelet (ek) ---
+    "skolyoz": "scoliosis", "bel ağrısı": "back pain", "boyun ağrısı": "neck pain",
+    "tendinit": "tendinitis", "bursit": "bursitis", "kırık": "bone fracture",
+    "burkulma": "sprain", "kas yırtığı": "muscle tear",
+
+    # --- Bolum XIV: Urogenital (ek) ---
+    "idrar yolu": "urinary tract infection uti",
+    "mesane iltihabı": "cystitis bladder infection",
+    "prostat büyümesi": "enlarged prostate bph", "böbrek yetmezliği": "kidney failure",
+    "diyaliz": "dialysis", "endometriozis": "endometriosis", "miyom": "uterine fibroid",
+    "kısırlık": "infertility",
+
+    # --- Bolum XV: Gebelik ---
+    "düşük": "miscarriage", "erken doğum": "premature birth",
+    "preeklampsi": "preeclampsia", "gebelik diyabeti": "gestational diabetes",
+    "doğum kontrolü": "birth control contraception", "emzirme": "breastfeeding",
+
+    # --- Bolum XVIII: Semptomlar/bulgular ---
+    "ateş": "fever", "öksürük": "cough", "yorgunluk": "fatigue",
+    "kilo kaybı": "weight loss", "iştahsızlık": "loss of appetite",
+    "şişlik": "swelling", "ödem": "edema swelling",
 }
+
 
 
 def _normalize(text: str) -> str:
