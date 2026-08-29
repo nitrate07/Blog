@@ -308,7 +308,7 @@
     var meta = div.querySelector('#meta');
     meta.style.display = 'flex';
     div.querySelector('#metaInfo').textContent =
-      (data.sources_cited != null ? data.sources_cited + ' sources · ' : '') +
+      (data.sources_cited != null ? data.sources_cited + ' sources examined · ' : '') +
       (data.confidence != null ? Math.round(data.confidence * 100) + '% confidence · ' : '') +
       (data.duration_ms ? (data.duration_ms / 1000).toFixed(1) + 's' : '');
 
