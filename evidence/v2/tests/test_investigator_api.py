@@ -88,6 +88,25 @@ class TestInvestigatorAPI:
             assert resp.json() == {"turn_count": 0, "total_sources_found": 0}
 
     @pytest.mark.asyncio
+    async def test_stats_returns_actual_session_id_not_empty(self):
+        """Regresyon (2026-08-29): ConversationState.session_id varsayilan
+        olarak "" idi ve _get_manager bunu hicbir zaman doldurmuyordu —
+        /v1/investigator/stats her zaman session_id: "" donduruyordu,
+        cagiranin gecirdigi gercek deger ne olursa olsun. Coklu-oturumlu
+        bir arayuzde 'hangi oturuma bakiyorum' sorusunu cevapsiz birakirdi."""
+        app = create_app()
+        transport = ASGITransport(app=app)
+        async with AsyncClient(transport=transport, base_url="http://test") as client:
+            await client.post(
+                "/v1/investigator/chat",
+                json={"query": "sorgu bir", "session_id": "gercek-oturum-id"},
+            )
+            resp = await client.get(
+                "/v1/investigator/stats", params={"session_id": "gercek-oturum-id"}
+            )
+            assert resp.json()["session_id"] == "gercek-oturum-id"
+
+    @pytest.mark.asyncio
     async def test_reset_only_target_session(self):
         app = create_app()
         transport = ASGITransport(app=app)
