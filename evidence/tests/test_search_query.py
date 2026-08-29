@@ -164,3 +164,75 @@ class TestPreviouslyMissingTopics:
 
     def test_epilepsy_bare(self):
         assert has_health_topic("Epilepsi hastaları spor yapabilir mi?") is True
+
+
+class TestSecondSweepMissingTopics:
+    """Regresyon (2026-08-29): ilk duzeltmeden sonra yapilan ikinci, daha
+    genis bir tarama (24 cesitli iddia) 7 daha eksik konu buldu."""
+
+    def test_menopause_hormone_therapy(self):
+        assert has_health_topic("Menopoz sırasında hormon tedavisi güvenli mi?") is True
+
+    def test_adhd_medication_plural(self):
+        assert has_health_topic("ADHD ilaçları çocuklarda büyümeyi durdurur mu?") is True
+
+    def test_chemotherapy(self):
+        assert has_health_topic("Kemoterapi saç dökülmesine neden olur mu?") is True
+
+    def test_celiac(self):
+        assert has_health_topic("Çölyak hastalığı nedir?") is True
+
+    def test_asthma_medication(self):
+        assert has_health_topic("Astım ilaçları bağımlılık yapar mı?") is True
+
+    def test_ovarian_cyst_pregnancy(self):
+        assert has_health_topic("Kist over hastalarında hamilelik zor mu?") is True
+
+    def test_constipation(self):
+        assert has_health_topic("Kabızlık lifli gıdalarla düzelir mi?") is True
+
+
+class TestGenericMedicalStructureMarkers:
+    """Regresyon (2026-08-29): ucuncu, daha da genis bir tarama (20 cesitli
+    hastalik/durum) 13/20 oraninda eksik cikardi — tek tek hastalik ismi
+    eklemenin tek basina yeterli olmadigini gosterdi. Sozluge genel tibbi
+    baglam isaretleyicileri ("hastalık", "sendrom", "bozukluk", "belirti",
+    "teşhis", "kronik", "otoimmün", "kalıtsal") eklendi — bunlar, spesifik
+    bir hastalik ismi sozlukte olmasa bile "X hastaligi/sendromu/bozuklugu"
+    kalibini tibbi baglam olarak tanir, cok daha olceklenebilir bir yaklasim."""
+
+    def test_generic_disease_suffix_recognized_even_for_unlisted_condition(self):
+        """"filanca hastalığı" kalibi, "filanca" sozlukte olmasa bile
+        "hastalığı" sayesinde tibbi baglam olarak taninmali."""
+        assert has_health_topic("Xyzabc hastalığı bulaşıcı mıdır?") is True
+
+    def test_generic_syndrome_suffix_recognized(self):
+        assert has_health_topic("Kronik yorgunluk sendromu nedir?") is True
+
+    def test_generic_disorder_suffix_recognized(self):
+        assert has_health_topic("Bipolar bozukluk kalıtsal mı?") is True
+
+    def test_eczema_psoriasis_varicose(self):
+        assert has_health_topic("Egzama nemlendirici ile geçer mi?") is True
+        assert has_health_topic("Sedef hastalığı bulaşıcı mı?") is True
+        assert has_health_topic("Varis çorabı damar sağlığına iyi gelir mi?") is True
+
+    def test_fibromyalgia_stroke_bipolar_schizophrenia_autism(self):
+        assert has_health_topic("Fibromiyalji gerçek bir hastalık mı?") is True
+        assert has_health_topic("İnme belirtileri nelerdir?") is True
+        assert has_health_topic("Şizofreni tedavi edilebilir mi?") is True
+        assert has_health_topic("Otizm spektrum bozukluğu nedir?") is True
+
+    def test_down_syndrome_rheumatoid_arthritis_gallbladder(self):
+        assert has_health_topic("Down sendromu testleri güvenilir mi?") is True
+        assert has_health_topic("Romatoid artrit otoimmün bir hastalık mı?") is True
+        assert has_health_topic("Safra kesesi taşı ameliyatla mı alınır?") is True
+
+    def test_unrelated_sentences_still_correctly_false(self):
+        """Yeni genel isaretleyiciler, alakasiz cumleleri yanlislikla
+        yakalamamali — bunlar hala mevcut yanlis-pozitif korumalariyla
+        (aşırı/göz/adım) uyumlu kalmali."""
+        assert has_health_topic("bugün hava çok güzel") is False
+        assert has_health_topic("şu ürüne bir göz atar mısın?") is False
+        assert has_health_topic("benim adım Ümit") is False
+        assert has_health_topic("aşırı yorgunum bugün ama sağlıkla ilgisi yok") is False

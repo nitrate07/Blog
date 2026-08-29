@@ -107,6 +107,36 @@ _TERM_MAP: dict[str, str] = {
     "bal": "honey infant botulism", "ketojenik": "ketogenic diet",
     "keto": "ketogenic diet", "epilepsi": "epilepsy seizure",
     "nöbet": "seizure epilepsy",
+    "menopoz": "menopause", "hormon tedavisi": "hormone therapy",
+    "adhd": "adhd attention deficit", "kemoterapi": "chemotherapy",
+    "çölyak": "celiac disease gluten", "astım": "asthma",
+    "kabızlık": "constipation", "hamilelik": "pregnancy",
+    "kist over": "ovarian cyst pcos", "polikistik over": "pcos polycystic ovary",
+    "ilaçları": "medication drug",
+    # NOT (2026-08-29): Genis bir tarama (20 cesitli saglik iddiasi) 13/20
+    # oraninda eksik cikardi (egzama, sedef, fibromiyalji, otoimmün
+    # hastaliklar, bipolar, sizofreni, otizm spektrumu, Down sendromu vb.).
+    # Bu, tek tek hastalik ismi eklemenin tek basina yeterli olmadigini
+    # gosterdi — sozlukte "hastalik", "sendrom", "bozukluk", "belirti",
+    # "teshis" gibi GENEL tibbi baglam kelimeleri bile yoktu. Iki katmanli
+    # duzeltme: (1) asagida genel tibbi-baglam isaretleyicileri (bir
+    # hastalik ismi sozlukte olmasa bile "X hastaligi/sendromu/bozuklugu"
+    # kalibini yakalar, cok daha olceklenebilir), (2) tarama sirasinda
+    # bulunan somut, yaygin hastalik isimleri.
+    "hastalık": "disease illness", "hastalığı": "disease illness",
+    "sendrom": "syndrome", "sendromu": "syndrome",
+    "bozukluk": "disorder", "bozukluğu": "disorder",
+    "belirti": "symptom", "belirtileri": "symptoms",
+    "semptom": "symptom", "semptomları": "symptoms",
+    "teşhis": "diagnosis", "kronik": "chronic",
+    "otoimmün": "autoimmune", "kalıtsal": "hereditary genetic",
+    "tedavi edilebilir": "treatable", "tedavi edilir": "treatable treatment",
+    "egzama": "eczema", "sedef": "psoriasis",
+    "varis": "varicose veins", "fibromiyalji": "fibromyalgia",
+    "inme": "stroke", "bipolar": "bipolar disorder",
+    "şizofreni": "schizophrenia", "otizm": "autism",
+    "down sendromu": "down syndrome", "romatoid artrit": "rheumatoid arthritis",
+    "safra kesesi": "gallbladder gallstone",
     # egzersiz/yaşam
     "egzersiz": "exercise physical activity", "spor": "exercise training",
     "koşu": "running aerobic", "yürüyüş": "walking",
