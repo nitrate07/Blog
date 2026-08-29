@@ -29,14 +29,14 @@ class TUSEBAgent(HealthOrgAgent):
     SEARCH_URL = "https://www.tuseb.gov.tr/arama"
     
     async def _search(self, client: httpx.AsyncClient, query: str, limit: int) -> list[dict[str, Any]]:
-        resp = await client.get(self.SEARCH_URL, params={
+        resp = await self._get_with_retry(client, self.SEARCH_URL, params={
             "q": query,
         })
-        resp.raise_for_status()
         text = resp.text
         
         pattern = r'href="(/[^"]+)"[^>]*>(.*?)</a>'
         matches = re.findall(pattern, text, re.DOTALL)
+        self._warn_if_zero_matches(matches, query)
         
         results = []
         for href, title in matches[:limit]:
@@ -57,11 +57,10 @@ class TUSEBAgent(HealthOrgAgent):
     
     async def _fetch_passage(self, client: httpx.AsyncClient, href: str) -> str:
         try:
-            resp = await client.get(f"https://www.tuseb.gov.tr{href}")
-            if resp.status_code == 200:
-                match = re.search(r'<div[^>]*class="[^"]*content[^"]*"[^>]*>(.*?)</div>', resp.text, re.DOTALL)
-                if match:
-                    return re.sub(r'<[^>]+>', '', match.group(1)).strip()[:2000]
-        except Exception:
-            pass
+            resp = await self._get_with_retry(client, f"https://www.tuseb.gov.tr{href}")
+            match = re.search(r'<div[^>]*class="[^"]*content[^"]*"[^>]*>(.*?)</div>', resp.text, re.DOTALL)
+            if match:
+                return re.sub(r'<[^>]+>', '', match.group(1)).strip()[:2000]
+        except Exception as e:
+            logger.debug(f"{self.name}: passage fetch failed for {href!r}: {e}")
         return ""
