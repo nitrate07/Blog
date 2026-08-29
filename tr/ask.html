@@ -304,7 +304,7 @@
     var meta = div.querySelector('#meta');
     meta.style.display = 'flex';
     div.querySelector('#metaInfo').textContent =
-      (data.sources_cited != null ? data.sources_cited + ' kaynak · ' : '') +
+      (data.sources_cited != null ? data.sources_cited + ' kaynak tarandı · ' : '') +
       (data.confidence != null ? 'güvenirlik %' + Math.round(data.confidence * 100) + ' · ' : '') +
       (data.duration_ms ? (data.duration_ms / 1000).toFixed(1) + ' sn' : '');
 
