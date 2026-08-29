@@ -63,6 +63,13 @@ ayrı bir proje.
 
 ## 4. Ücretsiz/ucuz LLM — üretim için gerçekçi seçenekler
 
+> **Durum güncellemesi:** Aşağıdaki `GroqProvider` önerisi artık uygulandı —
+> `evidence/llm_providers.py`, `evidence/provider_registry.py` ve
+> `evidence/config.py`'ye eklendi, `evidence/tests/test_llm_providers.py`'de
+> test kapsamı var (50/50 geçiyor), ve `.env.example` / README dosyaları
+> güncellendi. Kalan tek adım: `console.groq.com`'dan gerçek bir API anahtarı
+> alıp `EVIDENCE_GROQ_API_KEY` olarak ayarlamak — kod tarafı tamam.
+
 Şu an hiçbir sağlayıcı (Claude/OpenAI/Gemini) için ücretli anahtar yok; bugün test için
 opencode CLI'nin ücretsiz modeli kullanıldı (uygun ama zaman zaman kesintiye giren geçici
 bir çözüm). Daha kalıcı, üretime uygun seçenekler:

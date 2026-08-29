@@ -12,7 +12,7 @@ Yapay Zeka / ajan -> Kanıt API -> güvenli kaynak getirme -> kaynak kalitesi
            -> [isteğe bağlı] LLM doğrulama -> gelişmiş karar
 ```
 
-`EvidenceVerifier` orkestrasyonu yönetir. `SourceFetcher` SSRF-güvenli getirme ve çıkarmayı yönetir. `llm_providers.py` Claude, OpenAI ve Gemini uygulamalarını içerir. `provider_registry.py` yapılandırmadan sağlayıcılar oluşturur. Sistem kanıt önceliklidir: LLM sağlayıcıları belirleyici karşılaştırmayı asla değiştirmez, yalnızca geliştirir.
+`EvidenceVerifier` orkestrasyonu yönetir. `SourceFetcher` SSRF-güvenli getirme ve çıkarmayı yönetir. `llm_providers.py` Claude, OpenAI, Gemini ve Groq uygulamalarını içerir. `provider_registry.py` yapılandırmadan sağlayıcılar oluşturur. Sistem kanıt önceliklidir: LLM sağlayıcıları belirleyici karşılaştırmayı asla değiştirmez, yalnızca geliştirir.
 
 ## API
 
@@ -92,6 +92,9 @@ Sistem, gelişmiş kanıt doğrulama için isteğe bağlı LLM sağlayıcıları
 | Claude | claude-sonnet-5 | `EVIDENCE_CLAUDE_API_KEY` | `EVIDENCE_CLAUDE_MODEL` |
 | OpenAI | gpt-5.6-terra | `EVIDENCE_OPENAI_API_KEY` | `EVIDENCE_OPENAI_MODEL` |
 | Gemini | gemini-3.7-flash | `EVIDENCE_GEMINI_API_KEY` | `EVIDENCE_GEMINI_MODEL` |
+| Groq | openai/gpt-oss-120b | `EVIDENCE_GROQ_API_KEY` | `EVIDENCE_GROQ_MODEL` |
+
+Bütçesi olmayan, düşük trafikli kurulumlar için önerilen varsayılan Groq'tur: ücretsiz katmanı kredi kartı gerektirmez ve (deneme kredisi değil) kalıcı bir sunumdur — bu belgenin yazıldığı tarih itibarıyla dakikada 30 / günde 14.400 istek. Anahtarı [console.groq.com](https://console.groq.com) adresinden alabilirsiniz.
 
 ### Yapılandırma
 
@@ -104,6 +107,7 @@ export EVIDENCE_CLAUDE_MODEL=claude-sonnet-5  # isteğe bağlı
 
 export EVIDENCE_OPENAI_API_KEY=your-openai-key
 export EVIDENCE_GEMINI_API_KEY=your-google-key
+export EVIDENCE_GROQ_API_KEY=your-groq-key  # ücretsiz katman, kredi kartı gerekmez
 
 # Genel geri dönüş (sağlayıcıya özgü ayarlanmadığında kullanılır)
 # export EVIDENCE_LLM_PROVIDER=claude

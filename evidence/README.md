@@ -12,7 +12,7 @@ AI / agent -> Evidence API -> safe source retrieval -> source quality
           -> [optional] LLM verification -> enhanced verdict
 ```
 
-`EvidenceVerifier` owns orchestration. `SourceFetcher` handles SSRF-safe retrieval and extraction. `llm_providers.py` contains Claude, OpenAI, and Gemini implementations. `provider_registry.py` creates providers from configuration. The system is evidence-first: LLM providers enhance but never replace the deterministic comparison.
+`EvidenceVerifier` owns orchestration. `SourceFetcher` handles SSRF-safe retrieval and extraction. `llm_providers.py` contains Claude, OpenAI, Gemini, and Groq implementations. `provider_registry.py` creates providers from configuration. The system is evidence-first: LLM providers enhance but never replace the deterministic comparison.
 
 ## API
 
@@ -92,6 +92,9 @@ The system supports optional LLM providers for enhanced evidence verification. W
 | Claude | claude-sonnet-5 | `EVIDENCE_CLAUDE_API_KEY` | `EVIDENCE_CLAUDE_MODEL` |
 | OpenAI | gpt-5.6-terra | `EVIDENCE_OPENAI_API_KEY` | `EVIDENCE_OPENAI_MODEL` |
 | Gemini | gemini-3.7-flash | `EVIDENCE_GEMINI_API_KEY` | `EVIDENCE_GEMINI_MODEL` |
+| Groq | openai/gpt-oss-120b | `EVIDENCE_GROQ_API_KEY` | `EVIDENCE_GROQ_MODEL` |
+
+Groq is the recommended default for low-traffic deployments with no budget for API costs: its free tier requires no credit card and is a persistent offering (not a trial credit), at 30 requests/minute and 14,400 requests/day as of this writing. Get a key at [console.groq.com](https://console.groq.com).
 
 ### Configuration
 
@@ -104,6 +107,7 @@ export EVIDENCE_CLAUDE_MODEL=claude-sonnet-5  # optional
 
 export EVIDENCE_OPENAI_API_KEY=your-openai-key
 export EVIDENCE_GEMINI_API_KEY=your-google-key
+export EVIDENCE_GROQ_API_KEY=your-groq-key  # free tier, no credit card
 
 # Generic fallback (used when provider-specific not set)
 # export EVIDENCE_LLM_PROVIDER=claude
