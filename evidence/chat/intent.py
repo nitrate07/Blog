@@ -142,6 +142,18 @@ TOPIC_KEYWORDS: dict[Topic, list[str]] = {
 # Follow-up signal patterns
 FOLLOW_UP_PATTERNS: dict[IntentType, list[str]] = {
     IntentType.FOLLOW_UP_WHY: [
+        # NOT (2026-08-29): "neden?" tek basina (baglam olmadan en dogal
+        # soru bicimi) eskiden HICBIR pattern'e uymuyordu — hepsi "neden
+        # boyle/ozle" gibi daha uzun bir devam gerektiriyordu. Canli test
+        # bunu dogruladi: bir hukum sonrasi "neden?" yazmak follow_up_why
+        # yerine verify_claim'e dusuyor, has_health_topic bosluguna
+        # takilip alakasiz bir "ben nasil calisiyorum" metni donduruyordu.
+        # ^...$ ile CAPA'lanmis: yalnizca mesajin TAMAMI bu kisa soru
+        # kelimesiyse eslesir — "neden bu ilac zararli" gibi yeni, uzun bir
+        # iddiayi YANLISLIKLA yakalamaz.
+        r"^neden\s*\??$",
+        r"^niye\s*\??$",
+        r"^why\s*\??$",
         r"neden\s+(boyle|öyle|böyle)",
         r"niye\s+(boyle|öyle|böyle)",
         r"why\s+(is|was|did|does)",

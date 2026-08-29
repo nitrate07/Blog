@@ -147,6 +147,30 @@ class ResponseBuilder:
             ],
         )
 
+    def _unrecognized_claim(self, intent: Intent) -> ChatResponse:
+        """Mesaj bir saglik iddiasi olarak taninamadigi durum icin ayri yanit.
+
+        NOT (2026-08-29): Bu durum eskiden _social_identity ile (gercek
+        "sen kimsin?" sorularinin yaniti) AYNI metni paylasiyordu. Canli
+        testle dogrulandi: anlamsiz bir girdi (ör. "asdkfjaslkdfj") veya
+        yanlislikla yanlis siniflandirilmis bir mesaj, kullaniciya hicbir
+        "anlayamadim" sinyali vermeden dogrudan "ben nasil calisiyorum"
+        aciklamasina donuyordu — kafa karistirici. Bu, o iki durumu ayirir.
+        """
+        return ChatResponse(
+            text=(
+                f"'{intent.original_query}' mesajınızı belirli bir sağlık iddiası olarak tanıyamadım.\n\n"
+                "Bir sağlık/tıp iddiasını (ör. \"kahve kolesterolü yükseltir mi?\") doğrudan yazarsanız "
+                "hemen araştırmaya başlarım."
+            ),
+            intent_type=intent.type.value,
+            confidence=0.3,
+            follow_up_suggestions=[
+                "Bir iddia yaz, hemen araştırayım",
+                "Nasıl çalıştığımı anlat",
+            ],
+        )
+
     def _social_thanks(self, intent: Intent) -> ChatResponse:
         return ChatResponse(
             text=(
