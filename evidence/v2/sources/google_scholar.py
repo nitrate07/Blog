@@ -28,19 +28,19 @@ class GoogleScholarAgent(HealthOrgAgent):
     SEARCH_URL = "https://scholar.google.com/scholar"
     
     async def _search(self, client: httpx.AsyncClient, query: str, limit: int) -> list[dict[str, Any]]:
-        resp = await client.get(self.SEARCH_URL, params={
+        resp = await self._get_with_retry(client, self.SEARCH_URL, params={
             "q": query,
             "hl": "en",
             "num": limit,
         }, headers={
             "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
         })
-        resp.raise_for_status()
         text = resp.text
         
         # Extract results
         title_pattern = r'<h3[^>]*class="gs_rt"[^>]*>.*?<a[^>]*href="([^"]*)"[^>]*>(.*?)</a>'
         title_matches = re.findall(title_pattern, text, re.DOTALL)
+        self._warn_if_zero_matches(title_matches, query)
         
         # Extract snippets
         snippet_pattern = r'<div[^>]*class="gs_rs"[^>]*>(.*?)</div>'
