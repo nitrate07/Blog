@@ -20,7 +20,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Depends, Request, Response, File, UploadFile
+from fastapi import FastAPI, HTTPException, Depends, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
@@ -28,7 +28,7 @@ from pydantic import BaseModel, Field
 from ..core.database import EvidenceDatabase
 from ..core.infrastructure import RateLimiter
 from ..engine import DeterministicEngine
-from ..pipeline import EvidencePipeline, PipelineResult
+from ..pipeline import EvidencePipeline
 from ..sources import (
     PubMedAgent,
     CrossrefAgent,

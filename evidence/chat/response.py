@@ -22,7 +22,7 @@ from typing import Any
 
 from .i18n import DEFAULT_LANGUAGE, normalize_language, t
 from .intent import Intent
-from .sufficiency import SufficiencyLevel, SufficiencyResult
+from .sufficiency import SufficiencyResult
 
 # Arama/ortusme kontrolunde anlamsiz genel kelimeler.
 _CLAIM_STOPWORDS = {

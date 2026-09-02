@@ -20,7 +20,6 @@ from ..core.interfaces import EvidenceEngine
 from ..core.types import (
     SourceType,
     StudyDesign,
-    Verdict,
     calculate_source_quality_score,
     get_journal_impact_factor,
 )

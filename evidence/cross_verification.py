@@ -9,7 +9,7 @@ from typing import Any
 
 from .connectors import CrossrefProvider, EvidenceCatalog, PubMedProvider
 from .config import Settings, settings
-from .models import EvidenceSearchResult, SourceQuality
+from .models import EvidenceSearchResult
 from .rag.retriever import ArticleRetriever, RetrievalResult
 
 logger = logging.getLogger(__name__)
