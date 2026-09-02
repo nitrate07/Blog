@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 import logging
 from pathlib import Path
-from typing import Any
 
 from ..connectors import EvidenceCatalog
 from ..rag.parser import parse_all_articles

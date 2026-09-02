@@ -13,7 +13,6 @@ Flow:
 
 from __future__ import annotations
 
-import asyncio
 import logging
 import re
 from dataclasses import dataclass
@@ -22,16 +21,14 @@ from typing import Any
 
 from ...chat.search_query import build_search_query, has_health_topic
 from ..core.database import EvidenceDatabase
-from ..core.interfaces import EvidenceEngine, SourceAgent
+from ..core.interfaces import EvidenceEngine
 from ..core.types import (
     Claim,
     Contradiction,
     Evidence,
-    MethodologicalEvidence,
     Passage,
     Source,
     SourceType,
-    VerificationChain,
     VerificationRecord,
     Verdict,
     content_hash,
@@ -792,8 +789,7 @@ class EvidencePipeline:
         
         # Step 0: Translate query for external sources
         search_query = get_search_query(user_query)
-        is_translated = search_query != extract_claim(user_query)
-        
+
         # Step 1: Claim Extraction
         extracted_claim = extract_claim(user_query)
         steps.append({"name": "claim_extraction", "status": "done", "data": {"claim": extracted_claim}})

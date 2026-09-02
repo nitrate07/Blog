@@ -382,12 +382,6 @@ class IntentAnalyzer:
 
         # History'de onceki sorgu varsa baglami kontrol et
         if history and len(history) >= 2:
-            last_user_msg = ""
-            for msg in reversed(history):
-                if msg.get("role") == "user":
-                    last_user_msg = msg.get("content", "").lower()
-                    break
-
             # Onceki soruyla ayni topic mi?
             # Kisa/sohbet disi mesajlar ("merhaba", "ok") follow-up sanilmaz;
             # en az 3 kelime ve somut bir topic gerekir.

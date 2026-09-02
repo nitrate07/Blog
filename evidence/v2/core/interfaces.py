@@ -5,8 +5,6 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any
 
-from .types import Claim, Evidence, Passage, Source, Verdict
-
 
 # ---------------------------------------------------------------------------
 # Source Agent Interface

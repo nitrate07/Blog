@@ -5,20 +5,15 @@ from __future__ import annotations
 import json
 import logging
 import sqlite3
-from pathlib import Path
 from typing import Any
 
 from ..core.types import (
     Claim,
     Contradiction,
     Evidence,
-    MethodologicalEvidence,
     Passage,
     Source,
-    SourceType,
-    StudyDesign,
     VerificationRecord,
-    Verdict,
 )
 
 logger = logging.getLogger(__name__)
