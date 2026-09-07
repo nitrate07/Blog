@@ -11,6 +11,7 @@ Independently run. Not affiliated with any pharmaceutical, supplement, or wellne
 - [claims.json](https://nitrate07.github.io/Blog/claims.json): Full JSON feed of all case files with verdicts, ratings, and source links — designed for programmatic access
 - [llms-full.txt](https://nitrate07.github.io/Blog/llms-full.txt): Complete plain-text index of every case file with structured metadata
 - [Sitemap](https://nitrate07.github.io/Blog/sitemap.xml): XML sitemap with all URLs
+- **MCP server** (Streamable HTTP): `https://ari-kaynak-evidence-api.onrender.com/mcp` — four tools an AI agent can call directly: `verify_claim` (fetch sources, return a verdict + evidence), `search_evidence` (search this archive), `get_source` (fetch one URL with provenance metadata), `compare_evidence` (compare a claim against a passage you already have). Listed in the [MCP Registry](https://registry.modelcontextprotocol.io) as `io.github.nitrate07/ari-kaynak-evidence`.
 
 ## Key pages
 

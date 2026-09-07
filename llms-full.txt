@@ -4,6 +4,10 @@
 
 Total case files: 41
 
+## MCP server
+
+An AI agent can query this archive's live verification pipeline directly instead of only reading this file: `https://ari-kaynak-evidence-api.onrender.com/mcp` (Streamable HTTP, registered in the MCP Registry as `io.github.nitrate07/ari-kaynak-evidence`). Tools: `verify_claim`, `search_evidence`, `get_source`, `compare_evidence`.
+
 ## Verdict scale
 
 | Verdict | Count | Meaning |
