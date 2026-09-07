@@ -20,11 +20,24 @@ class EvidenceMCPTools:
 
     async def search_evidence(self, query: str) -> dict:
         results = await self.catalog.search(query)
-        return {"query": query, "results": [result.model_dump(mode="json") for result in results], "note": "Discovery metadata is not evidence; retrieve a source before assigning a verdict."}
+        return {
+            "query": query,
+            "result_count": len(results),
+            "results": [result.model_dump(mode="json") for result in results],
+            "note": "Discovery metadata is not evidence; retrieve a source before assigning a verdict.",
+        }
 
     async def get_source(self, url: str) -> dict:
         source = await self.fetcher.fetch(url)
-        return {"url": source.url, "title": source.title, "source_quality": source.quality.value, "text": source.text}
+        return {
+            "requested_url": url,
+            "url": source.url,
+            "redirected": source.url != url,
+            "title": source.title,
+            "source_quality": source.quality.value,
+            "content_hash": source.content_hash,
+            "text": source.text,
+        }
 
     async def compare_evidence(self, claim: str, evidence: str) -> dict:
         verdict, passage, relevance = compare_claim_evidence(claim, evidence)
