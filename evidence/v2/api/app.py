@@ -11,6 +11,7 @@ Features:
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
 import os
@@ -24,6 +25,13 @@ from fastapi import FastAPI, HTTPException, Depends, Request, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel, Field
+
+from ...mcp import create_mcp_server
+
+try:
+    from mcp.server.fastmcp.server import TransportSecuritySettings
+except ImportError:
+    TransportSecuritySettings = None  # type: ignore[assignment,misc]
 
 from ..core.database import EvidenceDatabase
 from ..core.infrastructure import RateLimiter
@@ -242,16 +250,41 @@ def create_app(
     auto_index: bool | None = None,
 ) -> FastAPI:
     """Create the FastAPI application.
-    
+
     Features:
     - Streaming (SSE) for real-time responses
     - Authentication with API keys
     - Rate limiting per user
     - Conversation history
     - Web UI (Chat interface)
+    - MCP tool surface at /mcp (verify_claim, search_evidence, get_source, compare_evidence)
     """
-    app = FastAPI(title="Arı Kaynak Evidence API v2", version="2.0.0")
-    
+    # MCP mounting disables FastMCP's own built-in lifespan (see mcp SDK docs), so the host
+    # app below has to enter mcp_server.session_manager.run() itself, or the first request
+    # to /mcp fails with "Task group is not initialized." transport_security is required
+    # because streamable_http_app() defaults to a localhost-only Host/Origin allowlist and
+    # rejects every request with 421 once deployed behind a real hostname.
+    mcp_public_host = os.environ.get("EVIDENCE_PUBLIC_HOST", "ari-kaynak-evidence-api.onrender.com")
+    mcp_kwargs: dict[str, Any] = {"streamable_http_path": "/"}
+    if TransportSecuritySettings is not None:
+        mcp_kwargs["transport_security"] = TransportSecuritySettings(
+            allowed_hosts=[mcp_public_host, f"{mcp_public_host}:*", "127.0.0.1:*", "localhost:*"],
+            allowed_origins=[f"https://{mcp_public_host}", "http://127.0.0.1:*", "http://localhost:*"],
+        )
+    mcp_server = create_mcp_server(**mcp_kwargs)
+    mcp_asgi_app = mcp_server.streamable_http_app() if hasattr(mcp_server, "streamable_http_app") else None
+
+    @contextlib.asynccontextmanager
+    async def lifespan(_: FastAPI):
+        if mcp_asgi_app is not None:
+            async with contextlib.AsyncExitStack() as stack:
+                await stack.enter_async_context(mcp_server.session_manager.run())
+                yield
+        else:
+            yield
+
+    app = FastAPI(title="Arı Kaynak Evidence API v2", version="2.0.0", lifespan=lifespan)
+
     # CORS middleware
     app.add_middleware(
         CORSMiddleware,
@@ -260,6 +293,12 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # MCP tool surface. mcp_asgi_app is None only if the optional `mcp` package isn't
+    # installed (create_mcp_server() falls back to a plain callable-tools object then) --
+    # in that case /mcp simply doesn't exist rather than the app failing to start.
+    if mcp_asgi_app is not None:
+        app.mount("/mcp", mcp_asgi_app)
     
     # Initialize stores
     user_store = UserStore()
