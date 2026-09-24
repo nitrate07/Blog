@@ -4,5 +4,5 @@
 ## DEPLOYED: Render free plan, docker, healthCheck /health, LLM provider groq (key via env, sync:false). Site: nitrate07.github.io/Blog.
 ## Current Delta to Published Logic: none on this branch (salvor-provisional = Salvor field-trial branch; main untouched).
 ## LEARNED FAILURES (13, DOMAIN_REF): LF:two-test-suites · LF:turkish-word-collision · LF:normalize-strips-meaning · LF:contentless-question · LF:fake-confidence-floor · LF:lexical-match-numbers · LF:retry-only-on-429 · LF:silent-except · LF:rag-load-not-fitted · LF:frontend-localhost · LF:relative-asset-path · LF:llm-language-guess · LF:dead-model-id
-## Open: Salvor §10.5 provisional-capture field trial (dwasyluk/salvor #1). Verdict-engine parity rule active (RULES §0.5/§6.3): chat/conversation.py + graph/pipeline.py + v2/engine/engine.py.
+## Open: AGENT_CAPTURE = provisional (RULES §10.5) — agents may capture DL/LF/deferred without the gate, with Contributed-by/Review headers + `Salvor-Contribution: agent` trailer; DEC = proposals only; RULES never. Field trial (dwasyluk/salvor #1). Verdict-engine parity rule active (RULES §0.5/§6.3): chat/conversation.py + graph/pipeline.py + v2/engine/engine.py.
 ## Last Brain Audit: 2026-09-24 (interval 3d — RULES §10.3)

@@ -266,7 +266,7 @@ Reconcile only sees what a merge brings in; duplicates also accrete on a single 
 3. No pair → **distinct** — keep as-is.
 
 ### 10.5 [EXPERIMENTAL] Agentic provisional capture — default OFF
-**Config: `AGENT_CAPTURE = off`** (operator-tunable: `off` | `provisional`). **Beta feature under active
+**Config: `AGENT_CAPTURE = provisional`** (operator-tunable: `off` | `provisional`). **Beta feature under active
 calibration** — graduation criteria are tracked publicly (see the project's CONTRIBUTING). When `off` (the default),
 nothing changes: ALL durable capture remains user-gated per §2/§7 — agents never write durable knowledge without the
 verbatim prompt.
