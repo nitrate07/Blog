@@ -1,5 +1,3 @@
-# Deferred findings
+# Deferred findings — moved
 
-Known issues parked on purpose. Remove an entry when it is fixed (link the PR).
-
-- _(empty — add the first parked finding here)_
+Moved to `.salvor/DEFERRED_TODOS.md` (Salvor setup, 2026-09-24). Add new entries there.
