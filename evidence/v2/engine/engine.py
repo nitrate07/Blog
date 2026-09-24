@@ -195,7 +195,12 @@ class DeterministicEngine(EvidenceEngine):
             best = archive_matches[0]
             verdict_str = best.get("verdict", "unverified")
             rating = best.get("rating_value", 0)
-            confidence = max(0.3, 1.0 - best.get("distance", 0.5))
+            # NOT (2026-09-24): eskiden `max(0.3, ...)` ile tabanliydi — ayni hata
+            # chat/conversation.py'de 2026-08-29'da (#43) duzeltilmisti ama bu kopyada
+            # kalmisti: alakasiz bir arsiv eslesmesi bile sabit %30 guven gosteriyordu
+            # (bkz. .agent/LEARNED_FAILURES.md LF:fake-confidence-floor).
+            distance = best.get("distance", 0.5)
+            confidence = min(1.0, max(0.0, 1.0 - float(distance))) if isinstance(distance, (int, float)) else 0.5
             
             # Identify supporting/contradicting
             for m in matches:
