@@ -280,7 +280,12 @@ def _compute_verdict(matches: list[dict[str, Any]]) -> tuple[str, float, int]:
         best = archive_matches[0]
         verdict_str = best.get("verdict", "unverified")
         rating = best.get("rating_value", 0)
-        confidence = max(0.3, 1.0 - best.get("distance", 0.5))
+        # NOT (2026-09-24): eskiden `max(0.3, ...)` ile tabanliydi — ayni hata
+        # chat/conversation.py'de 2026-08-29'da (#43) duzeltilmisti ama bu kopyada
+        # kalmisti: alakasiz bir arsiv eslesmesi bile sabit %30 guven gosteriyordu
+        # (bkz. .agent/LEARNED_FAILURES.md LF:fake-confidence-floor).
+        distance = best.get("distance", 0.5)
+        confidence = min(1.0, max(0.0, 1.0 - float(distance))) if isinstance(distance, (int, float)) else 0.5
         return verdict_str, confidence, rating
     quality_scores = [m.get("quality_score", 0.5) for m in matches[:3]]
     avg_quality = sum(quality_scores) / len(quality_scores) if quality_scores else 0.5

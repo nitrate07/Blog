@@ -69,6 +69,20 @@ class TestEvidenceEngine:
         assert result["verdict"] == "Mostly Supported"
         assert result["confidence"] >= 0.3
 
+    def test_unrelated_archive_match_has_no_confidence_floor(self):
+        """LF:fake-confidence-floor: a far archive match (distance 0.96) must
+        report its real, low confidence instead of a flat 30%."""
+        archive = [
+            RetrievalResult(
+                article_id="en:test", title="Unrelated Article", heading="Verdict",
+                text="Something else entirely", verdict="Mostly Supported",
+                rating_value=4, category="Health", chunk_type="verdict",
+                distance=0.96, source_url="https://example.com",
+            )
+        ]
+        result = evidence_engine("test claim?", archive, [])
+        assert result["confidence"] == pytest.approx(0.04)
+
     def test_scores_source_quality(self):
         archive = [
             RetrievalResult(

@@ -181,7 +181,22 @@ class TestDeterministicEngine:
         result = engine.judge("test claim?", archive, [], [])
         assert result["verdict"] == "Mostly Supported"
         assert result["confidence"] >= 0.3
-    
+
+    def test_unrelated_archive_match_has_no_confidence_floor(self):
+        """LF:fake-confidence-floor: a far archive match (distance 0.96) must
+        report its real, low confidence instead of a flat 30%."""
+        engine = DeterministicEngine()
+        archive = [{
+            "title": "Unrelated Article",
+            "source_url": "https://example.com",
+            "text": "Something else entirely",
+            "verdict": "Mostly Supported",
+            "rating_value": 4,
+            "distance": 0.96,
+        }]
+        result = engine.judge("test claim?", archive, [], [])
+        assert result["confidence"] == pytest.approx(0.04)
+
     def test_health_org_results_scored(self):
         engine = DeterministicEngine()
         health_orgs = [{
