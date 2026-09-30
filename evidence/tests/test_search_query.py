@@ -2,7 +2,11 @@
 
 import pytest
 
-from evidence.chat.search_query import build_search_query, has_health_topic
+from evidence.chat.search_query import (
+    build_search_query,
+    has_health_topic,
+    has_turkish_term,
+)
 
 
 class TestKnownTranslations:
@@ -17,9 +21,13 @@ class TestKnownTranslations:
 
     @pytest.mark.parametrize("claim, expected", [
         ("Çay içmek iyi mi?", "tea"),
-        ("Kreatin böbreğe zarar verir mi?", "creatine"),
+        # NOT (2026-09-27): "böbreğe"/"kemiğe" belirtme hali ekleri mutevaziyet
+        # (k→ğ, ö→ü) yuzunden kok one-ekle basmiyordu; sozlukte "böbrek"/
+        # "kemik" vardi ama cekimli form atliyordu. unsuz katmani bunu
+        # duzeltince sorgu artik organi da iceriyor (daha ilgili bir arama).
+        ("Kreatin böbreğe zarar verir mi?", "creatine kidney"),
         ("Balık yağı omega içerir mi", "fish omega-3"),
-        ("Vitamin D3 kemiğe iyi gelir mi?", "vitamin d3"),
+        ("Vitamin D3 kemiğe iyi gelir mi?", "vitamin d3 bone skeletal"),
     ])
     def test_term_map_translations(self, claim, expected):
         assert build_search_query(claim) == expected
@@ -118,6 +126,36 @@ class TestHasHealthTopic:
     def test_true_for_vitamin_c_compound(self):
         assert has_health_topic("vitamin c bağışıklığa iyi gelir mi?") is True
         assert has_health_topic("c vitamini soğuk algınlığına iyi gelir mi?") is True
+
+
+class TestHasTurkishTerm:
+    """has_turkish_term — metinde sözlükteki TÜRKÇE anahtarlardan (terim)
+    biri doğrudan geçiyor mu. has_health_topic'ten FARKLI olarak sozluk
+    DEĞERLERİNDEKİ İngilizce kelimeleri kabul etmez; bu ayrım sayesinde
+    v2/pipeline.py "sorgu zaten İngilizce mi?" kestirimini güvenle
+    besleyebiliyor (İngilizce sorgular aynen döner)."""
+
+    @pytest.mark.parametrize("text", [
+        "Mikrodalga yemeği zehirler mi?",
+        "c vitamini soguk alginligina iyi gelir mi",  # diyakritiksiz Turkce
+        "zerdeçal iltihabı azaltır mı",
+        "soğuk duş bağışıklığı güçlendirir mi",
+    ])
+    def test_true_for_turkish_claim(self, text):
+        assert has_turkish_term(text) is True
+
+    @pytest.mark.parametrize("text", [
+        "Does coffee raise cholesterol levels?",  # sozluk DEGERLERI
+        "coffee cholesterol",
+        "asdkfjaslkdfj qwerty zxcvbn",
+        "Where should I put my glasses?",
+        "",
+    ])
+    def test_false_for_non_turkish(self, text):
+        assert has_turkish_term(text) is False
+
+    def test_none_safe(self):
+        assert has_turkish_term(None) is False
 
 
 class TestInflectedVaccineForms:
@@ -254,7 +292,139 @@ class TestLabValueTerms:
         assert has_health_topic("TSH yüksekliği tiroid sorunu mu") is True
 
 
+class TestDailyExposureAndFoodSafety:
+    """Regresyon (2026-09-27): kullanicinin bildirdigi uc gercek vaka —
+    "saglik sorulari arastirilmiyor" — sozlukte KARSILIGI OLMAYAN
+    gunluk-maruziyet sinifinda kaldi:
+
+      "zerdeçal iltihabı azaltır mı"
+      "soğuk duş bağışıklığı güçlendirir mi"
+      "mikrodalga yemeği zehirler mi"
+
+    Onceki genisletmeler ICD-10 bolumlerinden (hastalik, test, besin)
+    terim toplamisti; bu ucu de "maruziyet" (banyo, gida, cevresel
+    kimyasal, bitkisel) eksik sinifti. Ayrica "iltihap" — neredeyse her
+    tibbi iddianin cekirdek kavrami — sozlukte HIC yoktu."""
+
+    @pytest.mark.parametrize("claim", [
+        "zerdeçal iltihabı azaltır mı",
+        "soğuk duş bağışıklığı güçlendirir mi",
+        "mikrodalga yemeği zehirler mi",
+    ])
+    def test_reported_claims_recognized_as_health_topics(self, claim):
+        assert has_health_topic(claim) is True
+
+    @pytest.mark.parametrize("claim, expected_concepts", [
+        ("zerdeçal iltihabı azaltır mı", ("turmeric", "inflammation")),
+        ("soğuk duş bağışıklığı güçlendirir mi", ("shower", "immune")),
+        ("mikrodalga yemeği zehirler mi", ("microwave", "poison")),
+    ])
+    def test_reported_claims_produce_english_query(self, claim, expected_concepts):
+        """Sadece taninmak degil, harici API'ye (PubMed/Crossref) anlamli
+        bir Ingilizce sorgu cikarmak da gerekiyor — aksi halde arsivde
+        Turkce metinle arama yapilir ve alakasiz sonuc doner."""
+        query = build_search_query(claim)
+        for concept in expected_concepts:
+            assert concept in query.lower(), f"{claim!r} -> {query!r} ({concept} yok)"
+
+    @pytest.mark.parametrize("claim", [
+        # ayni sinifin diger uyeleri — tek tek vaka eklemek yerine sinifi
+        # temsil eden bir kume
+        "sarımsak gripten korur mu",
+        "bitkisel çay uykuyu düzeltir mi",
+        "gıda güvenliği için ne yapmalı",
+        "kurşun maruziyeti zararlı mı",
+        "kullanma süresi dolmuş yoğurt zararlı mı",
+        "zencefil mide ağrısını azaltır mı",
+        "propolis bağışıklığı güçlendirir mi",
+        "saunayın kalbe zararı var mı",
+    ])
+    def test_whole_exposure_class_recognized(self, claim):
+        assert has_health_topic(claim) is True
+
+    def test_cold_shower_matched_as_phrase_not_bare_so_cuk(self):
+        """"soğuk duş" IKI KELIMELIK anahtar; bare "soğuk" DEGIL —
+        "bugün hava çok soğuk" bir saglik iddiasi degil (aynı mantikla
+        "göz atmak" icin bare "göz" kaldirilmisti)."""
+        assert has_health_topic("bugün hava çok soğuk") is False
+        assert has_health_topic("soğuk duş kas ağrısını azaltır mı") is True
+
+    def test_generic_food_words_stay_out(self):
+        """Kapsam kurali: gunluk yemek kelimeleri ("yemek", "gıda", "dikkat")
+        BILEREK sozluk disi birakildi — "yemek yiyorum", "yemek tarifi nasil
+        yapilir" gibi iddia olmayan mesajlar saglik konusu sanilmasin."""
+        assert has_health_topic("yemek tarifi nasıl yapılır") is False
+        assert has_health_topic("dün çok güzel yemek yedik") is False
+
+    def test_business_odak_grubu_stays_out(self):
+        """Kapsam kurali: "odak grubu" yaygin bir is terimidir. Saglik
+        tarafi fiil koku ("odaklan") ile yakalanir, bare "odak" ile
+        degil."""
+        assert has_health_topic("odak grubu nasıl kurulur") is False
+        assert has_health_topic("odaklanma için ne yapmalı") is True
+
+
+class TestUnsuzYumusamasiKatmani:
+    """Regresyon (2026-09-27): Turkce'de ek alirken kelimenin son unsuzu
+    yumusur (unsuz yumusamasi) ve bu degisim cekimli formun ICINDE
+    kaldigi icin onceki on-eslestirme katmani goremiyordu:
+
+        "bağışıklık" (sozlukte VAR) → "bağışıklığı" → eslesmiyordu
+
+    Kullanicinin "soğuk duş bağışıklığı güçlendirir mi" sorusu bu yuzden
+    saglik konusu olarak taninmiyordu. Cozum: iki taraf da ayni unsuz
+    sinifina indirgenip on-eslestirme kurali tekrar uygulaniyor."""
+
+    @pytest.mark.parametrize("token, expected", [
+        ("bağışıklığı", "immune immunity"),
+        ("bağışıklığını", "immune immunity"),
+        ("kolesterolü", "cholesterol"),
+        ("böbreğe", "kidney"),
+        ("kemiğe", "bone skeletal"),
+    ])
+    def test_inflected_forms_match_their_root(self, token, expected):
+        from evidence.chat.search_query import _match_term
+        assert _match_term(token) == expected
+
+    def test_root_form_still_unchanged(self):
+        from evidence.chat.search_query import _match_term
+        assert _match_term("bağışıklık") == "immune immunity"
+
+    def test_whole_claim_recognized(self):
+        assert has_health_topic("bağışıklığı güçlendiren besinler var mı") is True
+
+    def test_key_length_threshold_preserved(self):
+        """Katman, diger fuzzy katmanlarla ayni >=4 karakter esigini
+        korumali — kisa anahtarlar ("tuz", "ot", "göz") baska kelimelerin
+        icinde yanlis eslesmesin."""
+        from evidence.chat.search_query import _FOLDED_TERM_MAP
+        assert all(len(k) >= 4 for k in _FOLDED_TERM_MAP)
+        assert "tuz" not in _FOLDED_TERM_MAP
+
+    @pytest.mark.parametrize("token", [
+        # eslesmesi gerekenler: ne cekimli formu ne de baska bir kelime
+        "aşırı",        # (excessive) — "aşı" (vaccine) ile karışmamalı
+        "gözle",        # "göz atmak" deyimi
+        "adım",         # "benim adım Ümit" — isim tanıtımı
+        "çiçek",        # ğ/ç içeren ama sozlukte olmayan kelime
+        "yağmur",       # "yağ" 3 karakter — >=4 eşiği onu dışarı bırakmalı
+        "c harfi",      # bare "c"
+    ])
+    def test_no_new_false_positives(self, token):
+        from evidence.chat.search_query import _match_term
+        assert _match_term(token) is None
+
+    def test_known_exact_matches_are_not_shadowed_by_folding(self):
+        """Katman sadece onceki iki katman BASARISIZ oldugunda devreye
+        giriyor — tam eslesme her zaman oncelikli."""
+        from evidence.chat.search_query import _match_term
+        assert _match_term("kahve") == "coffee"
+        assert _match_term("glp-1") == "glp-1 glucagon-like peptide-1"
+        assert _match_term("hba1c") == "hba1c hemoglobin a1c"
+
+
 class TestHasSubstantiveContent:
+
     """has_substantive_content — has_health_topic'ten farkli, daha dusuk
     bir bar: sozlukte olan bir SAGLIK terimi degil, herhangi bir anlamli
     kelime arar. conversation.py'deki has_health_topic kapisinin
@@ -283,3 +453,33 @@ class TestHasSubstantiveContent:
         'tanıyamadım'dan daha dogru bir sonuçtur."""
         from evidence.chat.search_query import has_substantive_content
         assert has_substantive_content("Xyzabc123 tehlikeli mi") is True
+
+
+class TestEverydaySentencesAreNotHealthTopics:
+    """LF:turkish-word-collision guard: a dictionary key that is also an
+    everyday word turns small talk into a "health claim" ('adım' → 'benim
+    adım Ümit' → 'Destekleniyor %85'). Each sentence below uses the everyday
+    sense of a word whose health sense is in the dictionary only as a
+    two-word key. Add a line here whenever a new ambiguous word is added."""
+
+    @pytest.mark.parametrize("sentence", [
+        "bugün güneş çok güzel",
+        "hava güneşli mi",
+        "fırından yeni ekmek aldım",
+        "telefonumun hafızası doldu",
+        "telefonumun hafızası doldu mu",
+        "kurşun kalem nerede",
+        "bahçeye bitki diktim",
+        "benim adım Ümit",
+    ])
+    def test_everyday_sense_not_health(self, sentence):
+        assert has_health_topic(sentence) is False
+
+    @pytest.mark.parametrize("claim", [
+        "güneş kremi cilt kanserini önler mi",
+        "bitki çayı uykuya iyi gelir mi",
+        "kurşun zehirlenmesi zekayı etkiler mi",
+        "hafıza kaybı b12 eksikliğinden olur mu",
+    ])
+    def test_health_sense_still_recognized(self, claim):
+        assert has_health_topic(claim) is True

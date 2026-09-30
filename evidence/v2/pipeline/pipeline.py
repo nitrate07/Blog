@@ -19,7 +19,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any
 
-from ...chat.search_query import build_search_query, has_health_topic
+from ...chat.search_query import build_search_query, has_health_topic, has_turkish_term
 from ..core.database import EvidenceDatabase
 from ..core.interfaces import EvidenceEngine
 from ..core.types import (
@@ -86,9 +86,29 @@ def translate_query_to_english(query: str) -> str:
     NOT. Sozluk artik tek yerde (chat/search_query.py) yasiyor; bu fonksiyon
     kendi kopyasini tutmuyor.
     """
-    turkish_chars = set("çğıöşüâîûêÇĞIİÖŞÜ")
-    turkish_word_count = sum(1 for c in query if c in turkish_chars)
-    if turkish_word_count < 3:
+    # NOT (2026-09-27): Ozel karakter sayisi ("sorgu zaten Ingilizce mi?"
+    # kestirimi) tek basina yeterli degildi — canli testle bulundu:
+    # "mikrodalga yemeği zehirler mi" sorgusunda yalnizca 2 Turkce ozel
+    # karakter var (ğ, ı) ve kestirim onu "Ingilizce" sayip sorguyu
+    # OLDUGU gibi birakiyordu; yani sozlukte "mikrodalga"/"zehir" olsa
+    # bile PubMed'e Turkce metin gidiyor ve arama sonucsuz kaliyordu.
+    # Ayni sekilde diyakritik kullanmayan Turkce kullanicilar da
+    # ("c vitamini soguk alginligina iyi gelir mi") tamamen disarida
+    # kaliyordu.
+    #
+    # Cozum: kestirime ikinci bir sinyal ekliyoruz — sozlukte DOGRUDAN
+    # gecen bir Turkce terim (bkz. search_query.has_turkish_term). Sozluk
+    # terimi gecen bir metin Turkce demektir, kestirime gerek yoktur.
+    # Ingilizce sorgular ("Does coffee raise cholesterol?") bu ekle DEGIL,
+    # terim ekle korunur: onlar sozluk DEGERLERINDEki kelimeleri icerir,
+    # anahtarlarini degil (bkz. has_turkish_term docstring'i).
+    if has_turkish_term(query):
+        looks_turkish = True
+    else:
+        turkish_chars = set("çğıöşüâîûêÇĞIİÖŞÜ")
+        turkish_word_count = sum(1 for c in query if c in turkish_chars)
+        looks_turkish = turkish_word_count >= 3
+    if not looks_turkish:
         # Sorgu zaten buyuk oranda Ingilizce — oldugu gibi don.
         return query
 

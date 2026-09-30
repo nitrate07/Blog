@@ -74,6 +74,40 @@ class TestTermMapStructuralIntegrity:
         broken = [k for k in _TERM_MAP if len(k.split()) > 2]
         assert broken == [], f"Yapisal olarak eslesemeyen (3+ kelimelik) anahtarlar: {broken}"
 
+    def test_no_value_collisions_in_folded_index(self):
+        """_FOLDED_TERM_MAP setdefault ile kurulur, yani ayni yumusatilmis
+        koke sahip IKI anahtar sessizce birbirini ezer. En az biri baska bir
+        kavrama denk geliyorsa ("kan" = blood ve "gan" = yanlis) o kavram
+        ARTIRK erisilemez olur. Bu, yapisal bir hatadir."""
+        from collections import defaultdict
+
+        from evidence.chat.search_query import _fold_unsuz
+
+        groups: dict[str, set[str]] = defaultdict(set)
+        for key, value in _TERM_MAP.items():
+            if " " in key or len(key) < 4:
+                continue
+            groups[_fold_unsuz(key)].add(value)
+        clashing = {
+            folded: values
+            for folded, values in groups.items()
+            if len(values) > 1
+        }
+        assert clashing == {}, (
+            f"Yumusatilmis indeks cakismasi (farkli degerler ayni koke "
+            f"iniyor): {clashing}"
+        )
+
+    def test_folded_index_holds_no_multi_word_or_short_keys(self):
+        """_FOLDED_TERM_MAP yalnizca tek kelimelik, >=4 karakterli
+        anahtarlari icermeli: 2-tokenli anahtarlar zaten iki-tokenli
+        pencerede tam eslesiyor, kisa anahtarlar ise (>=4 esigi) baska
+        kelimelerin icinde yanlis eslesir."""
+        from evidence.chat.search_query import _FOLDED_TERM_MAP
+
+        assert all(" " not in k for k in _FOLDED_TERM_MAP)
+        assert all(len(k) >= 4 for k in _FOLDED_TERM_MAP)
+
 
 class TestComprehensiveExpansionCoverage:
     """Yeni eklenen ICD-10 bolumlerinden ornek terimler — genisletmenin
@@ -150,6 +184,10 @@ class TestExpansionNoFalsePositiveRegression:
             "benim adım Ümit", "aşırı yorgunum bugün ama sağlıkla ilgisi yok",
             "yarın toplantı saat kaçta?", "futbol maçı ne zaman başlıyor",
             "arabamın lastiği patladı",
+            # 2026-09-27 genisletmesi: gunluk maruziyet sinifi eklendi
+            # (zerdeçal, soğuk duş, mikrodalga...). Yanlis-pozitif
+            # korumalari yeni sinifla birlikte de tutmali.
+            "yemek tarifi nasıl yapılır", "odak grubu nasıl kurulur",
         ]
         for q in unrelated:
             assert has_health_topic(q) is False, f"Yanlis pozitif: {q!r}"

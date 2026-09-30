@@ -326,6 +326,103 @@ _TERM_MAP: dict[str, str] = {
     "ateş": "fever", "öksürük": "cough", "yorgunluk": "fatigue",
     "kilo kaybı": "weight loss", "iştahsızlık": "loss of appetite",
     "şişlik": "swelling", "ödem": "edema swelling",
+
+    # =======================================================================
+    # GUNDELIK MARUZIYET + GIDA GUVENLIGI + BITKISEL (2026-09-27)
+    # ---------------------------------------------------------------------
+    # Bu blog'in konusu saglik; ozellikle ilac ve hastalik isimleri
+    # sozluge girerken, kullanici sorularinin buyuk kismi HASTALIK DEGIL
+    # "gunluk hayatta maruz kalinan sey" idi:
+    #
+    #   "zerdeçal iltihabı azaltır mı"
+    #   "soğuk duş bağışıklığı güçlendirir mi"
+    #   "mikrodalga yemeği zehirler mi"
+    #
+    # Ucunun de sozlukte KARSILIGI YOKTU — ozellikle "iltihap" (neredeyse
+    # her tibbi iddianin cekirdegi), "zehir" ve "bitkisel" kavramlari. Bu,
+    # onceki genisletmelerden (ICD-10 bolumleri) farkli bir SINIF boslugu:
+    # sozluk hastalik/laboratuvar/besin yogundu, "maruziyet" (banyo,
+    # giyinme, gida, cevresel kimyasal, ev yapimi bitkisel) ve bunlarin
+    # saglik etkileri hic kapsanmiyordu. Asagida o sinif.
+    #
+    # KAPSAM KURALI: yalnizca saglik ETKISI sorulan sekillerde anlamli olan
+    # kelimeler. Cok genel gunluk kelimeler ("yemek", "gıda", "dikkat",
+    # "hareket" gibi) BILEREK disarida birakildi: bunlar "yemek yiyorum",
+    # "gıda fiyatları arttı" gibi iddia olmayan mesajlari de saglik
+    # konusu sanardi ve conversation.py'deki guvenlik kapisi tam da
+    # bunlari elemek icin var.
+    # =======================================================================
+
+    # --- iltihap / agri (tum tibbi iddialarin cekirdek kavrami) ---
+    "iltihap": "inflammation", "iltihabı": "inflammation",
+    "anti-inflamatuar": "anti-inflammatory",
+    "antioksidant": "antioxidant",
+    "ağrı": "pain", "ağrıkesici": "analgesic painkiller",
+    "kortizol": "cortisol",
+
+    # --- bitkisel / baharat (en sik "X faydalı mı" iddialarının kaynagi) ---
+    "zerdeçal": "turmeric curcumin", "kurkuma": "turmeric curcumin",
+    "sarımsak": "garlic", "zencefil": "ginger", "tarçın": "cinnamon",
+    "kekik": "thyme oregano", "maydanoz": "parsley", "soğan": "onion",
+    "propolis": "propolis",
+    "arı sütü": "royal jelly", "bitkisel": "herbal", "bitki çayı": "herbal tea",
+    "baharat": "spice", "detoks": "detox",
+
+    # --- gündelik maruziyet / yasam tarzi ---
+    # NOT: "soğuk duş" ve "sıcak duş" IKI KELIMELIK anahtar olarak eklendi,
+    # bare "soğuk" DEGIL — "bugün hava çok soğuk" bir saglik iddiasi
+    # degil (bkz. yukaridaki kapsam kurali ve "göz atmak" notu).
+    "soğuk duş": "cold shower cold water immersion",
+    "sıcak duş": "warm shower hot water",
+    "duş": "shower bathing",
+    "soğuk havuz": "cold water swimming",
+    "soğuk maruziyet": "cold exposure",
+    "sauna": "sauna", "yüzme": "swimming",
+    # NOT: bare "güneş" BILEREK yok — gundelik anlami hava durumu ("bugün
+    # güneş çok güzel"). Saglik tarafi iki kelimelik anahtarlarla gelir.
+    "güneş kremi": "sunscreen", "güneş ışığı": "sunlight sun exposure",
+    "güneş çarpması": "sunstroke heat stroke", "güneşlenme": "tanning sun exposure",
+    "bronzlaşma": "tanning", "ultraviyole": "ultraviolet",
+    "uv ışın": "ultraviolet radiation",
+    "hijyen": "hygiene", "el yıkama": "handwashing",
+    "dezenfektant": "disinfectant",
+    "uyku kalitesi": "sleep quality", "horlama": "snoring",
+    "apne": "apnea sleep apnea", "enerji içeceği": "energy drink",
+
+    # --- gida guvenligi / toksikoloji ---
+    # NOT: "fırın" BILEREK yok — gundelik anlami firin/ekmek ("fırından
+    # ekmek aldım"), saglik iddiasi degil.
+    "mikrodalga": "microwave microwave radiation",
+    "zehir": "poison toxicity", "zehirlenme": "poisoning intoxication",
+    "toksik": "toxic", "toksin": "toxin", "kimyasal": "chemical",
+    # NOT: bare "kurşun" BILEREK yok — "kurşun kalem" (pencil) ve mermi
+    # anlamlari baskin. Metal anlami iki kelimelik anahtarla gelir.
+    "kurşun zehirlenmesi": "lead poisoning heavy metal", "kurşunlu": "lead heavy metal", "kurşun maruziyeti": "lead exposure heavy metal",
+    "cıva": "mercury heavy metal",
+    "ağır metal": "heavy metal", "konservant": "preservative",
+    "katkı maddesi": "food additive", "pesticit": "pesticide",
+    "herbisit": "herbicide", "gıda güvenliği": "food safety",
+    "kullanma süresi": "expiry date", "işlenmiş gıda": "processed food",
+    "paketli gıda": "packaged food",
+    "yapay tatlandırıcı": "artificial sweetener",
+
+    # --- emilim / doz / yan etki (takviye iddialarinin ortak dili) ---
+    "emilim": "absorption bioavailability", "biyoyararlanım": "bioavailability",
+    "metabolizma": "metabolism", "doz": "dosage dose", "dozaj": "dosage",
+    "yan etki": "side effect",
+
+    # --- vucut olcumu / beyin ---
+    "nabız": "pulse heart rate", "kalp atışı": "heart rate",
+    "kan değeri": "blood test value",
+    "beslenme": "nutrition diet", "besin": "nutrient",
+    # NOT: bare "odak" BILEREK yok — "odak grubu" (focus group) yaygin bir
+    # is/iletisim terimidir ve saglik konusu degildir. Ayni kavramin
+    # saglik tarafi fiil koku ("odaklanma") ile yakalanir.
+    "odaklan": "focus attention", "odaklanma": "focus concentration",
+    "konsantrasyon": "concentration", "bilişsel": "cognitive",
+    # NOT: bare "hafıza" BILEREK yok — "telefonumun hafızası doldu" (cihaz
+    # bellegi) gundelik dilde saglik anlamindan daha sik.
+    "hafıza kaybı": "memory loss", "unutkanlık": "forgetfulness memory",
 }
 
 
@@ -347,6 +444,58 @@ def _normalize(text: str) -> str:
 # "kolesterolü" -> "kolesterol" (fark <= 2 karakter ve son harf sesli/ek harfi).
 _MAX_SUFFIX_LEN = 3
 
+# Turkce'de ek alirken kelimenin SONUNDaki unsuz yumusur ("unsuz
+# yumusamasi"). Yalinca k/ğ/g ve ç/c gruplari icin gecerlidir ve — kritik
+# olarak — degisim kelimenin SONUNDA gorunmez, cekimli formun ICINDE
+# kalir:
+#
+#   "bağışıklık" → "bağışıklığı"   (son k, belirtme eki -ı'dan once ğ olur)
+#   "çocuk"      → "çocuğu"        (k → ğ)
+#   "ağaç"       → "ağacı"         (ç → c)
+#
+# Bu yuzden onceki katmanin on-eslestirmesi (token.startswith(key))
+# bu formlari GOREMIYOR: kok artik token'in one basilmiyor, token
+# kokun bir harfi degistirilmis hali. Canli testle bulundu: kullanicinin
+# "soğuk duş bağışıklığı güçlendirir mi" sorusunda "bağışıklık"
+# sozlukte ANCAK cekimsiz haliyle vardi, mesaj yine de saglik konusu
+# olarak taninmiyordu.
+#
+# Cozum: sozluge her cekimli formu elle eklemek yerine, iki tarafi da
+# ayni "unsuz sinifina" indirgeyip karsilastiriyoruz. Kapsam BILINCLI:
+# yalnizca k/ğ/g ve ç/c. "ö/ü/u" birlesimi ek uyumu (unsuz yumusamasi
+# DEGIL) ve sozluk anahtarlarinda tek bir yararli vakasi yok.
+_FOLD_TABLE = str.maketrans({"k": "g", "ğ": "g", "c": "ç", "K": "g", "G": "g", "C": "ç"})
+# Fuzzy katmanlarla ayni esik: kisa anahtarlar ("tuz", "ot", "göz") baska
+# kelimelerin icinde yanlis eslesir.
+_MIN_FOLDED_KEY_LEN = 4
+
+
+def _fold_unsuz(word: str) -> str:
+    """Kelimedeki yumusayan unsuzleri tek bir kanonik harfe indirger.
+
+    "bağışıklık" -> "bağısi̇lıg" ..., yani sozluk anahtari ile onun cekimli
+    formu ayni forma duser ve onceki katmanin on-eslestirme kurali
+    (startswith + <=3 karakter fark) tekrar calisir.
+
+    Kapsam: k/ğ/g -> g, ç/c -> ç. "glp-1", "d3", "10000" gibi rakam/tire
+    iceren token'lar ceviri tablosunda zaten dokunulmaz (T'de gecis yok).
+    """
+    return word.translate(_FOLD_TABLE)
+
+
+# Yumusatilmis kok -> deger indeksi. Sozlukten TURETILIR (elle
+# yazilmaz), tek kelimelik ve >=4 karakterli anahtarlar icin. Iki-tokenli
+# anahtarlar ("soğuk duş") _matched_terms'in iki-tokenli penceresinde
+# zaten tam eslesmeyle yakalanir, buraya girmeleri gereksiz.
+_FOLDED_TERM_MAP: dict[str, str] = {}
+for _key, _value in _TERM_MAP.items():
+    if " " in _key or len(_key) < _MIN_FOLDED_KEY_LEN:
+        continue
+    # setdefault: cakisma olursa ilk (sozluk sirasi) kazanir. Farkli
+    # degerli bir cakisma yapisal bir hatadir ve
+    # tests/test_term_map_expansion.py'de test edilir.
+    _FOLDED_TERM_MAP.setdefault(_fold_unsuz(_key), _value)
+
 
 # Tek basina token olarak eslesirse asiri genis/belirsiz oldugu icin izin
 # listesinden kasitli olarak cikarilan parcalar (ör. "vitamin c" degerinin
@@ -367,7 +516,8 @@ _ALLOWED_EN: frozenset[str] = frozenset(
 
 def _match_term(token: str) -> str | None:
     """Once tam eslesme, sonra Turkce cekim ekini soyan on-eslestirme,
-    son olarak (kurulu ise) Zemberek morfolojik kok bulma.
+    sonra unSuz yumusamasi (asagida), son olarak (kurulu ise) Zemberek
+    morfolojik kok bulma.
     """
     if token in _TERM_MAP:
         return _TERM_MAP[token]
@@ -379,6 +529,37 @@ def _match_term(token: str) -> str | None:
                 best = (diff, value)
     if best:
         return best[1]
+
+    # NOT (2026-09-27): Yukaridaki on-eslestirme katmani TUM cekimli
+    # formlari yakalayamaz ve bunun sebebi sozluk boslugu DEGIL, yapISAL
+    # bir sinir: Turkce'de ek alirken kelimenin son unsuzu yumusur
+    # ("unsuz yumusamasi") ve bu degisim cekimli formun ICINDE kaldigi
+    # icin token koke on-ekle basilmiyor — "bağışıklık" (sozlukte var)
+    # "bağışıklığı" ile eslesmiyor, ayni sekilde "çocuk"→"çocuğu",
+    # "ağaç"→"ağacı". Canli testle bulundu: kullanicinin "soğuk duş
+    # bağışıklığı güçlendirir mi" sorusu bu yuzden saglik konusu olarak
+    # taninmiyordu. Cozum: sozluk anahtarlarinin her cekimli formunu elle
+    # eklemek yerine, iki tarafi da ayni unsuz sinifina indirgeyip
+    # yukaridaki on-eslestirme kuralini TEKRAR uygulamak
+    # (_fold_unsuz + _FOLDED_TERM_MAP).
+    #
+    # Bu katman onceki iki katmandan SONRA ve Zemberek'ten ONCE gelir:
+    # Zemberek kuruluysa da ayni sonucu verir, ama katman OPSIYONEL bir
+    # bagimliliga gore siralamamak icindir — 95MB'lik bir paketin
+    # kurulu olup olmamasi eslesme sonucunu DEGISTIRMEDEN ayni davranis
+    # uretir.
+    folded = _fold_unsuz(token)
+    if folded != token:
+        if folded in _FOLDED_TERM_MAP:
+            return _FOLDED_TERM_MAP[folded]
+        best = None
+        for key, value in _FOLDED_TERM_MAP.items():
+            if folded.startswith(key):
+                diff = len(folded) - len(key)
+                if 0 < diff <= _MAX_SUFFIX_LEN and (best is None or diff < best[0]):
+                    best = (diff, value)
+        if best:
+            return best[1]
 
     # NOT (2026-08-29): Yukaridaki iki katman (tam eslesme, >=4 karakterlik
     # anahtarlar icin <=3 karakterlik cekim-eki toleransi) her cekimli formu
@@ -474,6 +655,38 @@ def has_health_topic(claim: str) -> bool:
     guvenlik kapisi icin dogru fonksiyon budur.
     """
     return bool(_matched_terms(claim))
+
+
+def has_turkish_term(text: str) -> bool:
+    """Metinde sozlukt BIR TURKCE TERIM dogrudan geciyor mu?
+
+    Amacı "sozde Turkce bir sorguyu sozlukten gecirmek" DEGIL, tam
+    tersi: "sozde Turkce OLMAYAN bir sorguyu sozlukten gecirmekten"
+    korumak. Metnin Turkce olup olmadigindan karar vermeye calisan
+    basit kestirimler (bkz. v2/pipeline/pipeline.py'deki ozel karakter
+    sayimi) kucuk iddialarda yanlis cevap veriyordu: "mikrodalga yemeği
+    zehirler mi" metninde yalnizca 2 Turkce ozel karakter vardir ve
+    kestirim onu "zaten Ingilizce" sayip sorguyu oldugu gibi birakiyordu
+    — sozlukte "mikrodalga"/"zehir" olsa bile. Butun metnin Turkce
+    oldugunu soyleyemeyiz; sozlukteki terimlerden en az birinin dogrudan
+    gectigini soyleyebiliriz.
+
+    DIKKAT: has_health_topic()'ten FARKLI — o fonksiyon sozluk
+    DEGERLERINDEKI Ingilizce kelimeleri de kabul eder ("coffee
+    cholesterol" icin True doner, cunku "coffee" ve "cholesterol"
+    degerlerden gelir). Burada yalnizca TURKCE anahtarlara bakilir; boylece
+    "Does coffee raise cholesterol?" gibi Ingilizce bir sorgu yanlis
+    yere Turkce sayilmaz.
+    """
+    if not text:
+        return False
+    tokens = _normalize(text).split()
+    for i, token in enumerate(tokens):
+        if token in _TERM_MAP:
+            return True
+        if i + 1 < len(tokens) and " ".join(tokens[i:i + 2]) in _TERM_MAP:
+            return True
+    return False
 
 
 def has_substantive_content(query: str) -> bool:
