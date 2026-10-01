@@ -32,7 +32,7 @@ One entry per failure mode (RULES §10.1 header). Root cause, fix sites and evid
 - **Contributed-by**: operator-approved (adopted at Salvor setup, 2026-09-24, from `.agent/LEARNED_FAILURES.md`, nitrate07/Blog#67)
 - **What happened**: 'adım' (step) matched 'benim adım Ümit' → 'Destekleniyor %85'.
 - **Rule / fix sites**: Check new keys against non-health usage; keep the no-health-topic ⇒ no-research gate.
-- **Evidence**: commit 7737c4c
+- **Evidence**: commit 7737c4c; extended by #69 (f0978d6): ambiguous everyday words (güneş, fırın, kurşun, hafıza, bitki) only match as two-word health phrases; regression tests pin 8 everyday sentences as non-health.
 
 ### LF:normalize-strips-meaning (2026-08-29)
 - **Subject**: search_query, tokenizer, normalization

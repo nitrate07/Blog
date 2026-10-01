@@ -45,3 +45,11 @@ installed). Branch `salvor-provisional` — a field trial of RULES §10.5 provis
 - Windows 10 check (C:\Users\MBILISIM\salvor-win\Blog clone): /salvor:status and a real Brain Audit task work, CRLF
   preserved; /salvor:health does not run headless; the plugin's Serena creates .serena/ in the repo unasked.
 - Lesson: an unpushed Brain Audit commit makes every other clone think the audit is overdue — push audit commits.
+
+---
+
+## 2026-10-01 — Brain moved from salvor-provisional to main
+- Merged `salvor-provisional` into a branch off main (b3af582, after #68 and #69). The two sides touched separate files, so there were no conflicts.
+- On main `AGENT_CAPTURE` is set to `off` (Salvor default): every durable capture asks the operator first. The provisional-capture field trial stays on `salvor-provisional`.
+- L1 delta/open lines updated for main. LF:turkish-word-collision now cites #69 (two-word phrase rule for ambiguous everyday words, 8 regression sentences).
+- `.agent/` keeps pointer files only; canonical memory is `.salvor/`.
