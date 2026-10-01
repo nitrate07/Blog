@@ -1,6 +1,6 @@
 # Agent guide — Arı Kaynak (nitrate07/Blog)
 
-Read this first, then `.agent/LEARNED_FAILURES.md` before changing anything in `evidence/`.
+Read this first, then `CLAUDE.md` and `.salvor/DOMAIN_REF.md` (Learned Failures) before changing anything in `evidence/`.
 Applies to any coding agent (Claude Code, opencode, Codex, Gemini).
 
 ## What this repo is
@@ -16,6 +16,16 @@ Applies to any coding agent (Claude Code, opencode, Codex, Gemini).
   - `python -m pytest evidence/v2/tests -q`
 - For chat/verdict changes, also probe the real pipeline with real claims (no mocks). Several bugs were only visible that way.
 
-## Memory files (keep them short)
-- `.agent/LEARNED_FAILURES.md` — approaches/bugs that already bit us. Add an `LF:` entry when a fix teaches something a future agent could repeat.
-- `.agent/DEFERRED.md` — known issues parked on purpose. Add instead of silently dropping out-of-scope findings; remove when fixed.
+## Memory files
+- Project memory is managed by Salvor under `.salvor/` (see `CLAUDE.md` and `RULES.md`). `.agent/` now only holds pointers.
+
+<!-- salvor:start -->
+## Salvor
+Before any work, read `CLAUDE.md` (the hub) + the relevant component spoke + `RULES.md` +
+`.salvor/active_state.md` (L1). Follow `RULES.md` exactly — including the Task Termination
+Protocol and the capture classes. The canonical context lives in `CLAUDE.md`; this file
+just points there. **Do not duplicate or fork project knowledge into this adapter.**
+Canonical engineering knowledge lives in its assigned `.salvor/` artifact and the
+`CLAUDE.md` hub + component spokes; `.serena/memories/` contains concise enhanced-mode
+retrieval aids only.
+<!-- salvor:end -->
