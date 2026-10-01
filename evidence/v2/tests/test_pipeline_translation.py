@@ -3,6 +3,8 @@
 Bu dosyanin varligi bilincli: fonksiyon daha once hic test edilmemisti.
 """
 
+import pytest
+
 from evidence.v2.pipeline.pipeline import translate_query_to_english
 
 
@@ -47,3 +49,42 @@ class TestKnownTranslationsStillWork:
     def test_short_query_returned_unchanged(self):
         # Az sayida Turkce ozel karakter -> ceviri denenmez (mevcut davranis).
         assert translate_query_to_english("coffee cholesterol") == "coffee cholesterol"
+
+
+class TestDailyExposureClaimsTranslated:
+    """Regresyon (2026-09-27): kullanicinin bildirdigi "saglik sorulari
+    arastirilmiyor" vakasinda sozluk bosluğu vardi. Bu fonksiyon
+    has_health_topic()u bir TRIC olarak kullaniyor (bkz. pipeline.py), yani
+    ayni bosluk burada da Turkce sorguyu OLDUGU gibi birakmak demekti.
+    Bilesik sozluk duzelmesinden sonra bu ucu de ceviriyor."""
+
+    @pytest.mark.parametrize("query, expected", [
+        ("zerdeçal iltihabı azaltır mı", "turmeric"),
+        ("soğuk duş bağışıklığı güçlendirir mi", "shower"),
+        ("mikrodalga yemeği zehirler mi", "microwave"),
+    ])
+    def test_reported_claims_reach_pubmed_in_english(self, query, expected):
+        result = translate_query_to_english(query)
+        assert result != query, f"{query!r} cevrilmedi (Turkce kaldi)"
+        assert expected in result.lower(), f"{query!r} -> {result!r}"
+
+    def test_ascii_typed_turkish_claim_translated(self):
+        """Diyakritik kullanmayan Turkce kullanicilari (ozellikle mobil
+        klavye/klavyeler arası gecis) icin de sozlukten gecis calismali —
+        eskiden "soguk"/"algınligi" yazimi butun sozlugu atliyordu."""
+        result = translate_query_to_english("c vitamini soguk alginligina iyi gelir mi")
+        assert result == "vitamin c"
+
+    def test_english_query_still_passes_through_unchanged(self):
+        """Turkce iddialari sozlukten gecirmek Ingilizce sorgulari
+        BOZMAMALI. Ingilizce metin sozlukte anahtar (terim) degil, deger
+        iceriyor; bu yuzden has_turkish_term() False verir ve kestirim
+        devreye girer (bkz. pipeline.py NOT 2026-09-27). Ayni sart
+        evidence/tests/test_v2_pipeline_translate.py'da da sabitlenmistir."""
+        query = "Does coffee raise cholesterol levels?"
+        assert translate_query_to_english(query) == query
+
+    def test_gibberish_unchanged(self):
+        """Taninmayan metin sozlukten gecirilmez."""
+        query = "asdkfjaslkdfj qwerty zxcvbn"
+        assert translate_query_to_english(query) == query

@@ -552,3 +552,57 @@ class TestUnrecognizedTermButRealQuestionStillResearched:
         m = ConversationManager(llm_provider=provider)
         r = await m.handle_message("benim adım Ümit")
         assert r.text == "Merhaba Ümit! Nasıl yardımcı olabilirim?"
+
+
+class TestDailyExposureClaimsNotBailedOut:
+    """Regresyon (2026-09-27): kullanicinin bildirdigi vaka — bu tur
+    gunluk-maruziyet sorulari "saglik iddiasi olarak tanimiyorum" yaniti
+    aliyordu. Iki ayri eksik vardi ve ikisi de birden gerekiyordu:
+
+    1. Sozluk boslugu: "zerdeçal", "iltihap", "zehir", "mikrodalga",
+       "soğuk duş" gibi kavramlar hic karsiligi yoktu.
+    2. Morfoloji: "bağışıklık" sozlukte ANCAK cekimsiz haliyle vardi;
+       belirtme hali olan "bağışıklığı" Turkce'deki unsuz yumusamasi
+       (k→ğ) yuzunden eslesmiyordu (bkz.
+       tests/test_search_query.py::TestUnsuzYumusamasiKatmani).
+
+    Testler iki bicimi de kapsiyor: soru ekli ("mi") ve ekSIZ — ikincisi
+    daha onemli, cunku conversation.py'deki kapi eslesme bulamazsa
+    dogrudan 'tanıyamadım' donduruyor."""
+
+    @pytest.mark.parametrize("claim", [
+        "zerdeçal iltihabı azaltır mı",
+        "soğuk duş bağışıklığı güçlendirir mi",
+        "mikrodalga yemeği zehirler mi",
+    ])
+    @pytest.mark.asyncio
+    async def test_claim_with_question_particle_researched(self, claim):
+        m = ConversationManager()
+        r = await m.handle_message(claim)
+        assert "tanıyamadım" not in r.text.lower(), claim
+
+    @pytest.mark.parametrize("claim", [
+        # soru eki YOK: eslesme bulunamazsa kapi 'tanıyamadım' dondurur
+        "zerdeçal iltihabı azaltır",
+        "soğuk duş bağışıklığı güçlendirir",
+        "mikrodalga yemeği zehirler",
+    ])
+    @pytest.mark.asyncio
+    async def test_claim_without_question_particle_researched(self, claim):
+        m = ConversationManager()
+        r = await m.handle_message(claim)
+        assert "tanıyamadım" not in r.text.lower(), claim
+
+    @pytest.mark.asyncio
+    async def test_gate_still_short_circuits_unrelated_messages(self):
+        """Duzeltme guvenlik kapisini GEVSETMEMELI. "odak grubu nasıl
+        kurulur" bilerek secildi: yeni sozluk girdilerinden "odak"in
+        BILEREK disarida birakilmasi ("odak grubu" is terimi) bu mesajin
+        hala guvenlik kapisinda kalmasini sagliyor — yani yeni kavram
+        eklemenin, alakasiz bir soruyu arastirmaya sokma yan etkisi
+        olmadi. (Bir baska mesaj, "yemek tarifi nasıl yapılır", bu
+        testte kullanilamaz: IntentAnalyzer onu follow_up_more olarak
+        siniflandirir, yani kapi zaten devreye girmez.)"""
+        m = ConversationManager()
+        r = await m.handle_message("odak grubu nasıl kurulur")
+        assert "tanıyamadım" in r.text.lower()
