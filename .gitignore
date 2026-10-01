@@ -18,3 +18,9 @@ evidence/data/
 evidence/v2/data/
 *.db
 *.sqlite3
+
+# Salvor (local tooling caches)
+.tmp/
+.gitnexus/
+.serena/cache/
+**/.claude/skills/gitnexus*/
