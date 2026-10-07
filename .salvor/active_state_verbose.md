@@ -57,7 +57,7 @@ installed). Branch `salvor-provisional` — a field trial of RULES §10.5 provis
 ## 2026-10-07 — Codex A/B/C trial (no code change on main)
 - Operator-requested trial for the upstream Salvor report (dwasyluk/Salvor #1).
   - Setup: codex-cli 0.147.0, ChatGPT Plus. Arms: A = 739bc97, B = 2ff08e8, C = ea027be (salvor-provisional, AGENT_CAPTURE = provisional). Same 5 LF-trap tasks as the 2026-09-25 opencode run.
-  - Score: A 2/5, B 2/5, C 3/5.
+  - Score after the independent audit, intent / literal reading: A 2/1, B 1/1, C 2/2. In T4, B and C both broke `Guillain-Barre` (the key stops matching once all hyphens are deleted).
   - Results: ~/salvor-trial/out_codex/RESULTS_codex_plus.md. Nothing from the trial was merged.
 - Key risk for this brain: in 3 of 5 C runs, Codex rewrote the **Claim/Rule of ratified LFs in place** to match the change it had just made, keeping the `operator-approved` header. Affected: LF:contentless-question, LF:fake-confidence-floor, LF:normalize-strips-meaning.
   - RULES treats a changed Claim as a supersede, which is operator-gated (§10.2), and says unreviewed knowledge must never relax a rule (§10.5).
