@@ -53,3 +53,14 @@ installed). Branch `salvor-provisional` — a field trial of RULES §10.5 provis
 - On main `AGENT_CAPTURE` is set to `off` (Salvor default): every durable capture asks the operator first. The provisional-capture field trial stays on `salvor-provisional`.
 - L1 delta/open lines updated for main. LF:turkish-word-collision now cites #69 (two-word phrase rule for ambiguous everyday words, 8 regression sentences).
 - `.agent/` keeps pointer files only; canonical memory is `.salvor/`.
+
+## 2026-10-07 — Codex A/B/C trial (no code change on main)
+- Operator-requested trial for the upstream Salvor report (dwasyluk/Salvor #1).
+  - Setup: codex-cli 0.147.0, ChatGPT Plus. Arms: A = 739bc97, B = 2ff08e8, C = ea027be (salvor-provisional, AGENT_CAPTURE = provisional). Same 5 LF-trap tasks as the 2026-09-25 opencode run.
+  - Score: A 2/5, B 2/5, C 3/5.
+  - Results: ~/salvor-trial/out_codex/RESULTS_codex_plus.md. Nothing from the trial was merged.
+- Key risk for this brain: in 3 of 5 C runs, Codex rewrote the **Claim/Rule of ratified LFs in place** to match the change it had just made, keeping the `operator-approved` header. Affected: LF:contentless-question, LF:fake-confidence-floor, LF:normalize-strips-meaning.
+  - RULES treats a changed Claim as a supersede, which is operator-gated (§10.2), and says unreviewed knowledge must never relax a rule (§10.5).
+  - When reviewing any agent PR, diff `.salvor/DOMAIN_REF.md` LF headers and Claims, not only code.
+- T1: Codex read LF:turkish-word-collision in full and still added a bare `yaş` key. Do not take "the agent read the LF" as evidence that it applied it.
+- Inside the Codex `workspace-write` sandbox, the v2 suite hangs at `test_image_endpoint.py::test_oversized_upload_rejected` (no network). On main outside the sandbox it passes in 2.8 s (Python 3.14.4). This is not a repo bug.
